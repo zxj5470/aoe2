@@ -29,6 +29,20 @@ class HUD {
         
         this.age = '黑暗时代';
         
+        // Debug面板元素
+        this.debugPanel = document.getElementById('debug-panel');
+        this.debugElements = {
+            position: document.getElementById('debug-position'),
+            target: document.getElementById('debug-target'),
+            zoom: document.getElementById('debug-zoom'),
+            nw: document.getElementById('debug-nw'),
+            ne: document.getElementById('debug-ne'),
+            se: document.getElementById('debug-se'),
+            sw: document.getElementById('debug-sw'),
+            mapWidth: document.getElementById('debug-map-width'),
+            mapHeight: document.getElementById('debug-map-height')
+        };
+        
         this.init();
     }
 
@@ -78,6 +92,20 @@ class HUD {
             this.minimapCanvas.addEventListener('click', (e) => {
                 this.handleMinimapClick(e);
             });
+        }
+        
+        // Debug面板切换（按F12键）
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'F12') {
+                e.preventDefault();
+                this.toggleDebugPanel();
+            }
+        });
+    }
+
+    toggleDebugPanel() {
+        if (this.debugPanel) {
+            this.debugPanel.classList.toggle('visible');
         }
     }
 
@@ -212,6 +240,7 @@ class HUD {
         
         // 坐标变换函数：将世界坐标转换为菱形屏幕坐标
         const worldToScreen = (x, z) => {
+            // 标准化世界坐标到0-1范围
             const normalizedX = x / mapSize.width;
             const normalizedZ = z / mapSize.height;
             
@@ -222,24 +251,25 @@ class HUD {
             return { x: screenX, y: screenY };
         };
         
-        // 绘制网格（菱形）
+        // 绘制菱形网格
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
         ctx.lineWidth = 0.5;
         
-        const gridSize = 20;
+        const gridSize = 10;
         for (let i = 0; i <= gridSize; i++) {
             const t = i / gridSize;
             
-            // 绘制对角线
+            // 绘制对角线（从左下到右上）
             const start1 = worldToScreen(0, mapSize.height * t);
-            const end1 = worldToScreen(mapSize.width, mapSize.height * t);
+            const end1 = worldToScreen(mapSize.width * t, 0);
             ctx.beginPath();
             ctx.moveTo(start1.x, start1.y);
             ctx.lineTo(end1.x, end1.y);
             ctx.stroke();
             
-            const start2 = worldToScreen(mapSize.width * t, 0);
-            const end2 = worldToScreen(mapSize.width * t, mapSize.height);
+            // 绘制对角线（从左上到右下）
+            const start2 = worldToScreen(mapSize.width * t, mapSize.height);
+            const end2 = worldToScreen(0, mapSize.height * t);
             ctx.beginPath();
             ctx.moveTo(start2.x, start2.y);
             ctx.lineTo(end2.x, end2.y);
@@ -267,14 +297,14 @@ class HUD {
         if (this.game.camera) {
             const cameraPos = this.game.camera.getPosition();
             const viewSize = this.game.camera.zoomLevel;
-            
-            // 计算摄像机视野的四个角点
             const halfView = viewSize / 2;
+            
+            // 相机从东南方向看，视野的四个角点
             const corners = [
-                worldToScreen(cameraPos.x - halfView, cameraPos.z - halfView),
-                worldToScreen(cameraPos.x + halfView, cameraPos.z - halfView),
-                worldToScreen(cameraPos.x + halfView, cameraPos.z + halfView),
-                worldToScreen(cameraPos.x - halfView, cameraPos.z + halfView)
+                worldToScreen(cameraPos.x - halfView, cameraPos.z - halfView), // 西北（上方）
+                worldToScreen(cameraPos.x + halfView, cameraPos.z - halfView), // 东北（右方）
+                worldToScreen(cameraPos.x + halfView, cameraPos.z + halfView), // 东南（下方）
+                worldToScreen(cameraPos.x - halfView, cameraPos.z + halfView)  // 西南（左方）
             ];
             
             // 绘制菱形视野框
@@ -291,6 +321,9 @@ class HUD {
         
         // 继续渲染
         requestAnimationFrame(() => this.renderMinimap());
+        
+        // 更新debug面板
+        this.updateDebugPanel();
     }
 
     showNotification(message, duration = 3000) {
@@ -344,12 +377,60 @@ class HUD {
         return this.age;
     }
 
+    updateDebugPanel() {
+        if (!this.debugPanel || !this.debugPanel.classList.contains('visible')) return;
+        
+        // 更新相机位置信息
+        if (this.game.camera) {
+            const pos = this.game.camera.position;
+            const target = this.game.camera.target;
+            
+            if (this.debugElements.position) {
+                this.debugElements.position.textContent = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)})`;
+            }
+            if (this.debugElements.target) {
+                this.debugElements.target.textContent = `(${target.x.toFixed(1)}, ${target.y.toFixed(1)}, ${target.z.toFixed(1)})`;
+            }
+            if (this.debugElements.zoom) {
+                this.debugElements.zoom.textContent = this.game.camera.zoomLevel.toFixed(1);
+            }
+        }
+        
+        // 更新小地图视野信息
+        if (this.game.camera && this.game.map) {
+            const cameraPos = this.game.camera.getPosition();
+            const viewSize = this.game.camera.zoomLevel;
+            const halfView = viewSize / 2;
+            
+            const nw = `(${(cameraPos.x - halfView).toFixed(1)}, ${(cameraPos.z - halfView).toFixed(1)})`;
+            const ne = `(${(cameraPos.x + halfView).toFixed(1)}, ${(cameraPos.z - halfView).toFixed(1)})`;
+            const se = `(${(cameraPos.x + halfView).toFixed(1)}, ${(cameraPos.z + halfView).toFixed(1)})`;
+            const sw = `(${(cameraPos.x - halfView).toFixed(1)}, ${(cameraPos.z + halfView).toFixed(1)})`;
+            
+            if (this.debugElements.nw) this.debugElements.nw.textContent = nw;
+            if (this.debugElements.ne) this.debugElements.ne.textContent = ne;
+            if (this.debugElements.se) this.debugElements.se.textContent = se;
+            if (this.debugElements.sw) this.debugElements.sw.textContent = sw;
+        }
+        
+        // 更新地图信息
+        if (this.game.map) {
+            const mapSize = this.game.map.getSize();
+            
+            if (this.debugElements.mapWidth) {
+                this.debugElements.mapWidth.textContent = mapSize.width.toFixed(0);
+            }
+            if (this.debugElements.mapHeight) {
+                this.debugElements.mapHeight.textContent = mapSize.height.toFixed(0);
+            }
+        }
+    }
+
     handleMinimapClick(event) {
         if (!this.game.map || !this.game.camera) return;
         
         const mapSize = this.game.map.getSize();
         const canvas = this.minimapCanvas;
-        const ctx = this.minimapContext;
         
         // 获取点击位置在canvas中的坐标
         const rect = canvas.getBoundingClientRect();
@@ -379,12 +460,12 @@ class HUD {
         const worldX = worldNormalizedX * mapSize.width;
         const worldZ = worldNormalizedZ * mapSize.height;
         
-        // 移动相机到目标位置
+        // 只修改target，然后调用updateCameraPosition重新计算position
         if (this.game.camera) {
-            this.game.camera.position.x = worldX;
             this.game.camera.target.x = worldX;
-            this.game.camera.position.z = worldZ;
             this.game.camera.target.z = worldZ;
+            this.game.camera.target.y = 0;
+            this.game.camera.updateCameraPosition();
         }
     }
 }

@@ -48,13 +48,13 @@ class Camera {
             1000
         );
         
+        // 先更新相机位置以获得正确的45度视角
+        this.updateCameraPosition();
+        
         // 设置摄像机位置和朝向
         this.camera.position.copy(this.position);
         this.camera.lookAt(this.target);
         this.camera.up.copy(this.up);
-        
-        // 设置摄像机角度（45度，典型的RTS视角）
-        this.setRTSView();
     }
 
     setRTSView() {

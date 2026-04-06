@@ -246,6 +246,55 @@
             display: block;
         }
         
+        #debug-panel {
+            position: absolute;
+            top: 50px;
+            right: 10px;
+            width: 250px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #00FF00;
+            color: #00FF00;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            padding: 10px;
+            z-index: 1000;
+            display: none;
+        }
+        
+        #debug-panel.visible {
+            display: block;
+        }
+        
+        .debug-section {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #00FF00;
+        }
+        
+        .debug-section:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        
+        .debug-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #00FF00;
+        }
+        
+        .debug-row {
+            margin: 2px 0;
+        }
+        
+        .debug-label {
+            color: #888;
+        }
+        
+        .debug-value {
+            color: #00FF00;
+        }
+        
         .loading-screen {
             position: absolute;
             top: 0;
@@ -393,6 +442,27 @@
                     <div id="minimap">
                         <canvas id="minimap-canvas"></canvas>
                     </div>
+                </div>
+            </div>
+            
+            <div id="debug-panel">
+                <div class="debug-section">
+                    <div class="debug-title">相机位置</div>
+                    <div class="debug-row"><span class="debug-label">Position:</span> <span class="debug-value" id="debug-position">-</span></div>
+                    <div class="debug-row"><span class="debug-label">Target:</span> <span class="debug-value" id="debug-target">-</span></div>
+                    <div class="debug-row"><span class="debug-label">Zoom:</span> <span class="debug-value" id="debug-zoom">-</span></div>
+                </div>
+                <div class="debug-section">
+                    <div class="debug-title">小地图视野</div>
+                    <div class="debug-row"><span class="debug-label">西北角:</span> <span class="debug-value" id="debug-nw">-</span></div>
+                    <div class="debug-row"><span class="debug-label">东北角:</span> <span class="debug-value" id="debug-ne">-</span></div>
+                    <div class="debug-row"><span class="debug-label">东南角:</span> <span class="debug-value" id="debug-se">-</span></div>
+                    <div class="debug-row"><span class="debug-label">西南角:</span> <span class="debug-value" id="debug-sw">-</span></div>
+                </div>
+                <div class="debug-section">
+                    <div class="debug-title">地图信息</div>
+                    <div class="debug-row"><span class="debug-label">宽度:</span> <span class="debug-value" id="debug-map-width">-</span></div>
+                    <div class="debug-row"><span class="debug-label">高度:</span> <span class="debug-value" id="debug-map-height">-</span></div>
                 </div>
             </div>
         </div>
