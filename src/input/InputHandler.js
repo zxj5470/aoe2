@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 
 class InputHandler {
-    constructor(camera, canvas, map) {
+    constructor(camera, canvas, map, dragCallback = null) {
         this.camera = camera;
         this.canvas = canvas;
         this.map = map;
+        this.dragCallback = dragCallback; // 拖拽回调函数
         
         this.keys = {};
         this.mouse = {
@@ -97,6 +98,22 @@ class InputHandler {
         this.mouse.x = event.clientX;
         this.mouse.y = event.clientY;
         this.updateWorldPosition();
+        
+        // 如果正在拖拽，实时更新拖拽框的可视化
+        if (this.dragStart && this.mouse.isDown && this.mouse.button === 0) {
+            const dragDistance = Math.sqrt(
+                Math.pow(event.clientX - this.dragStart.x, 2) +
+                Math.pow(event.clientY - this.dragStart.y, 2)
+            );
+            
+            if (dragDistance > 5) {
+                this.isDragging = true;
+                // 调用回调函数更新拖拽框的可视化
+                if (this.dragCallback) {
+                    this.dragCallback(this.dragStart.x, this.dragStart.y, event.clientX, event.clientY);
+                }
+            }
+        }
     }
 
     onWheel(event) {

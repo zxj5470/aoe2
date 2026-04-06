@@ -25,7 +25,6 @@ class Building extends Entity {
         this.productionProgress = 0;
         
         this.selectionRing = null;
-        this.selectionGlow = null;
         this.healthBar = null;
         this.healthBarGroup = null;
         
@@ -209,6 +208,14 @@ class Building extends Entity {
         this.mesh.position.copy(this.position);
         this.mesh.rotation.y = this.rotation;
         this.mesh.scale.set(this.scale, this.scale, this.scale);
+        
+        // 设置userData，让选择系统能够识别实体
+        this.mesh.userData = {
+            type: 'building',
+            buildingType: this.buildingType,
+            entity: this,
+            owner: this.owner
+        };
         
         // 创建选择环
         this.createSelectionRing();
@@ -515,38 +522,48 @@ class Building extends Entity {
     }
 
     createSelectionRing() {
-        const config = this.appearanceConfig;
-        const radius = Math.max(this.width, this.depth) * 0.7;
+        // 创建对齐网格的白色边框
+        const gridSize = 2; // 网格单元格大小
         
-        // 主选择环
-        const ringGeometry = new THREE.RingGeometry(radius, radius + 0.15, 32);
-        const ringMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0x00FF00,
-            side: THREE.DoubleSide,
+        // 计算建筑物的实际占用范围（对齐到网格）
+        const buildingCenterX = this.position.x;
+        const buildingCenterZ = this.position.z;
+        
+        // 将建筑物位置对齐到网格中心
+        const gridX = Math.floor(buildingCenterX / gridSize) * gridSize + gridSize / 2;
+        const gridZ = Math.floor(buildingCenterZ / gridSize) * gridSize + gridSize / 2;
+        
+        // 计算占用的网格数量
+        const gridWidth = Math.ceil(this.width / gridSize) * gridSize;
+        const gridDepth = Math.ceil(this.depth / gridSize) * gridSize;
+        
+        // 计算边框的实际范围
+        const halfWidth = gridWidth / 2;
+        const halfDepth = gridDepth / 2;
+        
+        // 创建白色边框（使用BoxGeometry作为线框）
+        const boxGeometry = new THREE.BoxGeometry(gridWidth, 0.1, gridDepth);
+        const edgesGeometry = new THREE.EdgesGeometry(boxGeometry);
+        const edgesMaterial = new THREE.LineBasicMaterial({ 
+            color: 0xFFFFFF,
             transparent: true,
-            opacity: 0.6
+            opacity: 0.8,
+            linewidth: 2
         });
-        this.selectionRing = new THREE.Mesh(ringGeometry, ringMaterial);
-        this.selectionRing.rotation.x = -Math.PI / 2;
-        this.selectionRing.position.y = 0.05;
+        
+        this.selectionRing = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+        this.selectionRing.position.set(0, 0.05, 0);
         this.selectionRing.visible = false;
         this.selectionRing.name = 'selectionRing';
         this.mesh.add(this.selectionRing);
         
-        // 外部闪烁环
-        const glowRingGeometry = new THREE.RingGeometry(radius + 0.2, radius + 0.35, 32);
-        const glowRingMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0x00FF00,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0.3
-        });
-        this.selectionGlow = new THREE.Mesh(glowRingGeometry, glowRingMaterial);
-        this.selectionGlow.rotation.x = -Math.PI / 2;
-        this.selectionGlow.position.y = 0.05;
-        this.selectionGlow.visible = false;
-        this.selectionGlow.name = 'selectionGlow';
-        this.mesh.add(this.selectionGlow);
+        // 删除旧的selectionGlow（不再需要）
+        if (this.selectionGlow) {
+            this.selectionGlow.geometry.dispose();
+            this.selectionGlow.material.dispose();
+            this.mesh.remove(this.selectionGlow);
+            this.selectionGlow = null;
+        }
     }
     
     /**
@@ -777,26 +794,6 @@ class Building extends Entity {
     updateSelectionVisual(deltaTime = 0) {
         if (this.selectionRing) {
             this.selectionRing.visible = this.isSelected;
-        }
-        if (this.selectionGlow) {
-            this.selectionGlow.visible = this.isSelected;
-        }
-        
-        // 如果选中，更新选择环颜色和闪烁效果
-        if (this.isSelected && this.selectionRing && this.selectionGlow) {
-            const time = Date.now() / 1000;
-            const pulse = Math.sin(time * 2) * 0.3 + 0.7;
-            
-            this.selectionGlow.material.opacity = 0.3 * pulse;
-            
-            // 根据建筑状态改变颜色
-            if (this.isUnderConstruction) {
-                this.selectionRing.material.color.setHex(0xFFFF00); // 黄色（建造中）
-            } else if (this.health < this.maxHealth * 0.5) {
-                this.selectionRing.material.color.setHex(0xFF6600); // 橙色（受损）
-            } else {
-                this.selectionRing.material.color.setHex(0x00FF00); // 绿色（正常）
-            }
         }
     }
     

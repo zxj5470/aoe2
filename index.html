@@ -112,42 +112,52 @@
             left: 0;
             right: 0;
             height: 180px;
-            background: rgba(0, 0, 0, 0.8);
             pointer-events: auto;
             border-top: 2px solid #8B4513;
-            display: flex;
             z-index: 100;
         }
         
         .hud-panel {
             padding: 10px;
             color: #FFD700;
-            border-right: 1px solid #8B4513;
-        }
-        
-        .hud-panel:last-child {
-            border-right: none;
         }
         
         .hud-panel-left {
-            flex: 0 0 280px;
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 280px;
             min-width: 280px;
+            height: 100%;
             display: flex;
             flex-direction: column;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
         }
         
         .hud-panel-center {
-            flex: 1;
-            min-width: 300px;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 0;
+            width: 400px;
+            min-width: 400px;
+            max-width: 400px;
+            background: transparent;
         }
         
         .hud-panel-right {
-            flex: 0 0 220px;
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: 220px;
             min-width: 220px;
+            height: 100%;
             padding: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
+            background: rgba(0, 0, 0, 0.8);
         }
         
         .panel-title {
@@ -363,6 +373,24 @@
             width: 0%;
             transition: width 0.3s ease;
         }
+
+        /* 右键点击特效 */
+        #click-effect {
+            position: absolute;
+            pointer-events: none;
+            z-index: 1000;
+            opacity: 0;
+        }
+
+        /* 拉框效果 */
+        #selection-box {
+            position: absolute;
+            border: 2px solid #00FF00;
+            background: rgba(0, 255, 0, 0.1);
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -520,6 +548,12 @@
                     <div class="debug-row" style="color: #888;">按R: 重置所有按钮</div>
                 </div>
             </div>
+            
+            <!-- 右键点击特效 -->
+            <div id="click-effect"></div>
+            
+            <!-- 拉框效果 -->
+            <div id="selection-box"></div>
         </div>
     </div>
     

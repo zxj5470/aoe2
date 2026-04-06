@@ -6,14 +6,30 @@ class Pathfinding {
         this.cameFrom = new Map();
         this.gScore = new Map();
         this.fScore = new Map();
+        
+        // 路径缓存系统
+        this.pathCache = new Map();
+        this.cacheHits = 0;
+        this.cacheMisses = 0;
+        this.maxCacheSize = 1000; // 最大缓存数量
+        this.cacheTTL = 10000; // 缓存生存时间（毫秒）
     }
 
     findPath(startX, startZ, endX, endZ, options = {}) {
         const {
             allowDiagonals = true,
             avoidEnemies = false,
-            maxIterations = 10000
+            maxIterations = 10000,
+            useCache = true
         } = options;
+
+        // 尝试从缓存获取路径
+        if (useCache) {
+            const cachedPath = this.getCachedPath(startX, startZ, endX, endZ, options);
+            if (cachedPath) {
+                return cachedPath;
+            }
+        }
 
         let startCell = this.grid.getCellAtPosition(startX, startZ);
         let endCell = this.grid.getCellAtPosition(endX, endZ);
@@ -42,7 +58,14 @@ class Pathfinding {
             }
         }
 
-        return this.findAStarPath(startCell, endCell, allowDiagonals, maxIterations);
+        const result = this.findAStarPath(startCell, endCell, allowDiagonals, maxIterations);
+
+        // 缓存成功的路径
+        if (result.success && useCache) {
+            this.cachePath(startX, startZ, endX, endZ, result, options);
+        }
+
+        return result;
     }
 
     findAStarPath(startCell, endCell, allowDiagonals, maxIterations) {
@@ -284,6 +307,230 @@ class Pathfinding {
                 y += sy;
             }
         }
+    }
+
+    /**
+     * 生成缓存键
+     */
+    generateCacheKey(startX, startZ, endX, endZ, options = {}) {
+        const key = `${Math.floor(startX)},${Math.floor(startZ)}-${Math.floor(endX)},${Math.floor(endZ)}-${options.allowDiagonals ? 'diag' : 'nodiag'}`;
+        return key;
+    }
+
+    /**
+     * 从缓存获取路径
+     */
+    getCachedPath(startX, startZ, endX, endZ, options = {}) {
+        const key = this.generateCacheKey(startX, startZ, endX, endZ, options);
+        const cached = this.pathCache.get(key);
+
+        if (!cached) {
+            this.cacheMisses++;
+            return null;
+        }
+
+        // 检查缓存是否过期
+        if (Date.now() - cached.timestamp > this.cacheTTL) {
+            this.pathCache.delete(key);
+            this.cacheMisses++;
+            return null;
+        }
+
+        this.cacheHits++;
+        return { ...cached.data, fromCache: true };
+    }
+
+    /**
+     * 缓存路径
+     */
+    cachePath(startX, startZ, endX, endZ, pathData, options = {}) {
+        const key = this.generateCacheKey(startX, startZ, endX, endZ, options);
+
+        // 如果缓存已满，删除最旧的条目
+        if (this.pathCache.size >= this.maxCacheSize) {
+            const oldestKey = this.pathCache.keys().next().value;
+            this.pathCache.delete(oldestKey);
+        }
+
+        this.pathCache.set(key, {
+            data: pathData,
+            timestamp: Date.now()
+        });
+    }
+
+    /**
+     * 清除路径缓存
+     */
+    clearPathCache() {
+        this.pathCache.clear();
+        this.cacheHits = 0;
+        this.cacheMisses = 0;
+    }
+
+    /**
+     * 获取缓存统计信息
+     */
+    getCacheStats() {
+        return {
+            size: this.pathCache.size,
+            hits: this.cacheHits,
+            misses: this.cacheMisses,
+            hitRate: this.cacheHits + this.cacheMisses > 0 
+                ? (this.cacheHits / (this.cacheHits + this.cacheMisses) * 100).toFixed(2) + '%'
+                : '0%',
+            maxSize: this.maxCacheSize
+        };
+    }
+
+    /**
+     * 使包含指定单元格的缓存路径失效
+     */
+    invalidateCacheForCell(cellX, cellY) {
+        const keysToDelete = [];
+
+        for (const [key, value] of this.pathCache) {
+            const [start, end] = key.split('-');
+            const [sx, sy] = start.split(',').map(Number);
+            const [ex, ey] = end.split('-').map(Number);
+
+            // 检查路径是否经过这个单元格
+            const path = value.data.path;
+            for (const cell of path) {
+                if (cell.x === cellX && cell.y === cellY) {
+                    keysToDelete.push(key);
+                    break;
+                }
+            }
+        }
+
+        for (const key of keysToDelete) {
+            this.pathCache.delete(key);
+        }
+
+        return keysToDelete.length;
+    }
+
+    /**
+     * 动态更新路径（当路径上的单元格状态改变时）
+     */
+    updateDynamicPath(currentPath, currentIndex, unit, avoidCells = []) {
+        if (!currentPath || currentPath.length === 0) {
+            return currentPath;
+        }
+
+        const updatedPath = [];
+        const startCell = currentPath[currentIndex] || currentPath[0];
+        const targetCell = currentPath[currentPath.length - 1];
+
+        // 检查剩余路径是否仍然有效
+        let pathValid = true;
+        for (let i = currentIndex; i < currentPath.length; i++) {
+            const cell = currentPath[i];
+            
+            // 检查单元格是否被占用或不可行走
+            if (!cell.walkable || cell.occupied || avoidCells.includes(cell)) {
+                pathValid = false;
+                break;
+            }
+        }
+
+        if (pathValid) {
+            // 路径仍然有效，无需重新计算
+            return currentPath;
+        }
+
+        // 路径无效，需要重新计算
+        const startPos = unit.getPosition();
+        const endX = targetCell.x * this.grid.cellSize + this.grid.cellSize / 2;
+        const endZ = targetCell.y * this.grid.cellSize + this.grid.cellSize / 2;
+
+        const result = this.findPath(startPos.x, startPos.z, endX, endZ);
+
+        if (result.success) {
+            // 平滑新路径
+            return this.smoothPath(result.path);
+        }
+
+        // 无法找到新路径，返回部分有效路径
+        return currentPath.slice(0, currentIndex + 1);
+    }
+
+    /**
+     * 预测路径冲突（用于多单位协调）
+     */
+    predictPathConflicts(path1, path2, timeWindow = 1000) {
+        const conflicts = [];
+
+        if (!path1 || !path2) {
+            return conflicts;
+        }
+
+        // 简化的冲突检测：检查两个路径是否在相同时间经过相同位置
+        for (let i = 0; i < path1.length; i++) {
+            for (let j = 0; j < path2.length; j++) {
+                if (path1[i].x === path2[j].x && path1[i].y === path2[j].y) {
+                    conflicts.push({
+                        cell: path1[i],
+                        path1Index: i,
+                        path2Index: j
+                    });
+                }
+            }
+        }
+
+        return conflicts;
+    }
+
+    /**
+     * 优化路径以减少转向
+     */
+    optimizePathForMovement(path) {
+        if (path.length <= 2) {
+            return path;
+        }
+
+        const optimizedPath = [path[0]];
+
+        for (let i = 1; i < path.length - 1; i++) {
+            const prev = path[i - 1];
+            const current = path[i];
+            const next = path[i + 1];
+
+            // 检查是否可以跳过当前点
+            if (this.hasLineOfSight(prev, next)) {
+                continue;
+            }
+
+            optimizedPath.push(current);
+        }
+
+        optimizedPath.push(path[path.length - 1]);
+        return optimizedPath;
+    }
+
+    /**
+     * 获取路径的总距离
+     */
+    getPathDistance(path) {
+        if (!path || path.length < 2) {
+            return 0;
+        }
+
+        let totalDistance = 0;
+
+        for (let i = 1; i < path.length; i++) {
+            totalDistance += this.getDistance(path[i - 1], path[i]);
+        }
+
+        return totalDistance;
+    }
+
+    /**
+     * 估算路径的旅行时间
+     */
+    estimateTravelTime(path, speed = 5) {
+        const distance = this.getPathDistance(path);
+        return distance / speed; // 返回秒数
     }
 }
 

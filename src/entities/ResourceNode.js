@@ -51,14 +51,14 @@ class ResourceNode extends Entity {
                 type: 'rock',
                 color: 0x696969,
                 size: 1.0,
-                irregular: true
+                irregular: false
             },
             gold: {
                 type: 'ore',
                 color: 0xFFD700,
                 secondaryColor: 0x8B8000,
                 size: 0.8,
-                sparkle: true
+                sparkle: false
             },
             food: {
                 type: 'bush',
@@ -93,8 +93,21 @@ class ResourceNode extends Entity {
         
         this.mesh = group;
         this.mesh.position.copy(this.position);
-        this.mesh.rotation.y = Math.random() * Math.PI * 2; // 随机旋转
+        
+        // 创建选择环（在设置旋转之前添加，避免选择环也跟着旋转）
+        this.createSelectionRing();
+        
+        // 设置随机旋转（只影响资源节点本身，不影响选择环）
+        this.mesh.rotation.y = Math.random() * Math.PI * 2;
         this.mesh.scale.set(this.scale, this.scale, this.scale);
+        
+        // 设置userData，让选择系统能够识别实体
+        this.mesh.userData = {
+            type: 'resource',
+            resourceType: this.resourceType,
+            entity: this,
+            owner: this.owner
+        };
         
         return this.mesh;
     }
@@ -557,6 +570,48 @@ class ResourceNode extends Entity {
      */
     isAvailable() {
         return this.isAlive && !this.isDepleted;
+    }
+    
+    /**
+     * 创建选择环（对齐网格的白色边框）
+     */
+    createSelectionRing() {
+        const gridSize = 2; // 网格单元格大小
+        const size = this.appearanceConfig.size;
+        
+        // 资源节点占用1个网格单元
+        const gridWidth = gridSize;
+        const gridDepth = gridSize;
+        
+        // 创建白色边框（使用BoxGeometry作为线框）
+        const boxGeometry = new THREE.BoxGeometry(gridWidth, 0.1, gridDepth);
+        const edgesGeometry = new THREE.EdgesGeometry(boxGeometry);
+        const edgesMaterial = new THREE.LineBasicMaterial({ 
+            color: 0xFFFFFF,
+            transparent: true,
+            opacity: 0.8,
+            linewidth: 2
+        });
+        
+        this.selectionRing = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+        this.selectionRing.position.set(0, 0.05, 0);
+        this.selectionRing.visible = false;
+        this.selectionRing.name = 'selectionRing';
+        this.mesh.add(this.selectionRing);
+        
+        // 保存mesh的初始旋转，用于反向旋转选择环
+        this.meshInitialRotation = this.mesh.rotation.y;
+    }
+    
+    /**
+     * 更新选择视觉效果
+     */
+    updateSelectionVisual() {
+        if (this.selectionRing) {
+            this.selectionRing.visible = this.isSelected;
+            // 反向旋转选择环，使其始终朝向世界坐标系的正方向
+            this.selectionRing.rotation.y = -this.mesh.rotation.y + this.meshInitialRotation;
+        }
     }
     
     /**

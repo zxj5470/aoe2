@@ -158,6 +158,14 @@ class Unit extends Entity {
         this.mesh.position.copy(this.position);
         this.mesh.rotation.y = this.rotation;
         
+        // 设置userData，让选择系统能够识别实体
+        this.mesh.userData = {
+            type: 'unit',
+            unitType: this.unitType,
+            entity: this,
+            owner: this.owner
+        };
+        
         // 创建选择环
         this.createSelectionRing();
         
@@ -641,8 +649,9 @@ class Unit extends Entity {
                 direction.normalize();
                 const moveDistance = this.movementSpeed * deltaTime;
                 
+                let newPosition;
                 if (distance <= moveDistance) {
-                    this.position.copy(targetPos);
+                    newPosition = targetPos.clone();
                     
                     if (this.path.length === 0 || this.currentPathIndex >= this.path.length) {
                         this.isMoving = false;
@@ -651,9 +660,22 @@ class Unit extends Entity {
                         this.setAnimationState('idle');
                     }
                 } else {
-                    this.position.add(direction.multiplyScalar(moveDistance));
+                    newPosition = this.position.clone().add(direction.multiplyScalar(moveDistance));
                 }
                 
+                // 限制位置在地图边界内
+                const mapWidth = this.pathfindingSystem ? this.pathfindingSystem.grid.width * this.pathfindingSystem.grid.cellSize : 200;
+                const mapHeight = this.pathfindingSystem ? this.pathfindingSystem.grid.height * this.pathfindingSystem.grid.cellSize : 200;
+                const cellSize = this.pathfindingSystem ? this.pathfindingSystem.grid.cellSize : 2;
+                const minX = -mapWidth / 2 + cellSize;
+                const maxX = mapWidth / 2 - cellSize;
+                const minZ = -mapHeight / 2 + cellSize;
+                const maxZ = mapHeight / 2 - cellSize;
+                
+                newPosition.x = Math.max(minX, Math.min(maxX, newPosition.x));
+                newPosition.z = Math.max(minZ, Math.min(maxZ, newPosition.z));
+                
+                this.position.copy(newPosition);
                 this.mesh.position.copy(this.position);
                 
                 // 旋转朝向目标
@@ -691,6 +713,21 @@ class Unit extends Entity {
     }
 
     moveTo(targetPosition) {
+        // 限制目标位置在地图边界内
+        const mapWidth = this.pathfindingSystem ? this.pathfindingSystem.grid.width * this.pathfindingSystem.grid.cellSize : 200;
+        const mapHeight = this.pathfindingSystem ? this.pathfindingSystem.grid.height * this.pathfindingSystem.grid.cellSize : 200;
+        const cellSize = this.pathfindingSystem ? this.pathfindingSystem.grid.cellSize : 2;
+        
+        // 地图坐标范围是[-100, 100]，所以需要转换
+        const minX = -mapWidth / 2 + cellSize;
+        const maxX = mapWidth / 2 - cellSize;
+        const minZ = -mapHeight / 2 + cellSize;
+        const maxZ = mapHeight / 2 - cellSize;
+        
+        // 限制目标位置
+        targetPosition.x = Math.max(minX, Math.min(maxX, targetPosition.x));
+        targetPosition.z = Math.max(minZ, Math.min(maxZ, targetPosition.z));
+        
         this.targetPosition = targetPosition.clone();
         this.isMoving = true;
         this.currentAction = 'moving';
