@@ -11,8 +11,7 @@ class Scene {
     init() {
         // 创建Three.js场景
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x87CEEB);
-        this.scene.fog = new THREE.Fog(0x87CEEB, 50, 200);
+        this.scene.background = new THREE.Color(0x000000);
         
         // 添加光照
         this.setupLighting();

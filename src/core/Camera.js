@@ -16,7 +16,6 @@ class Camera {
         this.maxZoom = 150;
         this.zoomLevel = 50;
         this.moveSpeed = 30;
-        this.rotationSpeed = 0.5;
         this.borderScrollMargin = 20;
         
         // 输入状态
@@ -60,13 +59,7 @@ class Camera {
 
     setRTSView() {
         // 设置45度俯视视角，固定朝向
-        const distance = this.zoomLevel;
-        
-        // 相机位置在目标位置上方45度角
-        this.position.x = this.target.x;
-        this.position.z = this.target.z + distance * Math.sin(Math.PI / 4);
-        this.position.y = distance * Math.cos(Math.PI / 4);
-        
+        this.updateCameraPosition();
         this.camera.position.copy(this.position);
         this.camera.lookAt(this.target);
     }
@@ -80,6 +73,9 @@ class Camera {
         
         // 处理鼠标拖拽
         this.handleMouseDrag(deltaTime);
+        
+        // 确保target.y始终为0，防止旋转
+        this.target.y = 0;
         
         // 更新摄像机位置（保持固定朝向）
         this.camera.position.copy(this.position);
@@ -103,13 +99,8 @@ class Camera {
             this.moveRight(moveAmount);
         }
         
-        // Q/E旋转
-        if (this.keys['q'] || this.keys['Q']) {
-            this.rotateLeft(deltaTime);
-        }
-        if (this.keys['e'] || this.keys['E']) {
-            this.rotateRight(deltaTime);
-        }
+        // 确保target.y始终为0，防止旋转
+        this.target.y = 0;
     }
 
     handleBorderScroll(deltaTime) {
@@ -164,42 +155,42 @@ class Camera {
     moveForward(amount) {
         // 在屏幕上向上移动，对应3D世界中的 (-1, -1) 方向
         const moveDir = new THREE.Vector3(-1, 0, -1).normalize();
-        this.position.add(moveDir.multiplyScalar(amount));
-        this.target.add(moveDir.multiplyScalar(amount));
+        this.target.add(moveDir.clone().multiplyScalar(amount));
+        this.updateCameraPosition();
     }
 
     moveBackward(amount) {
         // 在屏幕上向下移动，对应3D世界中的 (1, 1) 方向
         const moveDir = new THREE.Vector3(1, 0, 1).normalize();
-        this.position.add(moveDir.multiplyScalar(amount));
-        this.target.add(moveDir.multiplyScalar(amount));
+        this.target.add(moveDir.clone().multiplyScalar(amount));
+        this.updateCameraPosition();
     }
 
     moveLeft(amount) {
         // 在屏幕上向左移动，对应3D世界中的 (-1, 1) 方向
         const moveDir = new THREE.Vector3(-1, 0, 1).normalize();
-        this.position.add(moveDir.multiplyScalar(amount));
-        this.target.add(moveDir.multiplyScalar(amount));
+        this.target.add(moveDir.clone().multiplyScalar(amount));
+        this.updateCameraPosition();
     }
 
     moveRight(amount) {
         // 在屏幕上向右移动，对应3D世界中的 (1, -1) 方向
         const moveDir = new THREE.Vector3(1, 0, -1).normalize();
-        this.position.add(moveDir.multiplyScalar(amount));
-        this.target.add(moveDir.multiplyScalar(amount));
+        this.target.add(moveDir.clone().multiplyScalar(amount));
+        this.updateCameraPosition();
     }
 
-    rotateLeft(deltaTime) {
-        this.target.y -= this.rotationSpeed * deltaTime;
-    }
-
-    rotateRight(deltaTime) {
-        this.target.y += this.rotationSpeed * deltaTime;
+    updateCameraPosition() {
+        // 根据target和固定的俯视角度重新计算position
+        const distance = this.zoomLevel;
+        this.position.x = this.target.x;
+        this.position.z = this.target.z + distance * Math.sin(Math.PI / 4);
+        this.position.y = distance * Math.cos(Math.PI / 4);
     }
 
     zoom(amount) {
         this.zoomLevel = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoomLevel + amount));
-        this.setRTSView();
+        this.updateCameraPosition();
         this.updateProjectionMatrix();
     }
 

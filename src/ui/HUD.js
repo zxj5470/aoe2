@@ -72,6 +72,13 @@ class HUD {
                 this.handleBuildingClick(buildingType, e.target);
             });
         });
+        
+        // 小地图点击事件
+        if (this.minimapCanvas) {
+            this.minimapCanvas.addEventListener('click', (e) => {
+                this.handleMinimapClick(e);
+            });
+        }
     }
 
     handleBuildingClick(buildingType, button) {
@@ -335,6 +342,50 @@ class HUD {
 
     getAge() {
         return this.age;
+    }
+
+    handleMinimapClick(event) {
+        if (!this.game.map || !this.game.camera) return;
+        
+        const mapSize = this.game.map.getSize();
+        const canvas = this.minimapCanvas;
+        const ctx = this.minimapContext;
+        
+        // 获取点击位置在canvas中的坐标
+        const rect = canvas.getBoundingClientRect();
+        const clickX = event.clientX - rect.left;
+        const clickY = event.clientY - rect.top;
+        
+        // 将屏幕坐标转换为归一化坐标（0-1）
+        const normalizedX = clickX / canvas.width;
+        const normalizedY = clickY / canvas.height;
+        
+        // 反向菱形变换：将屏幕坐标转换为世界坐标
+        // 菱形变换公式：
+        // screenX = (normalizedX - normalizedZ) * width * 0.5 + width / 2
+        // screenY = (normalizedX + normalizedZ) * height * 0.5
+        
+        // 反解：
+        // normalizedX + normalizedZ = screenY * 2 / height
+        // normalizedX - normalizedZ = (screenX - width / 2) * 2 / width
+        
+        const sum = normalizedY * 2;
+        const diff = (normalizedX - 0.5) * 2;
+        
+        const worldNormalizedX = (sum + diff) / 2;
+        const worldNormalizedZ = (sum - diff) / 2;
+        
+        // 转换为世界坐标
+        const worldX = worldNormalizedX * mapSize.width;
+        const worldZ = worldNormalizedZ * mapSize.height;
+        
+        // 移动相机到目标位置
+        if (this.game.camera) {
+            this.game.camera.position.x = worldX;
+            this.game.camera.target.x = worldX;
+            this.game.camera.position.z = worldZ;
+            this.game.camera.target.z = worldZ;
+        }
     }
 }
 
