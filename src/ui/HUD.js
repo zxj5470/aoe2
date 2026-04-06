@@ -29,6 +29,30 @@ class HUD {
         
         this.age = '黑暗时代';
         
+        // 建筑面板配置（可动态切换）
+        this.buildingPanelConfig = {
+            rows: 3,
+            cols: 5,
+            totalButtons: 15,
+            buttons: [
+                { id: 'house', icon: '🏠', name: '房屋', type: 'residential' },
+                { id: '', icon: '', name: '', type: 'empty' }, // 兵营位置为空白占位
+                { id: 'farm', icon: '🌾', name: '农田', type: 'economy' },
+                { id: 'lumber-camp', icon: '🪓', name: '伐木场', type: 'economy' },
+                { id: 'mining-camp', icon: '⛏️', name: '采矿场', type: 'economy' },
+                { id: 'watch-tower', icon: '🗼', name: '瞭望塔', type: 'defense' },
+                { id: 'stable', icon: '🐴', name: '马厩', type: 'military' },
+                { id: 'archery-range', icon: '🏹', name: '射箭场', type: 'military' },
+                { id: 'castle', icon: '🏰', name: '城堡', type: 'defense' },
+                { id: 'wall', icon: '🧱', name: '城墙', type: 'defense' },
+                { id: 'gate', icon: '🚪', name: '城门', type: 'defense' },
+                { id: 'blacksmith', icon: '🔨', name: '铁匠铺', type: 'economy' },
+                { id: 'market', icon: '🏪', name: '市场', type: 'economy' },
+                { id: 'dock', icon: '⚓', name: '码头', type: 'economy' },
+                { id: 'church', icon: '⛪', name: '教堂', type: 'special' }
+            ]
+        };
+        
         // Debug面板元素
         this.debugPanel = document.getElementById('debug-panel');
         this.debugElements = {
@@ -40,7 +64,10 @@ class HUD {
             se: document.getElementById('debug-se'),
             sw: document.getElementById('debug-sw'),
             mapWidth: document.getElementById('debug-map-width'),
-            mapHeight: document.getElementById('debug-map-height')
+            mapHeight: document.getElementById('debug-map-height'),
+            panelRows: document.getElementById('debug-panel-rows'),
+            panelCols: document.getElementById('debug-panel-cols'),
+            panelButtons: document.getElementById('debug-panel-buttons')
         };
         
         this.init();
@@ -48,7 +75,11 @@ class HUD {
 
     init() {
         this.setupMinimap();
+        this.initBuildingButtons();
         this.setupEventListeners();
+        
+        // 初始化时设置默认布局
+        this.updateBuildingPanelConfig({ rows: 3, cols: 5, totalButtons: 15 });
     }
 
     setupMinimap() {
@@ -107,6 +138,42 @@ class HUD {
         if (this.debugPanel) {
             this.debugPanel.classList.toggle('visible');
         }
+    }
+    
+    // 更新建筑面板布局配置
+    updateBuildingPanelConfig(config) {
+        this.buildingPanelConfig = {
+            rows: config.rows || 4,
+            cols: config.cols || 3,
+            totalButtons: config.totalButtons || 12
+        };
+        
+        // 更新CSS变量
+        const root = document.documentElement;
+        root.style.setProperty('--building-grid-rows', this.buildingPanelConfig.rows);
+        root.style.setProperty('--building-grid-cols', this.buildingPanelConfig.cols);
+        
+        // 重新计算面板宽度
+        const buttonSize = 52; // 按钮大小（包括间距）
+        const panelWidth = this.buildingPanelConfig.cols * buttonSize + 20; // 20px padding
+        
+        const panelLeft = document.querySelector('.hud-panel-left');
+        if (panelLeft) {
+            panelLeft.style.flex = `0 0 ${panelWidth}px`;
+            panelLeft.style.minWidth = `${panelWidth}px`;
+        }
+        
+        // 更新网格布局
+        const buttonsContainer = document.querySelector('.building-buttons');
+        if (buttonsContainer) {
+            buttonsContainer.style.gridTemplateColumns = `repeat(${this.buildingPanelConfig.cols}, 1fr)`;
+            buttonsContainer.style.gridTemplateRows = `repeat(${this.buildingPanelConfig.rows}, 1fr)`;
+        }
+    }
+    
+    // 获取建筑面板配置
+    getBuildingPanelConfig() {
+        return { ...this.buildingPanelConfig };
     }
 
     handleBuildingClick(buildingType, button) {
@@ -238,15 +305,21 @@ class HUD {
         ctx.fillStyle = '#3d8c40';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
+        // 计算地图的实际范围（考虑中心在原点）
+        const minX = -mapSize.width / 2;
+        const maxX = mapSize.width / 2;
+        const minZ = -mapSize.height / 2;
+        const maxZ = mapSize.height / 2;
+        
         // 坐标变换函数：将世界坐标转换为菱形屏幕坐标
         const worldToScreen = (x, z) => {
-            // 标准化世界坐标到0-1范围
-            const normalizedX = x / mapSize.width;
-            const normalizedZ = z / mapSize.height;
+            // 将世界坐标从[-100, 100]映射到[-0.5, 0.5]
+            const normalizedX = (x - minX) / (maxX - minX) - 0.5;
+            const normalizedZ = (z - minZ) / (maxZ - minZ) - 0.5;
             
             // 菱形变换
             const screenX = (normalizedX - normalizedZ) * canvas.width * 0.5 + canvas.width / 2;
-            const screenY = (normalizedX + normalizedZ) * canvas.height * 0.5;
+            const screenY = (normalizedX + normalizedZ) * canvas.height * 0.5 + canvas.height / 2;
             
             return { x: screenX, y: screenY };
         };
@@ -259,17 +332,19 @@ class HUD {
         for (let i = 0; i <= gridSize; i++) {
             const t = i / gridSize;
             
-            // 绘制对角线（从左下到右上）
-            const start1 = worldToScreen(0, mapSize.height * t);
-            const end1 = worldToScreen(mapSize.width * t, 0);
+            // 绘制 z 固定的线（x 从 minX 到 maxX，z 固定为 t）
+            const zPos = minZ + (maxZ - minZ) * t;
+            const start1 = worldToScreen(minX, zPos);
+            const end1 = worldToScreen(maxX, zPos);
             ctx.beginPath();
             ctx.moveTo(start1.x, start1.y);
             ctx.lineTo(end1.x, end1.y);
             ctx.stroke();
             
-            // 绘制对角线（从左上到右下）
-            const start2 = worldToScreen(mapSize.width * t, mapSize.height);
-            const end2 = worldToScreen(0, mapSize.height * t);
+            // 绘制 x 固定的线（x 固定为 t，z 从 minZ 到 maxZ）
+            const xPos = minX + (maxX - minX) * t;
+            const start2 = worldToScreen(xPos, minZ);
+            const end2 = worldToScreen(xPos, maxZ);
             ctx.beginPath();
             ctx.moveTo(start2.x, start2.y);
             ctx.lineTo(end2.x, end2.y);
@@ -293,28 +368,26 @@ class HUD {
             }
         }
         
-        // 绘制摄像机视野（菱形框）
+        // 绘制摄像机视野（矩形框）
         if (this.game.camera) {
-            const cameraPos = this.game.camera.getPosition();
+            const cameraTarget = this.game.camera.target;
             const viewSize = this.game.camera.zoomLevel;
             const halfView = viewSize / 2;
             
-            // 相机从东南方向看，视野的四个角点
-            const corners = [
-                worldToScreen(cameraPos.x - halfView, cameraPos.z - halfView), // 西北（上方）
-                worldToScreen(cameraPos.x + halfView, cameraPos.z - halfView), // 东北（右方）
-                worldToScreen(cameraPos.x + halfView, cameraPos.z + halfView), // 东南（下方）
-                worldToScreen(cameraPos.x - halfView, cameraPos.z + halfView)  // 西南（左方）
-            ];
+            // 计算视野的四个角点（矩形）
+            const topLeft = worldToScreen(cameraTarget.x - halfView, cameraTarget.z - halfView);
+            const topRight = worldToScreen(cameraTarget.x + halfView, cameraTarget.z - halfView);
+            const bottomRight = worldToScreen(cameraTarget.x + halfView, cameraTarget.z + halfView);
+            const bottomLeft = worldToScreen(cameraTarget.x - halfView, cameraTarget.z + halfView);
             
-            // 绘制菱形视野框
+            // 绘制矩形视野框
             ctx.strokeStyle = '#FFFFFF';
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.moveTo(corners[0].x, corners[0].y);
-            ctx.lineTo(corners[1].x, corners[1].y);
-            ctx.lineTo(corners[2].x, corners[2].y);
-            ctx.lineTo(corners[3].x, corners[3].y);
+            ctx.moveTo(topLeft.x, topLeft.y);
+            ctx.lineTo(topRight.x, topRight.y);
+            ctx.lineTo(bottomRight.x, bottomRight.y);
+            ctx.lineTo(bottomLeft.x, bottomLeft.y);
             ctx.closePath();
             ctx.stroke();
         }
@@ -398,14 +471,14 @@ class HUD {
         
         // 更新小地图视野信息
         if (this.game.camera && this.game.map) {
-            const cameraPos = this.game.camera.getPosition();
+            const cameraTarget = this.game.camera.target;
             const viewSize = this.game.camera.zoomLevel;
             const halfView = viewSize / 2;
             
-            const nw = `(${(cameraPos.x - halfView).toFixed(1)}, ${(cameraPos.z - halfView).toFixed(1)})`;
-            const ne = `(${(cameraPos.x + halfView).toFixed(1)}, ${(cameraPos.z - halfView).toFixed(1)})`;
-            const se = `(${(cameraPos.x + halfView).toFixed(1)}, ${(cameraPos.z + halfView).toFixed(1)})`;
-            const sw = `(${(cameraPos.x - halfView).toFixed(1)}, ${(cameraPos.z + halfView).toFixed(1)})`;
+            const nw = `(${(cameraTarget.x - halfView).toFixed(1)}, ${(cameraTarget.z - halfView).toFixed(1)})`;
+            const ne = `(${(cameraTarget.x + halfView).toFixed(1)}, ${(cameraTarget.z - halfView).toFixed(1)})`;
+            const se = `(${(cameraTarget.x + halfView).toFixed(1)}, ${(cameraTarget.z + halfView).toFixed(1)})`;
+            const sw = `(${(cameraTarget.x - halfView).toFixed(1)}, ${(cameraTarget.z + halfView).toFixed(1)})`;
             
             if (this.debugElements.nw) this.debugElements.nw.textContent = nw;
             if (this.debugElements.ne) this.debugElements.ne.textContent = ne;
@@ -416,12 +489,46 @@ class HUD {
         // 更新地图信息
         if (this.game.map) {
             const mapSize = this.game.map.getSize();
+            const minX = -mapSize.width / 2;
+            const maxX = mapSize.width / 2;
+            const minZ = -mapSize.height / 2;
+            const maxZ = mapSize.height / 2;
             
             if (this.debugElements.mapWidth) {
-                this.debugElements.mapWidth.textContent = mapSize.width.toFixed(0);
+                this.debugElements.mapWidth.textContent = `[${minX.toFixed(0)}, ${maxX.toFixed(0)}]`;
             }
             if (this.debugElements.mapHeight) {
-                this.debugElements.mapHeight.textContent = mapSize.height.toFixed(0);
+                this.debugElements.mapHeight.textContent = `[${minZ.toFixed(0)}, ${maxZ.toFixed(0)}]`;
+            }
+        }
+        
+        // 更新建筑面板配置
+        const config = this.getBuildingPanelConfig();
+        if (this.debugElements.panelRows) {
+            this.debugElements.panelRows.textContent = config.rows;
+        }
+        if (this.debugElements.panelCols) {
+            this.debugElements.panelCols.textContent = config.cols;
+        }
+        if (this.debugElements.panelButtons) {
+            this.debugElements.panelButtons.textContent = config.totalButtons;
+        }
+        
+        // 统计空白按钮数量
+        const emptyCount = this.buildingPanelConfig.buttons.filter(b => b.type === 'empty').length;
+        if (emptyCount > 0) {
+            const existingElement = document.getElementById('debug-empty-count');
+            if (!existingElement && this.debugPanel) {
+                const section = this.debugPanel.querySelector('.debug-section:last-of-type');
+                if (section) {
+                    const row = document.createElement('div');
+                    row.className = 'debug-row';
+                    row.id = 'debug-empty-count';
+                    row.innerHTML = `<span class="debug-label">空白按钮:</span> <span class="debug-value">${emptyCount}个</span>`;
+                    section.appendChild(row);
+                }
+            } else if (existingElement) {
+                existingElement.innerHTML = `<span class="debug-label">空白按钮:</span> <span class="debug-value">${emptyCount}个</span>`;
             }
         }
     }
@@ -432,33 +539,37 @@ class HUD {
         const mapSize = this.game.map.getSize();
         const canvas = this.minimapCanvas;
         
+        // 计算地图的实际范围
+        const minX = -mapSize.width / 2;
+        const maxX = mapSize.width / 2;
+        const minZ = -mapSize.height / 2;
+        const maxZ = mapSize.height / 2;
+        
         // 获取点击位置在canvas中的坐标
         const rect = canvas.getBoundingClientRect();
         const clickX = event.clientX - rect.left;
         const clickY = event.clientY - rect.top;
         
-        // 将屏幕坐标转换为归一化坐标（0-1）
-        const normalizedX = clickX / canvas.width;
-        const normalizedY = clickY / canvas.height;
+        // 归一化坐标
+        const normX = clickX / canvas.width;
+        const normY = clickY / canvas.height;
         
-        // 反向菱形变换：将屏幕坐标转换为世界坐标
-        // 菱形变换公式：
-        // screenX = (normalizedX - normalizedZ) * width * 0.5 + width / 2
-        // screenY = (normalizedX + normalizedZ) * height * 0.5
-        
+        // 反向菱形变换：从屏幕坐标反推归一化世界坐标
+        // 正向变换公式（考虑中心偏移）：
+        // screenX = (nx - nz) * w/2 + w/2
+        // screenY = (nx + nz) * h/2 + h/2
+        //
         // 反解：
-        // normalizedX + normalizedZ = screenY * 2 / height
-        // normalizedX - normalizedZ = (screenX - width / 2) * 2 / width
+        // nx = screenX/w + screenY/h - 1
+        // nz = screenY/h - screenX/w
         
-        const sum = normalizedY * 2;
-        const diff = (normalizedX - 0.5) * 2;
+        const normalizedX = normX + normY - 1;
+        const normalizedZ = normY - normX;
         
-        const worldNormalizedX = (sum + diff) / 2;
-        const worldNormalizedZ = (sum - diff) / 2;
-        
-        // 转换为世界坐标
-        const worldX = worldNormalizedX * mapSize.width;
-        const worldZ = worldNormalizedZ * mapSize.height;
+        // 将归一化坐标（范围[-0.5, 0.5]）转换为实际世界坐标
+        // 需要先加0.5映射回[0, 1]
+        const worldX = minX + (normalizedX + 0.5) * (maxX - minX);
+        const worldZ = minZ + (normalizedZ + 0.5) * (maxZ - minZ);
         
         // 只修改target，然后调用updateCameraPosition重新计算position
         if (this.game.camera) {
@@ -467,6 +578,141 @@ class HUD {
             this.game.camera.target.y = 0;
             this.game.camera.updateCameraPosition();
         }
+    }
+    
+    // 初始化建筑按钮
+    initBuildingButtons() {
+        const container = document.querySelector('.building-buttons');
+        if (!container) return;
+        
+        // 清空现有按钮
+        container.innerHTML = '';
+        
+        // 根据配置渲染按钮
+        this.buildingPanelConfig.buttons.forEach(button => {
+            const btn = document.createElement('button');
+            btn.className = 'building-btn';
+            btn.dataset.building = button.id || '';
+            btn.dataset.index = this.buildingPanelConfig.buttons.indexOf(button);
+            
+            // 如果type为empty，添加特殊样式
+            if (button.type === 'empty') {
+                btn.classList.add('building-btn-empty');
+                btn.disabled = true;
+                btn.dataset.building = '';
+            }
+            
+            const icon = document.createElement('span');
+            icon.className = 'building-btn-icon';
+            icon.textContent = button.icon || '';
+            
+            const text = document.createElement('span');
+            text.className = 'building-btn-text';
+            text.textContent = button.name || '';
+            
+            btn.appendChild(icon);
+            btn.appendChild(text);
+            container.appendChild(btn);
+        });
+        
+        // 重新获取按钮引用
+        this.buildingButtons = document.querySelectorAll('.building-btn');
+    }
+    
+    // 更新单个按钮的配置
+    updateBuildingButton(index, config) {
+        if (index < 0 || index >= this.buildingPanelConfig.buttons.length) {
+            console.error(`Invalid button index: ${index}`);
+            return;
+        }
+        
+        // 更新配置
+        this.buildingPanelConfig.buttons[index] = {
+            ...this.buildingPanelConfig.buttons[index],
+            ...config
+        };
+        
+        // 更新DOM
+        const buttons = document.querySelectorAll('.building-btn');
+        const btn = buttons[index];
+        if (btn) {
+            const buttonConfig = this.buildingPanelConfig.buttons[index];
+            
+            btn.dataset.building = buttonConfig.id || '';
+            btn.dataset.index = index;
+            
+            // 处理空白状态（type为empty）
+            if (buttonConfig.type === 'empty') {
+                btn.classList.add('building-btn-empty');
+                btn.disabled = true;
+                btn.dataset.building = '';
+            } else {
+                btn.classList.remove('building-btn-empty');
+                btn.disabled = false;
+            }
+            
+            const icon = btn.querySelector('.building-btn-icon');
+            const text = btn.querySelector('.building-btn-text');
+            if (icon) icon.textContent = buttonConfig.icon || '';
+            if (text) text.textContent = buttonConfig.name || '';
+        }
+    }
+    
+    // 获取按钮配置
+    getBuildingButtonConfig(index) {
+        if (index < 0 || index >= this.buildingPanelConfig.buttons.length) {
+            return null;
+        }
+        return { ...this.buildingPanelConfig.buttons[index] };
+    }
+    
+    // 批量更新按钮配置
+    updateBuildingButtons(buttonConfigs) {
+        buttonConfigs.forEach((config, index) => {
+            if (config) {
+                this.updateBuildingButton(index, config);
+            }
+        });
+    }
+    
+    // 设置按钮为空白占位
+    setButtonEmpty(index, isEmpty = true) {
+        if (index < 0 || index >= this.buildingPanelConfig.buttons.length) {
+            console.error(`Invalid button index: ${index}`);
+            return;
+        }
+        
+        this.updateBuildingButton(index, {
+            type: isEmpty ? 'empty' : 'residential',
+            icon: '',
+            name: '',
+            id: ''
+        });
+    }
+    
+    // 启用按钮（取消空白状态）
+    enableButton(index, config = {}) {
+        if (index < 0 || index >= this.buildingPanelConfig.buttons.length) {
+            console.error(`Invalid button index: ${index}`);
+            return;
+        }
+        
+        const originalButton = this.buildingPanelConfig.buttons[index];
+        this.updateBuildingButton(index, {
+            type: 'residential',
+            disabled: false,
+            icon: config.icon || '',
+            name: config.name || '',
+            id: config.id || '',
+            ...config
+        });
+    }
+    
+    // 批量设置空白按钮
+    setButtonsEmpty(indices) {
+        indices.forEach(index => {
+            this.setButtonEmpty(index, true);
+        });
     }
 }
 

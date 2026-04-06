@@ -132,6 +132,8 @@
         .hud-panel-left {
             flex: 0 0 280px;
             min-width: 280px;
+            display: flex;
+            flex-direction: column;
         }
         
         .hud-panel-center {
@@ -160,7 +162,8 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             grid-template-rows: repeat(4, 1fr);
-            gap: 6px;
+            gap: 4px;
+            flex: 1;
         }
         
         .building-btn {
@@ -172,8 +175,8 @@
             cursor: pointer;
             font-size: 11px;
             transition: all 0.2s;
-            min-height: 50px;
             overflow: hidden;
+            aspect-ratio: 1;
         }
         
         .building-btn:hover {
@@ -184,6 +187,18 @@
         .building-btn.active {
             background: #8B4513;
             border-color: #00FF00;
+        }
+        
+        .building-btn-empty {
+            background: transparent !important;
+            border: 2px solid transparent !important;
+            cursor: default;
+            pointer-events: none;
+        }
+        
+        .building-btn-empty .building-btn-icon,
+        .building-btn-empty .building-btn-text {
+            display: none;
         }
         
         .building-btn-icon {
@@ -293,6 +308,12 @@
         
         .debug-value {
             color: #00FF00;
+        }
+        
+        /* 建筑面板配置变量 */
+        :root {
+            --building-grid-rows: 3;
+            --building-grid-cols: 5;
         }
         
         .loading-screen {
@@ -426,6 +447,18 @@
                             <span class="building-btn-icon">⚒️</span>
                             <span class="building-btn-text">铁匠铺</span>
                         </button>
+                        <button class="building-btn" data-building="market">
+                            <span class="building-btn-icon">🏪</span>
+                            <span class="building-btn-text">市场</span>
+                        </button>
+                        <button class="building-btn" data-building="dock">
+                            <span class="building-btn-icon">⚓</span>
+                            <span class="building-btn-text">码头</span>
+                        </button>
+                        <button class="building-btn" data-building="church">
+                            <span class="building-btn-icon">⛪</span>
+                            <span class="building-btn-text">教堂</span>
+                        </button>
                     </div>
                 </div>
                 
@@ -460,9 +493,18 @@
                     <div class="debug-row"><span class="debug-label">西南角:</span> <span class="debug-value" id="debug-sw">-</span></div>
                 </div>
                 <div class="debug-section">
-                    <div class="debug-title">地图信息</div>
-                    <div class="debug-row"><span class="debug-label">宽度:</span> <span class="debug-value" id="debug-map-width">-</span></div>
-                    <div class="debug-row"><span class="debug-label">高度:</span> <span class="debug-value" id="debug-map-height">-</span></div>
+                    <div class="debug-title">地图范围</div>
+                    <div class="debug-row"><span class="debug-label">X范围:</span> <span class="debug-value" id="debug-map-width">-</span></div>
+                    <div class="debug-row"><span class="debug-label">Z范围:</span> <span class="debug-value" id="debug-map-height">-</span></div>
+                </div>
+                <div class="debug-section">
+                    <div class="debug-title">建筑面板配置</div>
+                    <div class="debug-row"><span class="debug-label">行数:</span> <span class="debug-value" id="debug-panel-rows">-</span></div>
+                    <div class="debug-row"><span class="debug-label">列数:</span> <span class="debug-value" id="debug-panel-cols">-</span></div>
+                    <div class="debug-row"><span class="debug-label">按钮数:</span> <span class="debug-value" id="debug-panel-buttons">-</span></div>
+                    <div class="debug-row" style="margin-top: 5px; color: #888;">按1/2/3切换布局</div>
+                    <div class="debug-row" style="color: #888;">按Q/E: 空白/启用兵营</div>
+                    <div class="debug-row" style="color: #888;">按R: 重置所有按钮</div>
                 </div>
             </div>
         </div>

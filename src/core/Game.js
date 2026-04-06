@@ -297,6 +297,67 @@ class Game {
 
     onKeyDown(event) {
         this.camera.handleKeyDown(event);
+        
+        // F12切换debug面板
+        if (event.key === 'F12') {
+            event.preventDefault();
+            if (this.hud) {
+                this.hud.toggleDebugPanel();
+            }
+        }
+        
+        // 数字键1-3切换建筑面板布局
+        if (event.key === '1') {
+            // 3行5列（默认）
+            if (this.hud) {
+                this.hud.updateBuildingPanelConfig({ rows: 3, cols: 5, totalButtons: 15 });
+                console.log('建筑面板布局：3行5列（默认）');
+            }
+        }
+        if (event.key === '2') {
+            // 4行3列
+            if (this.hud) {
+                this.hud.updateBuildingPanelConfig({ rows: 4, cols: 3, totalButtons: 12 });
+                console.log('建筑面板布局：4行3列');
+            }
+        }
+        if (event.key === '3') {
+            // 4行4列
+            if (this.hud) {
+                this.hud.updateBuildingPanelConfig({ rows: 4, cols: 4, totalButtons: 16 });
+                console.log('建筑面板布局：4行4列');
+            }
+        }
+        
+        // Q键：设置兵营为空白
+        if (event.key === 'q' || event.key === 'Q') {
+            if (this.hud) {
+                this.hud.setButtonEmpty(1, true);
+                console.log('兵营已设置为空白占位（type: empty）');
+            }
+        }
+        
+        // E键：启用兵营
+        if (event.key === 'e' || event.key === 'E') {
+            if (this.hud) {
+                this.hud.enableButton(1, {
+                    icon: '⚔️',
+                    name: '兵营',
+                    id: 'barracks',
+                    type: 'military'
+                });
+                console.log('兵营已启用');
+            }
+        }
+        
+        // R键：重置所有按钮
+        if (event.key === 'r' || event.key === 'R') {
+            if (this.hud) {
+                const allIndices = Array.from({ length: 15 }, (_, i) => i);
+                allIndices.forEach(i => this.hud.enableButton(i));
+                console.log('所有按钮已重置');
+            }
+        }
     }
 
     onKeyUp(event) {
