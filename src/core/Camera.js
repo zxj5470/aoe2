@@ -8,6 +8,9 @@ class Camera {
         this.target = new THREE.Vector3(0, 0, 0);
         this.up = new THREE.Vector3(0, 1, 0);
         
+        // 固定的相机朝向（45度俯视）
+        this.cameraDirection = new THREE.Vector3(1, -1, 1).normalize();
+        
         // 摄像机控制参数
         this.minZoom = 20;
         this.maxZoom = 150;
@@ -56,13 +59,13 @@ class Camera {
     }
 
     setRTSView() {
-        // 设置45度视角
+        // 设置45度俯视视角，固定朝向
         const distance = this.zoomLevel;
-        const angle = Math.PI / 4; // 45度
         
+        // 相机位置在目标位置上方45度角
         this.position.x = this.target.x;
-        this.position.z = this.target.z + distance * Math.sin(angle);
-        this.position.y = distance * Math.cos(angle);
+        this.position.z = this.target.z + distance * Math.sin(Math.PI / 4);
+        this.position.y = distance * Math.cos(Math.PI / 4);
         
         this.camera.position.copy(this.position);
         this.camera.lookAt(this.target);
@@ -78,7 +81,7 @@ class Camera {
         // 处理鼠标拖拽
         this.handleMouseDrag(deltaTime);
         
-        // 更新摄像机位置
+        // 更新摄像机位置（保持固定朝向）
         this.camera.position.copy(this.position);
         this.camera.lookAt(this.target);
     }
@@ -159,29 +162,31 @@ class Camera {
     }
 
     moveForward(amount) {
-        // 在XZ平面上向前移动（沿摄像机视角方向）
-        const direction = new THREE.Vector3(0, 0, -1);
-        direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4);
-        const moveDir = direction.clone().normalize();
+        // 在屏幕上向上移动，对应3D世界中的 (-1, -1) 方向
+        const moveDir = new THREE.Vector3(-1, 0, -1).normalize();
         this.position.add(moveDir.multiplyScalar(amount));
         this.target.add(moveDir.multiplyScalar(amount));
     }
 
     moveBackward(amount) {
-        this.moveForward(-amount);
+        // 在屏幕上向下移动，对应3D世界中的 (1, 1) 方向
+        const moveDir = new THREE.Vector3(1, 0, 1).normalize();
+        this.position.add(moveDir.multiplyScalar(amount));
+        this.target.add(moveDir.multiplyScalar(amount));
     }
 
     moveLeft(amount) {
-        // 在XZ平面上向左移动（沿摄像机视角方向）
-        const direction = new THREE.Vector3(-1, 0, 0);
-        direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4);
-        const moveDir = direction.clone().normalize();
+        // 在屏幕上向左移动，对应3D世界中的 (-1, 1) 方向
+        const moveDir = new THREE.Vector3(-1, 0, 1).normalize();
         this.position.add(moveDir.multiplyScalar(amount));
         this.target.add(moveDir.multiplyScalar(amount));
     }
 
     moveRight(amount) {
-        this.moveLeft(-amount);
+        // 在屏幕上向右移动，对应3D世界中的 (1, -1) 方向
+        const moveDir = new THREE.Vector3(1, 0, -1).normalize();
+        this.position.add(moveDir.multiplyScalar(amount));
+        this.target.add(moveDir.multiplyScalar(amount));
     }
 
     rotateLeft(deltaTime) {

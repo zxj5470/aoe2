@@ -9,11 +9,25 @@ class HUD {
             stone: document.getElementById('resource-stone')
         };
         
+        this.populationElements = {
+            current: document.getElementById('population-current'),
+            max: document.getElementById('population-max')
+        };
+        
+        this.ageElement = document.getElementById('current-age');
+        
         this.minimapCanvas = document.getElementById('minimap-canvas');
         this.minimapContext = this.minimapCanvas ? this.minimapCanvas.getContext('2d') : null;
         
         this.unitInfoContent = document.getElementById('unit-info-content');
         this.buildingButtons = document.querySelectorAll('.building-btn');
+        
+        this.population = {
+            current: 1,
+            max: 20
+        };
+        
+        this.age = '黑暗时代';
         
         this.init();
     }
@@ -293,6 +307,34 @@ class HUD {
         setTimeout(() => {
             this.element.removeChild(notification);
         }, duration);
+    }
+
+    updatePopulation(current, max) {
+        this.population.current = current;
+        this.population.max = max;
+        
+        if (this.populationElements.current) {
+            this.populationElements.current.textContent = current;
+        }
+        if (this.populationElements.max) {
+            this.populationElements.max.textContent = max;
+        }
+    }
+
+    updateAge(ageName) {
+        this.age = ageName;
+        
+        if (this.ageElement) {
+            this.ageElement.textContent = ageName;
+        }
+    }
+
+    getPopulation() {
+        return this.population;
+    }
+
+    getAge() {
+        return this.age;
     }
 }
 

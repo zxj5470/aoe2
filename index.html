@@ -43,32 +43,67 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 40px;
+            height: 45px;
             background: rgba(0, 0, 0, 0.8);
             pointer-events: auto;
             border-bottom: 2px solid #8B4513;
+            z-index: 100;
+        }
+        
+        .resource-left {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
             display: flex;
             align-items: center;
-            justify-content: center;
-            z-index: 100;
+            gap: 20px;
         }
         
         .resource-display {
             display: flex;
-            gap: 30px;
+            gap: 20px;
             color: #FFD700;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: bold;
         }
         
         .resource-item {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
         
         .resource-item span:first-child {
-            font-size: 20px;
+            font-size: 18px;
+        }
+        
+        .population-display {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #FFD700;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 4px 10px;
+            background: rgba(139, 69, 19, 0.5);
+            border: 1px solid #8B4513;
+            border-radius: 3px;
+        }
+        
+        .age-display {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            color: #FFD700;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+            padding: 5px 20px;
+            background: rgba(139, 69, 19, 0.7);
+            border: 2px solid #8B4513;
+            border-radius: 5px;
         }
         
         #hud {
@@ -95,8 +130,8 @@
         }
         
         .hud-panel-left {
-            flex: 0 0 250px;
-            min-width: 250px;
+            flex: 0 0 280px;
+            min-width: 280px;
         }
         
         .hud-panel-center {
@@ -123,18 +158,25 @@
         
         .building-buttons {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 6px;
         }
         
         .building-btn {
-            padding: 8px;
+            padding: 10px 8px;
             background: #5a3d2b;
             color: #FFD700;
             border: 2px solid #8B4513;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 11px;
             transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            min-height: 50px;
         }
         
         .building-btn:hover {
@@ -145,6 +187,10 @@
         .building-btn.active {
             background: #8B4513;
             border-color: #00FF00;
+        }
+        
+        .building-btn-icon {
+            font-size: 20px;
         }
         
         .unit-info {
@@ -238,23 +284,34 @@
             </div>
             
             <div id="resource-bar">
-                <div class="resource-display">
-                    <div class="resource-item">
+                <div class="resource-left">
+                    <div class="resource-display">
+                        <div class="resource-item">
+                            <span>🍖</span>
+                            <span id="resource-food">0</span>
+                        </div>
+                        <div class="resource-item">
+                            <span>🌲</span>
+                            <span id="resource-wood">0</span>
+                        </div>
+                        <div class="resource-item">
+                            <span>🏅</span>
+                            <span id="resource-gold">0</span>
+                        </div>
+                        <div class="resource-item">
+                            <span>🪨</span>
+                            <span id="resource-stone">0</span>
+                        </div>
+                    </div>
+                    <div class="population-display">
                         <span>🏠</span>
-                        <span id="resource-gold">0</span>
+                        <span id="population-current">1</span>
+                        <span>/</span>
+                        <span id="population-max">20</span>
                     </div>
-                    <div class="resource-item">
-                        <span>🌲</span>
-                        <span id="resource-wood">0</span>
-                    </div>
-                    <div class="resource-item">
-                        <span>🍖</span>
-                        <span id="resource-food">0</span>
-                    </div>
-                    <div class="resource-item">
-                        <span>🪨</span>
-                        <span id="resource-stone">0</span>
-                    </div>
+                </div>
+                <div class="age-display">
+                    <span id="current-age">黑暗时代</span>
                 </div>
             </div>
             
@@ -262,12 +319,18 @@
                 <div class="hud-panel hud-panel-left">
                     <div class="panel-title">建筑模式</div>
                     <div class="building-buttons">
-                        <button class="building-btn" data-building="house">🏠 房屋</button>
-                        <button class="building-btn" data-building="barracks">⚔️ 兵营</button>
-                        <button class="building-btn" data-building="farm">🌾 农田</button>
-                        <button class="building-btn" data-building="lumber">🌲 伐木场</button>
-                        <button class="building-btn" data-building="mine">⛏️ 采矿场</button>
-                        <button class="building-btn" data-building="tower">🗼 瞭望塔</button>
+                        <button class="building-btn" data-building="house"><span class="building-btn-icon">🏠</span><span>房屋</span></button>
+                        <button class="building-btn" data-building="barracks"><span class="building-btn-icon">⚔️</span><span>兵营</span></button>
+                        <button class="building-btn" data-building="stable"><span class="building-btn-icon">🐴</span><span>马厩</span></button>
+                        <button class="building-btn" data-building="archery"><span class="building-btn-icon">🏹</span><span>射箭场</span></button>
+                        <button class="building-btn" data-building="farm"><span class="building-btn-icon">🌾</span><span>农田</span></button>
+                        <button class="building-btn" data-building="lumber"><span class="building-btn-icon">🌲</span><span>伐木场</span></button>
+                        <button class="building-btn" data-building="mine"><span class="building-btn-icon">⛏️</span><span>采矿场</span></button>
+                        <button class="building-btn" data-building="tower"><span class="building-btn-icon">🗼</span><span>瞭望塔</span></button>
+                        <button class="building-btn" data-building="castle"><span class="building-btn-icon">🏰</span><span>城堡</span></button>
+                        <button class="building-btn" data-building="wall"><span class="building-btn-icon">🧱</span><span>城墙</span></button>
+                        <button class="building-btn" data-building="gate"><span class="building-btn-icon">🚪</span><span>城门</span></button>
+                        <button class="building-btn" data-building="blacksmith"><span class="building-btn-icon">⚒️</span><span>铁匠铺</span></button>
                     </div>
                 </div>
                 
