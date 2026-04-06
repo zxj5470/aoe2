@@ -9,20 +9,17 @@ class HUD {
             stone: document.getElementById('resource-stone')
         };
         
-        this.minimapElement = document.getElementById('minimap');
         this.minimapCanvas = document.getElementById('minimap-canvas');
-        this.minimapContext = this.minimapCanvas.getContext('2d');
+        this.minimapContext = this.minimapCanvas ? this.minimapCanvas.getContext('2d') : null;
         
-        this.selectionPanel = null;
-        this.actionPanel = null;
+        this.unitInfoContent = document.getElementById('unit-info-content');
+        this.buildingButtons = document.querySelectorAll('.building-btn');
         
         this.init();
     }
 
     init() {
         this.setupMinimap();
-        this.setupSelectionPanel();
-        this.setupActionPanel();
         this.setupEventListeners();
     }
 
@@ -37,52 +34,12 @@ class HUD {
         this.renderMinimap();
     }
 
-    setupSelectionPanel() {
-        // 创建选择面板
-        const selectionPanel = document.createElement('div');
-        selectionPanel.className = 'selection-panel';
-        selectionPanel.style.cssText = `
-            position: absolute;
-            bottom: 160px;
-            left: 10px;
-            width: 200px;
-            background: rgba(0, 0, 0, 0.8);
-            border: 2px solid #8B4513;
-            color: #FFD700;
-            padding: 10px;
-            display: none;
-        `;
-        
-        this.element.appendChild(selectionPanel);
-        this.selectionPanel = selectionPanel;
-    }
-
-    setupActionPanel() {
-        // 创建动作面板
-        const actionPanel = document.createElement('div');
-        actionPanel.className = 'action-panel';
-        actionPanel.style.cssText = `
-            position: absolute;
-            bottom: 160px;
-            left: 220px;
-            width: 400px;
-            background: rgba(0, 0, 0, 0.8);
-            border: 2px solid #8B4513;
-            color: #FFD700;
-            padding: 10px;
-            display: none;
-        `;
-        
-        this.element.appendChild(actionPanel);
-        this.actionPanel = actionPanel;
-    }
-
     setupEventListeners() {
         // 监听选择变化
         if (this.game.selectionManager) {
             this.game.selectionManager.addListener((event, data) => {
                 if (event === 'select' || event === 'selectMultiple' || event === 'deselectAll') {
-                    this.updateSelectionPanel();
+                    this.updateUnitInfoPanel();
                 }
             });
         }
@@ -92,6 +49,30 @@ class HUD {
             this.game.resourceManager.addListener((type, amount) => {
                 this.updateResourceDisplay();
             });
+        }
+        
+        // 建筑按钮点击事件
+        this.buildingButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const buildingType = e.target.dataset.building;
+                this.handleBuildingClick(buildingType, e.target);
+            });
+        });
+    }
+
+    handleBuildingClick(buildingType, button) {
+        // 切换建筑放置模式
+        if (this.game.buildingPlacementSystem) {
+            this.game.buildingPlacementSystem.togglePlacement(buildingType);
+            
+            // 更新按钮状态
+            this.buildingButtons.forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            if (this.game.buildingPlacementSystem.isPlacing) {
+                button.classList.add('active');
+            }
         }
     }
 
@@ -114,89 +95,87 @@ class HUD {
         }
     }
 
-    updateSelectionPanel() {
-        if (!this.game.selectionManager) return;
+    updateUnitInfoPanel() {
+        if (!this.game.selectionManager || !this.unitInfoContent) return;
         
         const selectedEntities = this.game.selectionManager.getSelectedEntities();
         
         if (selectedEntities.length === 0) {
-            this.selectionPanel.style.display = 'none';
-            this.actionPanel.style.display = 'none';
+            this.unitInfoContent.innerHTML = `
+                <div style="color: #888; text-align: center; padding: 40px 0;">
+                    未选择任何单位
+                </div>
+            `;
             return;
         }
         
-        this.selectionPanel.style.display = 'block';
-        this.actionPanel.style.display = 'block';
-        
-        // 更新选择面板内容
-        let html = `<div style="font-size: 14px; margin-bottom: 5px;">已选择: ${selectedEntities.length}</div>`;
+        // 更新单位信息面板内容
+        let html = '';
         
         if (selectedEntities.length === 1) {
             const entity = selectedEntities[0];
-            html += `
-                <div style="font-size: 12px;">名称: ${entity.name}</div>
-                <div style="font-size: 12px;">生命值: ${entity.health}/${entity.maxHealth}</div>
-                <div style="font-size: 12px;">类型: ${entity.type}</div>
+            const healthPercent = (entity.health / entity.maxHealth) * 100;
+            
+            html = `
+                <div class="info-row">
+                    <span>名称:</span>
+                    <span>${entity.name}</span>
+                </div>
+                <div class="info-row">
+                    <span>类型:</span>
+                    <span>${entity.type}</span>
+                </div>
+                <div class="info-row" style="margin-top: 10px;">
+                    <span>生命值:</span>
+                    <span>${entity.health}/${entity.maxHealth}</span>
+                </div>
+                <div class="health-bar">
+                    <div class="health-bar-fill" style="width: ${healthPercent}%"></div>
+                </div>
             `;
+            
+            // 添加特定属性
+            if (entity.type === 'unit') {
+                html += `
+                    <div class="info-row" style="margin-top: 8px;">
+                        <span>攻击力:</span>
+                        <span>${entity.attackDamage || 0}</span>
+                    </div>
+                    <div class="info-row">
+                        <span>护甲:</span>
+                        <span>${entity.armor || 0}</span>
+                    </div>
+                    <div class="info-row">
+                        <span>速度:</span>
+                        <span>${entity.speed || 0}</span>
+                    </div>
+                `;
+            } else if (entity.type === 'building') {
+                html += `
+                    <div class="info-row" style="margin-top: 8px;">
+                        <span>建筑类型:</span>
+                        <span>${entity.buildingType || '未知'}</span>
+                    </div>
+                `;
+            }
         } else {
+            // 多选显示
+            html = `<div class="info-row"><span>已选择:</span><span>${selectedEntities.length} 个单位</span></div>`;
+            
             const types = {};
             for (const entity of selectedEntities) {
                 const type = entity.unitType || entity.buildingType || entity.type;
                 types[type] = (types[type] || 0) + 1;
             }
             
-            html += '<div style="font-size: 12px;">';
+            html += '<div style="margin-top: 10px;">';
             for (const type in types) {
-                html += `${type}: ${types[type]}<br>`;
+                html += `<div class="info-row"><span>${type}:</span><span>${types[type]}</span></div>`;
             }
             html += '</div>';
         }
         
-        this.selectionPanel.innerHTML = html;
-        
-        // 更新动作面板内容
-        this.updateActionPanel(selectedEntities);
-    }
-
-    updateActionPanel(entities) {
-        let html = '<div style="display: flex; gap: 10px; flex-wrap: wrap;">';
-        
-        // 添加通用动作按钮
-        html += `
-            <button onclick="game.actionStop()" style="padding: 5px 10px; background: #8B4513; color: #FFD700; border: 1px solid #FFD700; cursor: pointer;">停止</button>
-        `;
-        
-        // 根据实体类型添加特定动作
-        const firstEntity = entities[0];
-        
-        if (firstEntity.type === 'unit') {
-            html += `
-                <button onclick="game.actionMove()" style="padding: 5px 10px; background: #8B4513; color: #FFD700; border: 1px solid #FFD700; cursor: pointer;">移动</button>
-                <button onclick="game.actionAttack()" style="padding: 5px 10px; background: #8B4513; color: #FFD700; border: 1px solid #FFD700; cursor: pointer;">攻击</button>
-            `;
-            
-            if (firstEntity.unitType === 'villager') {
-                html += `
-                    <button onclick="game.actionBuild('house')" style="padding: 5px 10px; background: #8B4513; color: #FFD700; border: 1px solid #FFD700; cursor: pointer;">建造房屋</button>
-                    <button onclick="game.actionBuild('barracks')" style="padding: 5px 10px; background: #8B4513; color: #FFD700; border: 1px solid #FFD700; cursor: pointer;">建造兵营</button>
-                `;
-            }
-        } else if (firstEntity.type === 'building') {
-            html += `
-                <button onclick="game.actionRepair()" style="padding: 5px 10px; background: #8B4513; color: #FFD700; border: 1px solid #FFD700; cursor: pointer;">修理</button>
-            `;
-            
-            if (firstEntity.buildingType === 'barracks') {
-                html += `
-                    <button onclick="game.actionTrain('swordsman')" style="padding: 5px 10px; background: #8B4513; color: #FFD700; border: 1px solid #FFD700; cursor: pointer;">训练剑士</button>
-                    <button onclick="game.actionTrain('spearman')" style="padding: 5px 10px; background: #8B4513; color: #FFD700; border: 1px solid #FFD700; cursor: pointer;">训练枪兵</button>
-                `;
-            }
-        }
-        
-        html += '</div>';
-        
-        this.actionPanel.innerHTML = html;
+        this.unitInfoContent.innerHTML = html;
     }
 
     renderMinimap() {
@@ -210,44 +189,83 @@ class HUD {
         ctx.fillStyle = '#3d8c40';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // 绘制地形
-        const grid = this.game.map.getGrid();
-        const cellSize = grid.cellSize;
+        // 坐标变换函数：将世界坐标转换为菱形屏幕坐标
+        const worldToScreen = (x, z) => {
+            const normalizedX = x / mapSize.width;
+            const normalizedZ = z / mapSize.height;
+            
+            // 菱形变换
+            const screenX = (normalizedX - normalizedZ) * canvas.width * 0.5 + canvas.width / 2;
+            const screenY = (normalizedX + normalizedZ) * canvas.height * 0.5;
+            
+            return { x: screenX, y: screenY };
+        };
         
-        // 简化：只绘制基本地形
-        // 实际实现需要遍历网格并绘制每个格子
+        // 绘制网格（菱形）
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.lineWidth = 0.5;
+        
+        const gridSize = 20;
+        for (let i = 0; i <= gridSize; i++) {
+            const t = i / gridSize;
+            
+            // 绘制对角线
+            const start1 = worldToScreen(0, mapSize.height * t);
+            const end1 = worldToScreen(mapSize.width, mapSize.height * t);
+            ctx.beginPath();
+            ctx.moveTo(start1.x, start1.y);
+            ctx.lineTo(end1.x, end1.y);
+            ctx.stroke();
+            
+            const start2 = worldToScreen(mapSize.width * t, 0);
+            const end2 = worldToScreen(mapSize.width * t, mapSize.height);
+            ctx.beginPath();
+            ctx.moveTo(start2.x, start2.y);
+            ctx.lineTo(end2.x, end2.y);
+            ctx.stroke();
+        }
         
         // 绘制实体
         for (const entity of this.game.entities) {
             if (!entity.isAlive) continue;
             
-            const x = (entity.position.x / mapSize.width) * canvas.width;
-            const y = (entity.position.z / mapSize.height) * canvas.height;
+            const pos = worldToScreen(entity.position.x, entity.position.z);
             
             ctx.fillStyle = entity.owner === 'player' ? '#4169E1' : '#DC143C';
             
             if (entity.type === 'unit') {
                 ctx.beginPath();
-                ctx.arc(x, y, 2, 0, Math.PI * 2);
+                ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
                 ctx.fill();
             } else if (entity.type === 'building') {
-                ctx.fillRect(x - 3, y - 3, 6, 6);
+                ctx.fillRect(pos.x - 3, pos.y - 3, 6, 6);
             }
         }
         
-        // 绘制摄像机视野
+        // 绘制摄像机视野（菱形框）
         if (this.game.camera) {
             const cameraPos = this.game.camera.getPosition();
             const viewSize = this.game.camera.zoomLevel;
             
-            const camX = (cameraPos.x / mapSize.width) * canvas.width;
-            const camY = (cameraPos.z / mapSize.height) * canvas.height;
-            const camWidth = (viewSize / mapSize.width) * canvas.width;
-            const camHeight = (viewSize / mapSize.height) * canvas.height;
+            // 计算摄像机视野的四个角点
+            const halfView = viewSize / 2;
+            const corners = [
+                worldToScreen(cameraPos.x - halfView, cameraPos.z - halfView),
+                worldToScreen(cameraPos.x + halfView, cameraPos.z - halfView),
+                worldToScreen(cameraPos.x + halfView, cameraPos.z + halfView),
+                worldToScreen(cameraPos.x - halfView, cameraPos.z + halfView)
+            ];
             
+            // 绘制菱形视野框
             ctx.strokeStyle = '#FFFFFF';
             ctx.lineWidth = 2;
-            ctx.strokeRect(camX - camWidth / 2, camY - camHeight / 2, camWidth, camHeight);
+            ctx.beginPath();
+            ctx.moveTo(corners[0].x, corners[0].y);
+            ctx.lineTo(corners[1].x, corners[1].y);
+            ctx.lineTo(corners[2].x, corners[2].y);
+            ctx.lineTo(corners[3].x, corners[3].y);
+            ctx.closePath();
+            ctx.stroke();
         }
         
         // 继续渲染

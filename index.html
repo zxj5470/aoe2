@@ -38,45 +38,155 @@
             pointer-events: none;
         }
         
-        #hud {
+        #resource-bar {
             position: absolute;
-            bottom: 0;
+            top: 0;
             left: 0;
             right: 0;
-            height: 150px;
+            height: 40px;
             background: rgba(0, 0, 0, 0.8);
             pointer-events: auto;
-            border-top: 2px solid #8B4513;
+            border-bottom: 2px solid #8B4513;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
         }
         
         .resource-display {
             display: flex;
-            gap: 20px;
-            padding: 10px;
+            gap: 30px;
             color: #FFD700;
-            font-size: 14px;
+            font-size: 16px;
+            font-weight: bold;
         }
         
         .resource-item {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 8px;
+        }
+        
+        .resource-item span:first-child {
+            font-size: 20px;
+        }
+        
+        #hud {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 180px;
+            background: rgba(0, 0, 0, 0.8);
+            pointer-events: auto;
+            border-top: 2px solid #8B4513;
+            display: flex;
+            z-index: 100;
+        }
+        
+        .hud-panel {
+            padding: 10px;
+            color: #FFD700;
+            border-right: 1px solid #8B4513;
+        }
+        
+        .hud-panel:last-child {
+            border-right: none;
+        }
+        
+        .hud-panel-left {
+            flex: 0 0 250px;
+            min-width: 250px;
+        }
+        
+        .hud-panel-center {
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .hud-panel-right {
+            flex: 0 0 220px;
+            min-width: 220px;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .panel-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #8B4513;
+            padding-bottom: 5px;
+        }
+        
+        .building-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        
+        .building-btn {
+            padding: 8px;
+            background: #5a3d2b;
+            color: #FFD700;
+            border: 2px solid #8B4513;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        
+        .building-btn:hover {
+            background: #8B4513;
+            border-color: #FFD700;
+        }
+        
+        .building-btn.active {
+            background: #8B4513;
+            border-color: #00FF00;
+        }
+        
+        .unit-info {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+        }
+        
+        .health-bar {
+            width: 100%;
+            height: 16px;
+            background: #333;
+            border: 1px solid #8B4513;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .health-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00FF00, #90EE90);
+            transition: width 0.3s;
         }
         
         #minimap {
-            position: absolute;
-            bottom: 160px;
-            right: 10px;
             width: 200px;
             height: 200px;
             background: rgba(0, 0, 0, 0.7);
             border: 2px solid #8B4513;
             pointer-events: auto;
+            position: relative;
         }
         
         #minimap-canvas {
             width: 100%;
             height: 100%;
+            display: block;
         }
         
         .loading-screen {
@@ -126,10 +236,8 @@
                     <div class="loading-progress" id="loading-progress"></div>
                 </div>
             </div>
-            <div id="minimap">
-                <canvas id="minimap-canvas"></canvas>
-            </div>
-            <div id="hud">
+            
+            <div id="resource-bar">
                 <div class="resource-display">
                     <div class="resource-item">
                         <span>🏠</span>
@@ -146,6 +254,35 @@
                     <div class="resource-item">
                         <span>🪨</span>
                         <span id="resource-stone">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="hud">
+                <div class="hud-panel hud-panel-left">
+                    <div class="panel-title">建筑模式</div>
+                    <div class="building-buttons">
+                        <button class="building-btn" data-building="house">🏠 房屋</button>
+                        <button class="building-btn" data-building="barracks">⚔️ 兵营</button>
+                        <button class="building-btn" data-building="farm">🌾 农田</button>
+                        <button class="building-btn" data-building="lumber">🌲 伐木场</button>
+                        <button class="building-btn" data-building="mine">⛏️ 采矿场</button>
+                        <button class="building-btn" data-building="tower">🗼 瞭望塔</button>
+                    </div>
+                </div>
+                
+                <div class="hud-panel hud-panel-center">
+                    <div class="panel-title">单位信息</div>
+                    <div id="unit-info-content" class="unit-info">
+                        <div style="color: #888; text-align: center; padding: 40px 0;">
+                            未选择任何单位
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="hud-panel hud-panel-right">
+                    <div id="minimap">
+                        <canvas id="minimap-canvas"></canvas>
                     </div>
                 </div>
             </div>

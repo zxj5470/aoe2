@@ -159,11 +159,12 @@ class Camera {
     }
 
     moveForward(amount) {
-        // 在XZ平面上向前移动
+        // 在XZ平面上向前移动（沿摄像机视角方向）
         const direction = new THREE.Vector3(0, 0, -1);
         direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4);
-        this.position.add(direction.multiplyScalar(amount));
-        this.target.add(direction.multiplyScalar(amount));
+        const moveDir = direction.clone().normalize();
+        this.position.add(moveDir.multiplyScalar(amount));
+        this.target.add(moveDir.multiplyScalar(amount));
     }
 
     moveBackward(amount) {
@@ -171,11 +172,12 @@ class Camera {
     }
 
     moveLeft(amount) {
-        // 在XZ平面上向左移动
+        // 在XZ平面上向左移动（沿摄像机视角方向）
         const direction = new THREE.Vector3(-1, 0, 0);
         direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 4);
-        this.position.add(direction.multiplyScalar(amount));
-        this.target.add(direction.multiplyScalar(amount));
+        const moveDir = direction.clone().normalize();
+        this.position.add(moveDir.multiplyScalar(amount));
+        this.target.add(moveDir.multiplyScalar(amount));
     }
 
     moveRight(amount) {
