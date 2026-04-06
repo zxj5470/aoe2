@@ -1,0 +1,25 @@
+{
+    "name": "aoe2-web",
+    "version": "1.0.0",
+    "description": "帝国时代2 Web版",
+    "type": "module",
+    "main": "src/main.js",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
+    "keywords": [
+        "game",
+        "threejs",
+        "aoe2"
+    ],
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "three": "^0.160.0"
+    },
+    "devDependencies": {
+        "vite": "^5.0.0"
+    }
+}
