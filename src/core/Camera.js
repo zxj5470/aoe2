@@ -153,28 +153,28 @@ class Camera {
     }
 
     moveForward(amount) {
-        // 在屏幕上向上移动，对应3D世界中的 (-1, -1) 方向
+        // 相机从东南方向看，屏幕上方向对应地图的西北方向 (-x, -z)
         const moveDir = new THREE.Vector3(-1, 0, -1).normalize();
         this.target.add(moveDir.clone().multiplyScalar(amount));
         this.updateCameraPosition();
     }
 
     moveBackward(amount) {
-        // 在屏幕上向下移动，对应3D世界中的 (1, 1) 方向
+        // 相机从东南方向看，屏幕下方向对应地图的东南方向 (+x, +z)
         const moveDir = new THREE.Vector3(1, 0, 1).normalize();
         this.target.add(moveDir.clone().multiplyScalar(amount));
         this.updateCameraPosition();
     }
 
     moveLeft(amount) {
-        // 在屏幕上向左移动，对应3D世界中的 (-1, 1) 方向
+        // 相机从东南方向看，屏幕左方向对应地图的西南方向 (-x, +z)
         const moveDir = new THREE.Vector3(-1, 0, 1).normalize();
         this.target.add(moveDir.clone().multiplyScalar(amount));
         this.updateCameraPosition();
     }
 
     moveRight(amount) {
-        // 在屏幕上向右移动，对应3D世界中的 (1, -1) 方向
+        // 相机从东南方向看，屏幕右方向对应地图的东北方向 (+x, -z)
         const moveDir = new THREE.Vector3(1, 0, -1).normalize();
         this.target.add(moveDir.clone().multiplyScalar(amount));
         this.updateCameraPosition();
@@ -182,10 +182,16 @@ class Camera {
 
     updateCameraPosition() {
         // 根据target和固定的俯视角度重新计算position
+        // 相机从东南方向（+x, +z）45度俯视看地面
         const distance = this.zoomLevel;
-        this.position.x = this.target.x;
-        this.position.z = this.target.z + distance * Math.sin(Math.PI / 4);
-        this.position.y = distance * Math.cos(Math.PI / 4);
+        
+        // 对于45度俯视，水平距离 = 垂直高度
+        const height = distance / Math.sqrt(2);
+        
+        // 相机位置：在目标位置东南方向上方
+        this.position.x = this.target.x + height;
+        this.position.z = this.target.z + height;
+        this.position.y = height;
     }
 
     zoom(amount) {
