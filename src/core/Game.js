@@ -5,6 +5,9 @@ import GameMap from '../world/Map.js';
 import InputHandler from '../input/InputHandler.js';
 import SelectionManager from '../input/SelectionManager.js';
 import ResourceManager from '../entities/ResourceManager.js';
+import Unit from '../entities/Unit.js';
+import Building from '../entities/Building.js';
+import ResourceNode from '../entities/ResourceNode.js';
 import MovementSystem from '../systems/MovementSystem.js';
 import Pathfinding from '../systems/Pathfinding.js';
 import FormationSystem from '../systems/FormationSystem.js';
@@ -145,17 +148,298 @@ class Game {
             this.scene.addEntity({ getMesh: () => decoration });
         }
         
+        // 初始化测试单位（验证单位渲染系统）
+        this.initTestUnits();
+        
+        // 初始化测试建筑（验证建筑渲染系统）
+        this.initTestBuildings();
+        
+        // 初始化测试资源节点（验证资源节点系统）
+        this.initTestResources();
+        
         // 初始化单位
-        // 初始化建筑
         this.updateResourceDisplay();
+    }
+    
+    /**
+     * 初始化测试单位，用于验证单位渲染系统
+     */
+    initTestUnits() {
+        // 创建不同类型的测试单位
+        const unitConfigs = [
+            // 村民（3个）
+            { unitType: 'villager', name: '村民1', x: -5, z: 0 },
+            { unitType: 'villager', name: '村民2', x: -5, z: 3 },
+            { unitType: 'villager', name: '村民3', x: -5, z: -3 },
+            
+            // 士兵（2个）
+            { unitType: 'soldier', name: '士兵1', x: 0, z: 5 },
+            { unitType: 'soldier', name: '士兵2', x: 3, z: 5 },
+            
+            // 骑士（2个）
+            { unitType: 'knight', name: '骑士1', x: 5, z: 0 },
+            { unitType: 'knight', name: '骑士2', x: 5, z: -3 },
+            
+            // 弓箭手（2个）
+            { unitType: 'archer', name: '弓箭手1', x: 0, z: -5 },
+            { unitType: 'archer', name: '弓箭手2', x: -3, z: -5 },
+            
+            // 侦察兵（1个）
+            { unitType: 'scout', name: '侦察兵1', x: 10, z: 10 }
+        ];
+        
+        // 创建并添加所有单位
+        for (const config of unitConfigs) {
+            const unit = new Unit({
+                ...config,
+                owner: 'player',
+                health: 50,
+                maxHealth: 50,
+                speed: 5,
+                attackDamage: config.unitType === 'knight' ? 15 : 
+                             config.unitType === 'soldier' ? 10 : 
+                             config.unitType === 'archer' ? 8 : 5,
+                attackRange: config.unitType === 'archer' ? 5 : 1,
+                attackSpeed: 1,
+                armor: config.unitType === 'knight' ? 3 : 
+                       config.unitType === 'soldier' ? 2 : 1,
+                sightRange: 6,
+                pathfindingSystem: this.pathfinding,
+                formationSystem: this.formationSystem
+            });
+            
+            // 创建单位的3D模型
+            const unitMesh = unit.createMesh();
+            if (unitMesh) {
+                this.scene.addEntity(unit);
+                this.entities.push(unit);
+            }
+        }
+        
+        // 创建一些敌方单位
+        const enemyConfigs = [
+            { unitType: 'soldier', name: '敌人士兵1', x: -10, z: 10, owner: 'enemy' },
+            { unitType: 'knight', name: '敌方骑士1', x: -10, z: 15, owner: 'enemy' },
+            { unitType: 'archer', name: '敌方弓箭手1', x: -15, z: 10, owner: 'enemy' }
+        ];
+        
+        for (const config of enemyConfigs) {
+            const unit = new Unit({
+                ...config,
+                health: 50,
+                maxHealth: 50,
+                speed: 5,
+                attackDamage: config.unitType === 'knight' ? 15 : 
+                             config.unitType === 'soldier' ? 10 : 
+                             config.unitType === 'archer' ? 8 : 5,
+                attackRange: config.unitType === 'archer' ? 5 : 1,
+                attackSpeed: 1,
+                armor: config.unitType === 'knight' ? 3 : 
+                       config.unitType === 'soldier' ? 2 : 1,
+                sightRange: 6,
+                pathfindingSystem: this.pathfinding,
+                formationSystem: this.formationSystem
+            });
+            
+            const unitMesh = unit.createMesh();
+            if (unitMesh) {
+                this.scene.addEntity(unit);
+                this.entities.push(unit);
+            }
+        }
+        
+        console.log(`已创建 ${unitConfigs.length + enemyConfigs.length} 个测试单位`);
+    }
+    
+    /**
+     * 初始化测试建筑，用于验证建筑渲染系统
+     */
+    initTestBuildings() {
+        // 创建不同类型的测试建筑
+        const buildingConfigs = [
+            // 住宅（3个）
+            { buildingType: 'house', name: '房屋1', x: 8, z: 0 },
+            { buildingType: 'house', name: '房屋2', x: 8, z: 4 },
+            { buildingType: 'house', name: '房屋3', x: 8, z: -4 },
+            
+            // 军事建筑
+            { buildingType: 'barracks', name: '兵营', x: 12, z: 8 },
+            { buildingType: 'stable', name: '马厩', x: 15, z: 12 },
+            { buildingType: 'archery_range', name: '射箭场', x: 18, z: 8 },
+            { buildingType: 'watch_tower', name: '瞭望塔', x: 20, z: 5 },
+            
+            // 经济建筑
+            { buildingType: 'market', name: '市场', x: 12, z: -8 },
+            { buildingType: 'blacksmith', name: '铁匠铺', x: 15, z: -12 },
+            
+            // 特殊建筑
+            { buildingType: 'church', name: '教堂', x: 20, z: 0 },
+            { buildingType: 'castle', name: '城堡', x: 25, z: 0 }
+        ];
+        
+        // 创建并添加所有建筑
+        for (const config of buildingConfigs) {
+            const building = new Building({
+                ...config,
+                owner: 'player',
+                health: 200,
+                maxHealth: 200,
+                width: this.getBuildingWidth(config.buildingType),
+                depth: this.getBuildingDepth(config.buildingType),
+                height: this.getBuildingHeight(config.buildingType)
+            });
+            
+            // 创建建筑的3D模型
+            const buildingMesh = building.createMesh();
+            if (buildingMesh) {
+                this.scene.addEntity(building);
+                this.entities.push(building);
+            }
+        }
+        
+        // 创建一些敌方建筑
+        const enemyBuildingConfigs = [
+            { buildingType: 'barracks', name: '敌军兵营', x: -15, z: 8, owner: 'enemy' },
+            { buildingType: 'watch_tower', name: '敌军瞭望塔', x: -18, z: 12, owner: 'enemy' },
+            { buildingType: 'house', name: '敌军房屋', x: -12, z: 15, owner: 'enemy' }
+        ];
+        
+        for (const config of enemyBuildingConfigs) {
+            const building = new Building({
+                ...config,
+                health: 200,
+                maxHealth: 200,
+                width: this.getBuildingWidth(config.buildingType),
+                depth: this.getBuildingDepth(config.buildingType),
+                height: this.getBuildingHeight(config.buildingType)
+            });
+            
+            const buildingMesh = building.createMesh();
+            if (buildingMesh) {
+                this.scene.addEntity(building);
+                this.entities.push(building);
+            }
+        }
+        
+        console.log(`已创建 ${buildingConfigs.length + enemyBuildingConfigs.length} 个测试建筑`);
+    }
+    
+    /**
+     * 初始化测试资源节点，用于验证资源节点系统
+     */
+    initTestResources() {
+        // 创建不同类型的测试资源节点
+        const resourceConfigs = [
+            // 树木（木材资源）
+            { resourceType: 'wood', name: '树木1', x: -15, z: 0, amount: 150 },
+            { resourceType: 'wood', name: '树木2', x: -18, z: 3, amount: 150 },
+            { resourceType: 'wood', name: '树木3', x: -18, z: -3, amount: 150 },
+            { resourceType: 'wood', name: '树木4', x: -20, z: 6, amount: 150 },
+            { resourceType: 'wood', name: '树木5', x: -20, z: -6, amount: 150 },
+            { resourceType: 'wood', name: '树木6', x: -22, z: 0, amount: 150 },
+            
+            // 岩石（石材资源）
+            { resourceType: 'stone', name: '岩石1', x: -10, z: -10, amount: 200 },
+            { resourceType: 'stone', name: '岩石2', x: -13, z: -12, amount: 200 },
+            { resourceType: 'stone', name: '岩石3', x: -7, z: -13, amount: 200 },
+            
+            // 金矿（黄金资源）
+            { resourceType: 'gold', name: '金矿1', x: 0, z: -15, amount: 300 },
+            { resourceType: 'gold', name: '金矿2', x: 3, z: -18, amount: 300 },
+            { resourceType: 'gold', name: '金矿3', x: -3, z: -18, amount: 300 },
+            
+            // 浆果丛（食物资源）
+            { resourceType: 'food', name: '浆果丛1', x: 10, z: 15, amount: 100 },
+            { resourceType: 'food', name: '浆果丛2', x: 13, z: 18, amount: 100 },
+            { resourceType: 'food', name: '浆果丛3', x: 7, z: 18, amount: 100 },
+            { resourceType: 'food', name: '浆果丛4', x: 15, z: 15, amount: 100 }
+        ];
+        
+        // 创建并添加所有资源节点
+        for (const config of resourceConfigs) {
+            const resourceNode = new ResourceNode({
+                ...config,
+                health: 100,
+                maxHealth: 100,
+                gatherSpeed: 1,
+                canRespawn: true,
+                respawnTime: 60
+            });
+            
+            // 创建资源节点的3D模型
+            const resourceMesh = resourceNode.createMesh();
+            if (resourceMesh) {
+                this.scene.addEntity(resourceNode);
+                this.entities.push(resourceNode);
+            }
+        }
+        
+        console.log(`已创建 ${resourceConfigs.length} 个测试资源节点`);
+    }
+    
+    /**
+     * 获取建筑宽度
+     */
+    getBuildingWidth(buildingType) {
+        const widths = {
+            house: 2,
+            barracks: 3,
+            stable: 3,
+            archery_range: 2.5,
+            castle: 5,
+            market: 3,
+            church: 3,
+            blacksmith: 2.5,
+            watch_tower: 1.5
+        };
+        return widths[buildingType] || 2;
+    }
+    
+    /**
+     * 获取建筑深度
+     */
+    getBuildingDepth(buildingType) {
+        const depths = {
+            house: 2,
+            barracks: 2.5,
+            stable: 3,
+            archery_range: 2.5,
+            castle: 5,
+            market: 2.5,
+            church: 4,
+            blacksmith: 2.5,
+            watch_tower: 1.5
+        };
+        return depths[buildingType] || 2;
+    }
+    
+    /**
+     * 获取建筑高度
+     */
+    getBuildingHeight(buildingType) {
+        const heights = {
+            house: 2,
+            barracks: 2.5,
+            stable: 2.2,
+            archery_range: 2,
+            castle: 4,
+            market: 2,
+            church: 3.5,
+            blacksmith: 2,
+            watch_tower: 3
+        };
+        return heights[buildingType] || 2;
     }
 
     initSystems() {
         // 输入系统
         this.inputHandler = new InputHandler(this.camera, this.canvas, this.map);
         
-        // 选择系统
-        this.selectionManager = new SelectionManager();
+        // 编队系统（需要在选择系统之前创建）
+        this.formationSystem = new FormationSystem();
+        
+        // 选择系统（需要编队系统支持）
+        this.selectionManager = new SelectionManager(this.formationSystem);
         
         // 资源管理系统
         this.resourceManager = new ResourceManager();
@@ -169,9 +453,6 @@ class Game {
         
         // 路径规划系统
         this.pathfinding = new Pathfinding(this.map.getGrid());
-        
-        // 编队系统
-        this.formationSystem = new FormationSystem();
         
         // 建筑放置系统
         this.buildingPlacementSystem = new BuildingPlacementSystem(this.map, this.scene);
@@ -299,10 +580,14 @@ class Game {
         this.camera.handleKeyDown(event);
         
         // F12切换debug面板
-        if (event.key === 'F12') {
+        if (event.key === 'F12' || event.keyCode === 123) {
             event.preventDefault();
+            event.stopPropagation();
             if (this.hud) {
                 this.hud.toggleDebugPanel();
+                console.log('F12键触发，debug面板切换');
+            } else {
+                console.error('HUD不存在，无法切换debug面板');
             }
         }
         
@@ -356,6 +641,30 @@ class Game {
                 const allIndices = Array.from({ length: 15 }, (_, i) => i);
                 allIndices.forEach(i => this.hud.enableButton(i));
                 console.log('所有按钮已重置');
+            }
+        }
+        
+        // V键：切换建筑面板预设
+        if (event.key === 'v' || event.key === 'V') {
+            if (this.hud) {
+                this.hud.nextPreset();
+            }
+        }
+        
+        // Ctrl+1-5切换编队类型
+        if (event.ctrlKey || event.metaKey) {
+            if (this.selectionManager) {
+                const formationTypes = ['line', 'column', 'square', 'wedge', 'circle'];
+                const formationNames = ['线形编队', '列形编队', '方形编队', '楔形编队', '圆形编队'];
+                
+                for (let i = 1; i <= 5; i++) {
+                    if (event.key === i.toString()) {
+                        this.selectionManager.setFormationType(formationTypes[i - 1]);
+                        console.log(`编队类型已切换为：${formationNames[i - 1]}`);
+                        event.preventDefault();
+                        break;
+                    }
+                }
             }
         }
     }
@@ -505,6 +814,7 @@ class Game {
         } else if (entity.userData.type === 'building') {
             this.selectionManager.selectEntity(entity, addToSelection);
         }
-    }}
+    }
+}
 
 export default Game;

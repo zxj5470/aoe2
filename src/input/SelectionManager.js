@@ -1,13 +1,16 @@
 import * as THREE from 'three';
 
 class SelectionManager {
-    constructor() {
+    constructor(formationSystem = null) {
         this.selectedEntities = [];
         this.maxSelection = 24; // 最大选择数量
         this.selectionType = 'unit'; // 'unit' 或 'building'
         
         this.selectionBox = null;
         this.selectionRing = null;
+        
+        this.formationSystem = formationSystem;
+        this.formationType = 'line'; // 默认编队类型
         
         this.listeners = [];
     }
@@ -158,6 +161,31 @@ class SelectionManager {
     }
 
     issueMoveCommand(targetPosition) {
+        // 如果选择的是单位类型，尝试使用编队系统
+        if (this.selectionType === 'unit' && this.formationSystem) {
+            const units = this.selectedEntities.filter(entity => entity.type === 'unit');
+            
+            if (units.length > 1) {
+                // 多个单位，使用编队移动
+                const formationAssignments = this.formationSystem.createFormation(
+                    units,
+                    targetPosition,
+                    this.formationType
+                );
+                
+                // 为每个单位分配编队位置
+                for (const assignment of formationAssignments) {
+                    if (assignment.unit.moveTo) {
+                        assignment.unit.moveTo(assignment.position);
+                    }
+                }
+                
+                this.notifyListeners('move', { targetPosition, formation: this.formationType });
+                return;
+            }
+        }
+        
+        // 单个单位或无法使用编队，直接移动
         for (const entity of this.selectedEntities) {
             if (entity.moveTo) {
                 entity.moveTo(targetPosition);
@@ -165,6 +193,20 @@ class SelectionManager {
         }
         
         this.notifyListeners('move', targetPosition);
+    }
+    
+    /**
+     * 设置编队类型
+     */
+    setFormationType(formationType) {
+        this.formationType = formationType;
+    }
+    
+    /**
+     * 获取当前编队类型
+     */
+    getFormationType() {
+        return this.formationType;
     }
 
     issueAttackCommand(targetEntity) {

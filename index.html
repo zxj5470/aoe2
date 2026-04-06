@@ -201,6 +201,17 @@
             display: none;
         }
         
+        .building-btn-nav {
+            background: #4a2d1b !important;
+            border-color: #8B4513 !important;
+            font-size: 20px;
+        }
+        
+        .building-btn-nav:hover {
+            background: #6a3d2b !important;
+            border-color: #FFD700 !important;
+        }
+        
         .building-btn-icon {
             position: absolute;
             top: 50%;
@@ -253,6 +264,7 @@
             border: 2px solid #8B4513;
             pointer-events: auto;
             position: relative;
+            cursor: pointer;
         }
         
         #minimap-canvas {
@@ -503,6 +515,7 @@
                     <div class="debug-row"><span class="debug-label">列数:</span> <span class="debug-value" id="debug-panel-cols">-</span></div>
                     <div class="debug-row"><span class="debug-label">按钮数:</span> <span class="debug-value" id="debug-panel-buttons">-</span></div>
                     <div class="debug-row" style="margin-top: 5px; color: #888;">按1/2/3切换布局</div>
+                    <div class="debug-row" style="color: #888;">按V切换预设</div>
                     <div class="debug-row" style="color: #888;">按Q/E: 空白/启用兵营</div>
                     <div class="debug-row" style="color: #888;">按R: 重置所有按钮</div>
                 </div>
