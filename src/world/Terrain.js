@@ -19,8 +19,8 @@ class Terrain {
         const geometry = new THREE.PlaneGeometry(
             size.width * size.cellSize,
             size.height * size.cellSize,
-            size.width - 1,
-            size.height - 1
+            size.width,
+            size.height
         );
 
         // 创建材质数组，为每个网格单元设置不同的材质
@@ -43,15 +43,11 @@ class Terrain {
             }
         }
 
-        // 创建网格
+        // 创建网格（居中到世界坐标系原点）
         this.mesh = new THREE.Mesh(geometry, materials);
         this.mesh.rotation.x = -Math.PI / 2;
         this.mesh.receiveShadow = true;
-        this.mesh.position.set(
-            (size.width * size.cellSize) / 2 - size.cellSize / 2,
-            0,
-            (size.height * size.cellSize) / 2 - size.cellSize / 2
-        );
+        this.mesh.position.set(0, 0, 0);
 
         return this.mesh;
     }

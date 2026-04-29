@@ -1,3 +1,6 @@
+import * as THREE from 'three';
+import { CELL_SIZE } from '../config.js';
+
 class HUD {
     constructor(game) {
         this.game = game;
@@ -100,6 +103,8 @@ class HUD {
             position: document.getElementById('debug-position'),
             target: document.getElementById('debug-target'),
             zoom: document.getElementById('debug-zoom'),
+            mouseScreen: document.getElementById('debug-mouse-screen'),
+            mouseWorld: document.getElementById('debug-mouse-world'),
             nw: document.getElementById('debug-nw'),
             ne: document.getElementById('debug-ne'),
             se: document.getElementById('debug-se'),
@@ -110,7 +115,10 @@ class HUD {
             panelCols: document.getElementById('debug-panel-cols'),
             panelButtons: document.getElementById('debug-panel-buttons')
         };
-        
+
+        // 鼠标位置追踪
+        this.mouseWorldPosition = null;
+
         this.init();
     }
 
@@ -119,9 +127,23 @@ class HUD {
         this.setupMinimapDrag();
         this.initBuildingButtons();
         this.setupEventListeners();
-        
+        this.setupMouseTracking();
+
         // 初始化时设置默认布局
         this.updateBuildingPanelConfig({ rows: 3, cols: 5, totalButtons: 15 });
+    }
+
+    /**
+     * 设置鼠标位置追踪
+     */
+    setupMouseTracking() {
+        if (!this.game.canvas) return;
+
+        this.game.canvas.addEventListener('mousemove', (e) => {
+            if (this.game.inputHandler) {
+                this.mouseWorldPosition = this.game.inputHandler.getWorldPosition();
+            }
+        });
     }
 
     setupMinimap() {
@@ -144,14 +166,14 @@ class HUD {
                 }
             });
         }
-        
+
         // 监听资源变化
         if (this.game.resourceManager) {
             this.game.resourceManager.addListener((type, amount) => {
                 this.updateResourceDisplay();
             });
         }
-        
+
         // 建筑按钮点击事件
         this.buildingButtons.forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -159,10 +181,83 @@ class HUD {
                 this.handleBuildingClick(buildingType, e.target);
             });
         });
-        
+
         // 小地图拖动和点击事件由setupMinimapDrag统一处理
-        
+
+        // 标题栏鼠标事件控制相机
+        this.setupAgeDisplayCameraControl();
+
         // 不在这里监听F12键，由Game.js统一处理
+    }
+
+    /**
+     * 设置标题栏年代显示区域的相机控制
+     */
+    setupAgeDisplayCameraControl() {
+        const ageDisplay = document.querySelector('.age-display');
+        if (!ageDisplay) return;
+
+        let isMouseOver = false;
+        let mouseDirection = 0; // 1 = 上移, -1 = 下移
+
+        ageDisplay.addEventListener('mouseenter', () => {
+            isMouseOver = true;
+        });
+
+        ageDisplay.addEventListener('mouseleave', () => {
+            isMouseOver = false;
+            mouseDirection = 0;
+        });
+
+        ageDisplay.addEventListener('mousemove', (e) => {
+            if (!isMouseOver) return;
+
+            const rect = ageDisplay.getBoundingClientRect();
+            const mouseY = e.clientY - rect.top;
+            const centerY = rect.height / 2;
+
+            // 鼠标在上半部分：向上移动相机
+            if (mouseY < centerY) {
+                mouseDirection = 1;
+            }
+            // 鼠标在下半部分：向下移动相机
+            else {
+                mouseDirection = -1;
+            }
+        });
+
+        // 在动画循环中持续应用相机移动
+        this.ageDisplayCameraControl = {
+            isActive: () => isMouseOver,
+            getDirection: () => mouseDirection
+        };
+    }
+
+    /**
+     * 更新标题栏相机控制（每帧调用）
+     */
+    updateAgeDisplayCameraControl(deltaTime) {
+        if (!this.ageDisplayCameraControl || !this.ageDisplayCameraControl.isActive()) return;
+        if (!this.game.camera) return;
+
+        const direction = this.ageDisplayCameraControl.getDirection();
+        if (direction === 0) return;
+
+        const moveAmount = this.game.camera.moveSpeed * deltaTime * direction;
+
+        // 向上移动（direction = 1）：向西北方向移动
+        if (direction > 0) {
+            const moveDir = new THREE.Vector3(-1, 0, -1).normalize();
+            this.game.camera.target.add(moveDir.clone().multiplyScalar(moveAmount));
+        }
+        // 向下移动（direction = -1）：向东南方向移动
+        else {
+            const moveDir = new THREE.Vector3(1, 0, 1).normalize();
+            this.game.camera.target.add(moveDir.clone().multiplyScalar(moveAmount));
+        }
+
+        this.game.camera.target.y = 0;
+        this.game.camera.updateCameraPosition();
     }
 
     toggleDebugPanel() {
@@ -288,8 +383,7 @@ class HUD {
         
         if (selectedEntities.length === 1) {
             const entity = selectedEntities[0];
-            const healthPercent = (entity.health / entity.maxHealth) * 100;
-            
+
             html = `
                 <div class="info-row">
                     <span>名称:</span>
@@ -299,15 +393,8 @@ class HUD {
                     <span>类型:</span>
                     <span>${entity.type}</span>
                 </div>
-                <div class="info-row" style="margin-top: 10px;">
-                    <span>生命值:</span>
-                    <span>${entity.health}/${entity.maxHealth}</span>
-                </div>
-                <div class="health-bar">
-                    <div class="health-bar-fill" style="width: ${healthPercent}%"></div>
-                </div>
             `;
-            
+
             // 添加特定属性
             if (entity.type === 'unit') {
                 html += `
@@ -324,6 +411,16 @@ class HUD {
                         <span>${entity.speed || 0}</span>
                     </div>
                 `;
+                
+                // 如果是村民且正在采集，显示携带资源量
+                if (entity.unitType === 'villager' && entity.carryAmount > 0) {
+                    html += `
+                        <div class="info-row" style="margin-top: 8px; color: #FFD700;">
+                            <span>携带资源:</span>
+                            <span>${entity.carryAmount} ${entity.carryType || '无'}</span>
+                        </div>
+                    `;
+                }
             } else if (entity.type === 'building') {
                 html += `
                     <div class="info-row" style="margin-top: 8px;">
@@ -352,116 +449,101 @@ class HUD {
         this.unitInfoContent.innerHTML = html;
     }
 
+    /**
+     * 渲染小地图（使用 Canvas Transform 菱形切变优化）
+     */
     renderMinimap() {
         if (!this.minimapContext || !this.game.map) return;
-        
-        const mapSize = this.game.map.getSize();
+
         const canvas = this.minimapCanvas;
+        /** @type {CanvasRenderingContext2D} */
         const ctx = this.minimapContext;
-        
-        // 清空画布
+
+        // 1. 清空画布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = '#3d8c40';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // 计算地图的实际范围（考虑中心在原点）
+
+        // 2. 设置菱形切变变换（高度压缩为原来的75%）
+        // 将世界坐标 [-100, 100] 映射到 200x200 画布的菱形区域
+        // 变换矩阵推导: 
+        // (-100,-100) -> (100, 25)  北
+        // ( 100,-100) -> (200, 100) 东
+        // ( 100, 100) -> (100, 175) 南
+        // (-100, 100) -> (0, 100)   西
+        // 结果: a=0.5, b=0.375, c=-0.5, d=0.375, e=100, f=100
+        ctx.setTransform(0.5, 0.375, -0.5, 0.375, 100, 100);
+
+        // 3. 在变换后的坐标系中直接绘制（自动投影为菱形）
+        const mapSize = this.game.map.getSize();
         const minX = -mapSize.width / 2;
         const maxX = mapSize.width / 2;
         const minZ = -mapSize.height / 2;
         const maxZ = mapSize.height / 2;
-        
-        // 坐标变换函数：将世界坐标转换为菱形屏幕坐标
-        const worldToScreen = (x, z) => {
-            // 将世界坐标从[-100, 100]映射到[-0.5, 0.5]
-            const normalizedX = (x - minX) / (maxX - minX) - 0.5;
-            const normalizedZ = (z - minZ) / (maxZ - minZ) - 0.5;
-            
-            // 菱形变换
-            const screenX = (normalizedX - normalizedZ) * canvas.width * 0.5 + canvas.width / 2;
-            const screenY = (normalizedX + normalizedZ) * canvas.height * 0.5 + canvas.height / 2;
-            
-            return { x: screenX, y: screenY };
-        };
-        
-        // 绘制菱形网格
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-        ctx.lineWidth = 0.5;
-        
+
+        // 绘制背景大地色块
+        ctx.fillStyle = '#4a9c50';
+        ctx.fillRect(minX, minZ, mapSize.width, mapSize.height);
+
+        // 绘制菱形网格（直接画直线，变换会自动处理）
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)';
+        ctx.lineWidth = 2;
         const gridSize = 10;
+        const step = mapSize.width / gridSize;
+        ctx.beginPath();
         for (let i = 0; i <= gridSize; i++) {
-            const t = i / gridSize;
-            
-            // 绘制 z 固定的线（x 从 minX 到 maxX，z 固定为 t）
-            const zPos = minZ + (maxZ - minZ) * t;
-            const start1 = worldToScreen(minX, zPos);
-            const end1 = worldToScreen(maxX, zPos);
-            ctx.beginPath();
-            ctx.moveTo(start1.x, start1.y);
-            ctx.lineTo(end1.x, end1.y);
-            ctx.stroke();
-            
-            // 绘制 x 固定的线（x 固定为 t，z 从 minZ 到 maxZ）
-            const xPos = minX + (maxX - minX) * t;
-            const start2 = worldToScreen(xPos, minZ);
-            const end2 = worldToScreen(xPos, maxZ);
-            ctx.beginPath();
-            ctx.moveTo(start2.x, start2.y);
-            ctx.lineTo(end2.x, end2.y);
-            ctx.stroke();
+            const pos = minX + i * step;
+            // z 固定线
+            ctx.moveTo(minX, pos);
+            ctx.lineTo(maxX, pos);
+            // x 固定线
+            ctx.moveTo(pos, minZ);
+            ctx.lineTo(pos, maxZ);
         }
-        
+        ctx.stroke();
+
         // 绘制实体
         for (const entity of this.game.entities) {
             if (!entity.isAlive) continue;
-            
-            const pos = worldToScreen(entity.position.x, entity.position.z);
-            
             ctx.fillStyle = entity.owner === 'player' ? '#4169E1' : '#DC143C';
-            
             if (entity.type === 'unit') {
                 ctx.beginPath();
-                ctx.arc(pos.x, pos.y, 2, 0, Math.PI * 2);
+                ctx.arc(entity.position.x, entity.position.z, 2, 0, Math.PI * 2);
                 ctx.fill();
             } else if (entity.type === 'building') {
-                ctx.fillRect(pos.x - 3, pos.y - 3, 6, 6);
+                ctx.fillRect(entity.position.x - 3, entity.position.z - 3, 6, 6);
+            } else if (entity.type === 'resource') {
+                ctx.fillRect(entity.position.x - 2, entity.position.z - 2, 4, 4);
             }
         }
-        
-        // 绘制摄像机视野（使用线性坐标映射，不旋转）
+
+        // 绘制摄像机视野框（直接画矩形，变换会自动旋转成菱形）
         if (this.game.camera) {
             const cameraTarget = this.game.camera.target;
             const camera = this.game.camera.getCamera();
-            
-            // 计算视野的实际尺寸（考虑宽高比）
-            const frustumSize = this.game.camera.zoomLevel;
-            const aspect = camera.right / camera.top;
-            
-            let viewWidth, viewHeight;
-            if (aspect > 1) {
-                viewWidth = frustumSize * aspect;
-                viewHeight = frustumSize;
-            } else {
-                viewWidth = frustumSize;
-                viewHeight = frustumSize / aspect;
-            }
-            
-            const halfWidth = viewWidth / 2;
-            const halfHeight = viewHeight / 2;
-            
-            // 使用线性坐标映射（不使用菱形变换）
-            const left = ((cameraTarget.x - halfWidth) - minX) / (maxX - minX) * canvas.width;
-            const right = ((cameraTarget.x + halfWidth) - minX) / (maxX - minX) * canvas.width;
-            const top = ((cameraTarget.z - halfHeight) - minZ) / (maxZ - minZ) * canvas.height;
-            const bottom = ((cameraTarget.z + halfHeight) - minZ) / (maxZ - minZ) * canvas.height;
-            
-            // 绘制矩形视野框
+
+            const halfW = (camera.right - camera.left) / 2;
+            const halfH = (camera.top - camera.bottom) / 2;
+    
+            // 使用与菱形小地图一致的变换绘制视野框
+            ctx.setTransform(0.5, 0.375, -0.5, 0.375, 100, 100);
+
             ctx.strokeStyle = '#FFFFFF';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(left, top, right - left, bottom - top);
+            ctx.lineWidth = 4;
+            ctx.strokeRect(
+                cameraTarget.x - halfW,
+                cameraTarget.z - halfH,
+                halfW * 2,
+                halfH * 2
+            );
         }
-        
+
+        // 4. 恢复默认变换
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
         // 继续渲染
         requestAnimationFrame(() => this.renderMinimap());
-        
+
         // 更新debug面板
         this.updateDebugPanel();
     }
@@ -519,12 +601,12 @@ class HUD {
 
     updateDebugPanel() {
         if (!this.debugPanel || !this.debugPanel.classList.contains('visible')) return;
-        
+
         // 更新相机位置信息
         if (this.game.camera) {
             const pos = this.game.camera.position;
             const target = this.game.camera.target;
-            
+
             if (this.debugElements.position) {
                 this.debugElements.position.textContent = `(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)})`;
             }
@@ -535,7 +617,23 @@ class HUD {
                 this.debugElements.zoom.textContent = this.game.camera.zoomLevel.toFixed(1);
             }
         }
-        
+
+        // 更新鼠标位置信息
+        if (this.debugElements.mouseScreen) {
+            this.debugElements.mouseScreen.textContent = this.mouseWorldPosition ? 
+                `(${this.mouseWorldPosition.x.toFixed(1)}, ${this.mouseWorldPosition.z.toFixed(1)})` : '-';
+        }
+        if (this.debugElements.mouseWorld) {
+            if (this.mouseWorldPosition) {
+                const mapSize = this.game.map ? this.game.map.getSize() : { width: 200, height: 200 };
+                const gridX = Math.floor((this.mouseWorldPosition.x + mapSize.width / 2) / CELL_SIZE);
+                const gridZ = Math.floor((this.mouseWorldPosition.z + mapSize.height / 2) / CELL_SIZE);
+                this.debugElements.mouseWorld.textContent = `X: ${this.mouseWorldPosition.x.toFixed(1)}, Z: ${this.mouseWorldPosition.z.toFixed(1)} (网格: ${gridX}, ${gridZ})`;
+            } else {
+                this.debugElements.mouseWorld.textContent = '-';
+            }
+        }
+
         // 更新小地图视野信息
         if (this.game.camera && this.game.map) {
             const cameraTarget = this.game.camera.target;
@@ -612,7 +710,8 @@ class HUD {
         }
         
         // 统计空白按钮数量
-        const emptyCount = this.buildingPanelConfig.buttons.filter(b => b.type === 'empty').length;
+        const buttons = this.buildingPanelConfig.buttons || [];
+        const emptyCount = buttons.filter(b => b.type === 'empty').length;
         if (emptyCount > 0) {
             let emptyElement = document.getElementById('debug-empty-count');
             if (!emptyElement && this.debugPanel) {
@@ -663,14 +762,14 @@ class HUD {
     // 小地图拖动处理
     setupMinimapDrag() {
         if (!this.minimapCanvas) return;
-        
+
         let isDragging = false;
         let hasMoved = false;
         let lastX = 0;
         let lastY = 0;
         let startX = 0;
         let startY = 0;
-        
+
         this.minimapCanvas.addEventListener('mousedown', (e) => {
             isDragging = true;
             hasMoved = false;
@@ -679,55 +778,62 @@ class HUD {
             lastX = e.clientX;
             lastY = e.clientY;
             this.minimapCanvas.style.cursor = 'grabbing';
+            e.preventDefault(); // 防止默认行为
         });
-        
+
         window.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
-            
+
             const dx = e.clientX - lastX;
             const dy = e.clientY - lastY;
-            
+
             // 检测是否发生了实际移动
             if (Math.abs(e.clientX - startX) > 2 || Math.abs(e.clientY - startY) > 2) {
                 hasMoved = true;
             }
-            
-            // 更新相机位置（反方向拖动）
+
+            // 更新相机位置（使用菱形坐标变换）
             if (this.game.camera && hasMoved) {
                 const mapSize = this.game.map.getSize();
                 const minX = -mapSize.width / 2;
                 const maxX = mapSize.width / 2;
                 const minZ = -mapSize.height / 2;
                 const maxZ = mapSize.height / 2;
-                
-                // 计算移动量（转换为世界坐标）
+
                 const canvas = this.minimapCanvas;
-                const worldDx = (dx / canvas.width) * (maxX - minX);
-                const worldDz = (dy / canvas.height) * (maxZ - minZ);
-                
-                this.game.camera.target.x -= worldDx;
-                this.game.camera.target.z -= worldDz;
+                const normDx = dx / canvas.width;
+                const normDy = dy / canvas.height;
+
+                // 小地图使用菱形投影，需要正确的坐标变换
+                // screenX 对应 (nx - nz)，screenY 对应 (nx + nz)
+                // 反解得到：
+                const worldDx = (normDx + normDy) * 0.5 * (maxX - minX);
+                const worldDz = (normDy - normDx) * 0.5 * (maxZ - minZ);
+
+                // 拖动时相机同方向移动（拖拽地图效果）
+                this.game.camera.target.x += worldDx;
+                this.game.camera.target.z += worldDz;
                 this.game.camera.target.y = 0;
                 this.game.camera.updateCameraPosition();
             }
-            
+
             lastX = e.clientX;
             lastY = e.clientY;
         });
-        
+
         window.addEventListener('mouseup', (e) => {
             if (isDragging) {
                 isDragging = false;
                 if (this.minimapCanvas) {
                     this.minimapCanvas.style.cursor = 'pointer';
                 }
-                
+
                 // 如果没有发生移动，执行跳转功能
                 if (!hasMoved && this.minimapCanvas) {
                     const rect = this.minimapCanvas.getBoundingClientRect();
                     const clickX = e.clientX - rect.left;
                     const clickY = e.clientY - rect.top;
-                    
+
                     // 检查点击是否在小地图范围内
                     if (clickX >= 0 && clickX <= rect.width && clickY >= 0 && clickY <= rect.height) {
                         this.handleMinimapClick({ clientX: e.clientX, clientY: e.clientY });
@@ -735,7 +841,7 @@ class HUD {
                 }
             }
         });
-        
+
         this.minimapCanvas.addEventListener('mouseleave', () => {
             if (isDragging) {
                 isDragging = false;

@@ -67,19 +67,31 @@ class Camera {
     update(deltaTime) {
         // 处理键盘移动
         this.handleKeyboardMovement(deltaTime);
-        
+
         // 处理鼠标边界滚动
         this.handleBorderScroll(deltaTime);
-        
+
         // 处理鼠标拖拽
         this.handleMouseDrag(deltaTime);
-        
+
+        // 限制相机目标点在边界内
+        this.clampTargetToBounds();
+
         // 确保target.y始终为0，防止旋转
         this.target.y = 0;
-        
+
         // 更新摄像机位置（保持固定朝向）
         this.camera.position.copy(this.position);
         this.camera.lookAt(this.target);
+    }
+
+    /**
+     * 限制相机目标点在地图边界内
+     */
+    clampTargetToBounds() {
+        const boundary = 105;
+        this.target.x = Math.max(-boundary, Math.min(boundary, this.target.x));
+        this.target.z = Math.max(-boundary, Math.min(boundary, this.target.z));
     }
 
     handleKeyboardMovement(deltaTime) {

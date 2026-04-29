@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import Entity from './Entity.js';
+import { CELL_SIZE, MAP_CONFIG } from '../config.js';
 
 class Building extends Entity {
     constructor(config) {
@@ -23,14 +24,249 @@ class Building extends Entity {
         this.productionQueue = [];
         this.currentProduction = null;
         this.productionProgress = 0;
-        
+
         this.selectionRing = null;
         this.healthBar = null;
         this.healthBarGroup = null;
-        
+
+        // 网格大小属性（以网格单位计）
+        this.gridSizeX = config.gridSizeX || this.getDefaultGridSizeX();
+        this.gridSizeZ = config.gridSizeZ || this.getDefaultGridSizeZ();
+
+        // 碰撞体积
+        this.collisionBox = null;
+
         // 根据建筑类型设置外观配置
         this.appearanceConfig = this.getAppearanceConfig();
         this.buildingFeatures = this.getBuildingFeatures();
+
+        // 如果外观配置已定义，更新尺寸
+        if (this.appearanceConfig) {
+            this.width = this.appearanceConfig.width || this.width;
+            this.depth = this.appearanceConfig.depth || this.depth;
+            this.height = this.appearanceConfig.height || this.height;
+        }
+    }
+
+    /**
+     * 获取建筑类型的默认网格大小X
+     */
+    getDefaultGridSizeX() {
+        const gridSizes = {
+            house: 2,
+            barracks: 3,
+            stable: 3,
+            archery_range: 3,
+            castle: 5,
+            market: 3,
+            church: 3,
+            blacksmith: 3,
+            watch_tower: 2,
+            town_center: 4
+        };
+        return gridSizes[this.buildingType] || 2;
+    }
+
+    /**
+     * 获取建筑类型的默认网格大小Z
+     */
+    getDefaultGridSizeZ() {
+        const gridSizes = {
+            house: 2,
+            barracks: 3,
+            stable: 3,
+            archery_range: 3,
+            castle: 5,
+            market: 3,
+            church: 4,
+            blacksmith: 3,
+            watch_tower: 2,
+            town_center: 4
+        };
+        return gridSizes[this.buildingType] || 2;
+    }
+
+    /**
+     * 创建碰撞体积
+     */
+    createCollisionBox() {
+        // 碰撞体积使用网格大小计算（网格现在是1x1）
+        const width = this.gridSizeX * 1; // 每个网格单元是1x1
+        const depth = this.gridSizeZ * 1;
+        const height = this.height;
+
+        this.collisionBox = {
+            minX: this.position.x - width / 2,
+            maxX: this.position.x + width / 2,
+            minZ: this.position.z - depth / 2,
+            maxZ: this.position.z + depth / 2,
+            minY: 0,
+            maxY: height,
+            width: width,
+            depth: depth,
+            height: height,
+            center: this.position.clone()
+        };
+
+        return this.collisionBox;
+    }
+
+    /**
+     * 更新碰撞体积位置
+     */
+    updateCollisionBox() {
+        if (this.collisionBox) {
+            const width = this.collisionBox.width;
+            const depth = this.collisionBox.depth;
+            
+            this.collisionBox.minX = this.position.x - width / 2;
+            this.collisionBox.maxX = this.position.x + width / 2;
+            this.collisionBox.minZ = this.position.z - depth / 2;
+            this.collisionBox.maxZ = this.position.z + depth / 2;
+            this.collisionBox.center.copy(this.position);
+        }
+    }
+
+    /**
+     * 获取碰撞体积
+     */
+    getCollisionBox() {
+        if (!this.collisionBox) {
+            this.createCollisionBox();
+        }
+        return this.collisionBox;
+    }
+
+    /**
+     * 检测点是否在碰撞体积内
+     */
+    containsPoint(point) {
+        const box = this.getCollisionBox();
+        return (
+            point.x >= box.minX &&
+            point.x <= box.maxX &&
+            point.z >= box.minZ &&
+            point.z <= box.maxZ
+        );
+    }
+
+    /**
+     * 检测是否与另一个碰撞体积相交
+     */
+    intersectsBox(otherBox) {
+        const box = this.getCollisionBox();
+        return (
+            box.minX < otherBox.maxX &&
+            box.maxX > otherBox.minX &&
+            box.minZ < otherBox.maxZ &&
+            box.maxZ > otherBox.minZ
+        );
+    }
+
+    /**
+     * 获取建筑占用的网格坐标列表
+     */
+    getOccupiedGridCells(cellSize = CELL_SIZE) {
+        const cells = [];
+
+        // 建筑中心的世界坐标
+        const worldX = this.position.x;
+        const worldZ = this.position.z;
+
+        // 计算网格偏移（地图中心在原点，网格从 -width/2 开始）
+        const halfMapWidth = MAP_CONFIG.width / 2;
+        const halfMapHeight = MAP_CONFIG.height / 2;
+
+        // 计算建筑中心在网格中的索引
+        const centerGridX = Math.floor((worldX + halfMapWidth) / cellSize);
+        const centerGridZ = Math.floor((worldZ + halfMapHeight) / cellSize);
+
+        // 计算建筑占用的网格范围
+        const halfGridX = Math.ceil(this.gridSizeX / 2);
+        const halfGridZ = Math.ceil(this.gridSizeZ / 2);
+
+        for (let x = centerGridX - halfGridX; x < centerGridX + halfGridX; x++) {
+            for (let z = centerGridZ - halfGridZ; z < centerGridZ + halfGridZ; z++) {
+                // 确保网格坐标在有效范围内
+                if (x >= 0 && x < MAP_CONFIG.width && z >= 0 && z < MAP_CONFIG.height) {
+                    cells.push({ x, z });
+                }
+            }
+        }
+
+        return cells;
+    }
+
+    /**
+     * 创建碰撞体积可视化（调试用）
+     */
+    createCollisionVisual(color = 0xFF0000) {
+        if (!this.collisionBox) {
+            this.createCollisionBox();
+        }
+
+        const box = this.collisionBox;
+        const width = box.width;
+        const depth = box.depth;
+        const height = box.maxY - box.minY;
+
+        // 创建线框盒子
+        const geometry = new THREE.BoxGeometry(width, height, depth);
+        const edges = new THREE.EdgesGeometry(geometry);
+        const material = new THREE.LineBasicMaterial({ 
+            color: color,
+            linewidth: 2,
+            transparent: true,
+            opacity: 0.5
+        });
+        const wireframe = new THREE.LineSegments(edges, material);
+        
+        wireframe.position.set(
+            box.center.x,
+            height / 2,
+            box.center.z
+        );
+        
+        wireframe.name = 'collisionVisual';
+        this.collisionVisual = wireframe;
+        
+        return wireframe;
+    }
+
+    /**
+     * 更新碰撞体积可视化位置
+     */
+    updateCollisionVisual() {
+        if (this.collisionVisual) {
+            this.updateCollisionBox();
+            const box = this.collisionBox;
+            const height = box.maxY - box.minY;
+            
+            this.collisionVisual.position.set(
+                box.center.x,
+                height / 2,
+                box.center.z
+            );
+        }
+    }
+
+    /**
+     * 显示/隐藏碰撞体积可视化
+     */
+    toggleCollisionVisual(visible) {
+        if (this.collisionVisual) {
+            this.collisionVisual.visible = visible;
+            
+            // 如果可视化不存在但需要显示，则创建
+            if (visible && !this.collisionVisual.parent && this.mesh) {
+                this.mesh.add(this.collisionVisual);
+            }
+        } else if (visible) {
+            const visual = this.createCollisionVisual();
+            if (this.mesh) {
+                this.mesh.add(visual);
+            }
+        }
     }
     
     /**
@@ -145,9 +381,21 @@ class Building extends Entity {
                 hasWindows: true,
                 baseColor: 0x696969,
                 decoration: 'battlements'
+            },
+            town_center: {
+                width: 4,
+                depth: 4,
+                height: 4,
+                wallColor: 0xF5DEB3,
+                roofColor: 0x8B4513,
+                roofType: 'gable',
+                hasDoor: true,
+                hasWindows: true,
+                baseColor: 0x8B4513,
+                decoration: 'flag'
             }
         };
-        
+
         return configs[this.buildingType] || configs.house;
     }
     
@@ -164,9 +412,10 @@ class Building extends Entity {
             market: { canTrade: true, isEconomic: true },
             church: { canHeal: true, isSpecial: true },
             blacksmith: { canUpgrade: true, isEconomic: true },
-            watch_tower: { canAttack: true, isDefensive: true, attackRange: 6 }
+            watch_tower: { canAttack: true, isDefensive: true, attackRange: 6 },
+            town_center: { canCreateVillagers: true, isEconomic: true, isDropOff: true }
         };
-        
+
         return features[this.buildingType] || {};
     }
 
@@ -523,16 +772,16 @@ class Building extends Entity {
 
     createSelectionRing() {
         // 创建对齐网格的白色边框
-        const gridSize = 2; // 网格单元格大小
-        
+        const gridSize = CELL_SIZE;
+
         // 计算建筑物的实际占用范围（对齐到网格）
         const buildingCenterX = this.position.x;
         const buildingCenterZ = this.position.z;
-        
+
         // 将建筑物位置对齐到网格中心
         const gridX = Math.floor(buildingCenterX / gridSize) * gridSize + gridSize / 2;
         const gridZ = Math.floor(buildingCenterZ / gridSize) * gridSize + gridSize / 2;
-        
+
         // 计算占用的网格数量
         const gridWidth = Math.ceil(this.width / gridSize) * gridSize;
         const gridDepth = Math.ceil(this.depth / gridSize) * gridSize;
@@ -864,9 +1113,9 @@ class Building extends Entity {
 
     getOccupiedCells() {
         const cells = [];
-        const gridX = Math.floor(this.position.x / 2);
-        const gridZ = Math.floor(this.position.z / 2);
-        
+        const gridX = Math.floor(this.position.x / CELL_SIZE);
+        const gridZ = Math.floor(this.position.z / CELL_SIZE);
+
         for (let dx = 0; dx < this.width; dx++) {
             for (let dz = 0; dz < this.depth; dz++) {
                 cells.push({
@@ -875,7 +1124,7 @@ class Building extends Entity {
                 });
             }
         }
-        
+
         return cells;
     }
 }

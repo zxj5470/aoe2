@@ -147,17 +147,18 @@ class SelectionManager {
         };
     }
 
-    issueCommand(command, target) {
+    issueCommand(command, target, extra = null) {
         for (const entity of this.selectedEntities) {
             if (entity.queueAction) {
                 entity.queueAction({
                     type: command,
-                    target: target
+                    target: target,
+                    dropOffPoint: extra // 传递额外参数（如投放点）
                 });
             }
         }
-        
-        this.notifyListeners('command', { command, target });
+
+        this.notifyListeners('command', { command, target, extra });
     }
 
     issueMoveCommand(targetPosition) {

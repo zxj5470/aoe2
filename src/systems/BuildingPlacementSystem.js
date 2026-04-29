@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CELL_SIZE } from '../config.js';
 
 class BuildingPlacementSystem {
     constructor(map, scene) {
@@ -143,15 +144,15 @@ class BuildingPlacementSystem {
 
     updatePreview(mousePosition) {
         if (!this.isPlacing || !this.previewMesh) return;
-        
+
         this.previewMesh.visible = true;
-        
+
         // 对齐到网格
-        const cellX = Math.floor(mousePosition.x / 2);
-        const cellZ = Math.floor(mousePosition.z / 2);
-        
-        const worldX = cellX * 2 + 1;
-        const worldZ = cellZ * 2 + 1;
+        const cellX = Math.floor(mousePosition.x / CELL_SIZE);
+        const cellZ = Math.floor(mousePosition.z / CELL_SIZE);
+
+        const worldX = cellX * CELL_SIZE + CELL_SIZE / 2;
+        const worldZ = cellZ * CELL_SIZE + CELL_SIZE / 2;
         
         this.previewMesh.position.set(worldX, 0, worldZ);
         
@@ -201,13 +202,13 @@ class BuildingPlacementSystem {
         
         // 扣除资源
         resourceManager.spendResources(this.requiredResources);
-        
+
         // 对齐到网格
-        const cellX = Math.floor(mousePosition.x / 2);
-        const cellZ = Math.floor(mousePosition.z / 2);
-        
-        const worldX = cellX * 2 + 1;
-        const worldZ = cellZ * 2 + 1;
+        const cellX = Math.floor(mousePosition.x / CELL_SIZE);
+        const cellZ = Math.floor(mousePosition.z / CELL_SIZE);
+
+        const worldX = cellX * CELL_SIZE + CELL_SIZE / 2;
+        const worldZ = cellZ * CELL_SIZE + CELL_SIZE / 2;
         
         // 创建建筑
         const building = this.createBuilding(config, worldX, worldZ);

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import Entity from './Entity.js';
+import { CELL_SIZE, MAP_CONFIG } from '../config.js';
 
 class Unit extends Entity {
     constructor(config) {
@@ -41,7 +42,18 @@ class Unit extends Entity {
         this.animationState = 'idle'; // idle, walking, attacking, gathering, dying
         this.animationProgress = 0;
         this.animationSpeed = 5; // 动画播放速度
-        
+
+        // 资源采集相关
+        this.carryAmount = 0; // 当前携带资源量
+        this.carryType = null; // 资源类型
+        this.currentResource = null; // 当前采集的资源节点
+        this.gatherTimer = 0; // 采集计时器
+        this.gatherInterval = 2; // 每2秒采集一次
+        this.returnTimer = 0; // 返回计时器
+        this.returnTime = 20; // 20秒后返回
+        this.isReturning = false; // 是否正在返回城镇中心
+        this.dropOffPoint = null; // 投放点（城镇中心）
+
         // 根据单位类型设置外观配置
         this.appearanceConfig = this.getAppearanceConfig();
         
@@ -50,6 +62,7 @@ class Unit extends Entity {
         this.currentPathIndex = 0;
         this.pathfindingSystem = config.pathfindingSystem || null;
         this.formationSystem = config.formationSystem || null;
+        this.game = config.game || null; // 游戏实例引用
     }
     
     /**
@@ -418,14 +431,128 @@ class Unit extends Entity {
 
     update(deltaTime) {
         if (!this.isAlive) return;
-        
+
         this.updateAction(deltaTime);
         this.updateMovement(deltaTime);
         this.updateCombat(deltaTime);
         this.updateAnimation(deltaTime);
         this.updateHealthBar();
+        
+        // 更新资源采集逻辑
+        this.updateResourceGathering(deltaTime);
     }
-    
+
+    /**
+     * 更新资源采集逻辑
+     */
+    updateResourceGathering(deltaTime) {
+        // 如果没有在采集，直接返回
+        if (!this.currentResource || this.isReturning) {
+            return;
+        }
+
+        // 检查资源是否还存在且还有资源
+        if (!this.currentResource.isAlive || this.currentResource.amount <= 0) {
+            this.stopGathering();
+            return;
+        }
+
+        // 检查是否到达资源点
+        const distanceToResource = this.position.distanceTo(this.currentResource.position);
+        if (distanceToResource > 1.5) {
+            // 还在前往资源点的路上
+            return;
+        }
+
+        // 累加采集计时器
+        this.gatherTimer += deltaTime;
+        this.returnTimer += deltaTime;
+
+        // 每2秒采集一次
+        if (this.gatherTimer >= this.gatherInterval) {
+            this.gatherTimer = 0;
+            this.carryAmount += 1;
+            
+            console.log(`[村民采集] 携带资源: ${this.carryAmount}, 类型: ${this.carryType}`);
+        }
+
+        // 20秒后自动返回城镇中心
+        if (this.returnTimer >= this.returnTime) {
+            console.log('[村民采集] 20秒已到，开始返回城镇中心');
+            this.returnToTownCenter();
+        }
+    }
+
+    /**
+     * 返回城镇中心
+     */
+    returnToTownCenter() {
+        if (!this.dropOffPoint) {
+            console.warn('[村民采集] 没有投放点，无法返回');
+            this.stopGathering();
+            return;
+        }
+
+        this.isReturning = true;
+        this.currentAction = 'returning';
+        
+        // 移动到城镇中心
+        const townCenterPos = this.dropOffPoint.position;
+        this.moveTo(new THREE.Vector3(townCenterPos.x, 0, townCenterPos.z));
+    }
+
+    /**
+     * 停止采集
+     */
+    stopGathering() {
+        this.currentResource = null;
+        this.carryType = null;
+        this.carryAmount = 0;
+        this.gatherTimer = 0;
+        this.returnTimer = 0;
+        this.isReturning = false;
+        this.dropOffPoint = null;
+        this.currentAction = 'idle';
+        this.setAnimationState('idle');
+    }
+
+    /**
+     * 交付资源到城镇中心
+     */
+    deliverResources() {
+        console.log(`[村民采集] 尝试交付资源 - 携带量: ${this.carryAmount}, 类型: ${this.carryType}`);
+        
+        if (this.carryAmount <= 0) {
+            console.log('[村民采集] 没有携带资源，无需交付');
+            this.stopGathering();
+            return;
+        }
+
+        const deliveredAmount = this.carryAmount;
+        const resourceType = this.carryType;
+
+        console.log(`[村民采集] 交付资源: ${deliveredAmount} ${resourceType}`);
+
+        // 获取游戏实例的ResourceManager并添加资源
+        if (this.game && this.game.resourceManager) {
+            this.game.resourceManager.addResource(resourceType, deliveredAmount);
+            console.log(`[村民采集] 总资源增加: ${deliveredAmount} ${resourceType}`);
+            
+            // 更新HUD显示
+            if (this.game.hud) {
+                this.game.hud.updateResourceDisplay();
+            }
+        } else {
+            console.error('[村民采集] 无法访问ResourceManager', {
+                hasGame: !!this.game,
+                hasResourceManager: this.game ? !!this.game.resourceManager : false
+            });
+        }
+
+        // 重置采集状态
+        this.stopGathering();
+    }
+
     /**
      * 设置动画状态
      */
@@ -587,7 +714,7 @@ class Unit extends Entity {
     updateAction(deltaTime) {
         if (this.actionQueue.length > 0) {
             const currentAction = this.actionQueue[0];
-            
+
             switch (currentAction.type) {
                 case 'move':
                     this.moveTo(currentAction.target);
@@ -598,7 +725,7 @@ class Unit extends Entity {
                     this.actionQueue.shift();
                     break;
                 case 'gather':
-                    this.gatherResource(currentAction.target);
+                    this.gatherResource(currentAction.target, currentAction.dropOffPoint);
                     this.actionQueue.shift();
                     break;
             }
@@ -631,6 +758,23 @@ class Unit extends Entity {
                 this.currentPathIndex++;
                 if (this.currentPathIndex >= this.path.length) {
                     // 到达最终目标
+                    console.log(`[村民移动] 到达目标位置 - isReturning: ${this.isReturning}, carryAmount: ${this.carryAmount}`);
+
+                    // 如果是返回城镇中心，检查距离并交付资源
+                    // 注意：城镇中心是4x4网格的大型建筑，使用更大的到达判定距离
+                    if (this.isReturning && this.dropOffPoint) {
+                        const distanceToTownCenter = this.position.distanceTo(this.dropOffPoint.position);
+                        const townCenterArrivalDistance = 3; // 城镇中心较大（4x4网格），3单位距离即可
+                        
+                        console.log(`[村民移动] 距离城镇中心: ${distanceToTownCenter.toFixed(1)}, 判定距离: ${townCenterArrivalDistance}`);
+                        
+                        if (distanceToTownCenter <= townCenterArrivalDistance) {
+                            console.log('[村民移动] 已到达城镇中心，开始交付资源');
+                            this.deliverResources();
+                        }
+                    }
+
+                    // 到达最终目标
                     this.isMoving = false;
                     this.path = [];
                     this.currentAction = 'idle';
@@ -652,21 +796,38 @@ class Unit extends Entity {
                 let newPosition;
                 if (distance <= moveDistance) {
                     newPosition = targetPos.clone();
-                    
+
                     if (this.path.length === 0 || this.currentPathIndex >= this.path.length) {
                         this.isMoving = false;
                         this.targetPosition = null;
-                        this.currentAction = 'idle';
-                        this.setAnimationState('idle');
+
+                        // 如果是返回城镇中心，检查距离并交付资源
+                        if (this.isReturning && this.dropOffPoint) {
+                            const distanceToTownCenter = this.position.distanceTo(this.dropOffPoint.position);
+                            const townCenterArrivalDistance = 3;
+                            
+                            console.log(`[村民移动-无路径] 距离城镇中心: ${distanceToTownCenter.toFixed(1)}, 判定距离: ${townCenterArrivalDistance}`);
+                            
+                            if (distanceToTownCenter <= townCenterArrivalDistance) {
+                                console.log('[村民移动-无路径] 已到达城镇中心，开始交付资源');
+                                this.deliverResources();
+                            }
+                        }
+
+                        // 如果有采集目标，保持采集状态
+                        if (!this.currentResource) {
+                            this.currentAction = 'idle';
+                            this.setAnimationState('idle');
+                        }
                     }
                 } else {
                     newPosition = this.position.clone().add(direction.multiplyScalar(moveDistance));
                 }
                 
                 // 限制位置在地图边界内
-                const mapWidth = this.pathfindingSystem ? this.pathfindingSystem.grid.width * this.pathfindingSystem.grid.cellSize : 200;
-                const mapHeight = this.pathfindingSystem ? this.pathfindingSystem.grid.height * this.pathfindingSystem.grid.cellSize : 200;
-                const cellSize = this.pathfindingSystem ? this.pathfindingSystem.grid.cellSize : 2;
+                const mapWidth = this.pathfindingSystem ? this.pathfindingSystem.grid.width * this.pathfindingSystem.grid.cellSize : MAP_CONFIG.width * MAP_CONFIG.cellSize;
+                const mapHeight = this.pathfindingSystem ? this.pathfindingSystem.grid.height * this.pathfindingSystem.grid.cellSize : MAP_CONFIG.height * MAP_CONFIG.cellSize;
+                const cellSize = this.pathfindingSystem ? this.pathfindingSystem.grid.cellSize : CELL_SIZE;
                 const minX = -mapWidth / 2 + cellSize;
                 const maxX = mapWidth / 2 - cellSize;
                 const minZ = -mapHeight / 2 + cellSize;
@@ -714,10 +875,10 @@ class Unit extends Entity {
 
     moveTo(targetPosition) {
         // 限制目标位置在地图边界内
-        const mapWidth = this.pathfindingSystem ? this.pathfindingSystem.grid.width * this.pathfindingSystem.grid.cellSize : 200;
-        const mapHeight = this.pathfindingSystem ? this.pathfindingSystem.grid.height * this.pathfindingSystem.grid.cellSize : 200;
-        const cellSize = this.pathfindingSystem ? this.pathfindingSystem.grid.cellSize : 2;
-        
+        const mapWidth = this.pathfindingSystem ? this.pathfindingSystem.grid.width * this.pathfindingSystem.grid.cellSize : MAP_CONFIG.width * MAP_CONFIG.cellSize;
+        const mapHeight = this.pathfindingSystem ? this.pathfindingSystem.grid.height * this.pathfindingSystem.grid.cellSize : MAP_CONFIG.height * MAP_CONFIG.cellSize;
+        const cellSize = this.pathfindingSystem ? this.pathfindingSystem.grid.cellSize : CELL_SIZE;
+
         // 地图坐标范围是[-100, 100]，所以需要转换
         const minX = -mapWidth / 2 + cellSize;
         const maxX = mapWidth / 2 - cellSize;
@@ -773,15 +934,30 @@ class Unit extends Entity {
         }
     }
 
-    gatherResource(resourceEntity) {
-        // 资源收集逻辑
-        this.moveTo(resourceEntity.position);
-        // 添加收集动作到队列
-        this.actionQueue.push({
-            type: 'collect',
-            target: resourceEntity
-        });
+    gatherResource(resourceEntity, dropOffPoint = null) {
+        // 资源收集逻辑 - 移动到资源点并开始采集
+        if (!resourceEntity || !resourceEntity.userData) return;
+
+        // 检查资源是否还有
+        if (resourceEntity.userData.resourceAmount <= 0) {
+            return;
+        }
+
+        // 设置当前采集目标
+        this.currentResource = resourceEntity;
+        this.carryType = resourceEntity.userData.resourceType;
+        if (this.carryAmount === undefined) this.carryAmount = 0;
         
+        // 设置投放点（城镇中心）
+        if (dropOffPoint) {
+            this.dropOffPoint = dropOffPoint;
+        }
+        
+        console.log(`[村民采集] 开始采集 ${this.carryType}，投放点: ${this.dropOffPoint ? '已设置' : '未设置'}`);
+
+        // 移动到资源点
+        this.moveTo(resourceEntity.position);
+
         // 设置采集动画状态
         this.setAnimationState('gathering');
     }
@@ -856,6 +1032,167 @@ class Unit extends Entity {
     setSpeed(speed) {
         this.speed = speed;
         this.movementSpeed = speed;
+    }
+
+    /**
+     * 创建碰撞体积（单位较小，0.5x0.5）
+     */
+    createCollisionBox() {
+        const width = 0.5; // 单位碰撞体
+        const depth = 0.5;
+        const height = 2;
+
+        this.collisionBox = {
+            minX: this.position.x - width / 2,
+            maxX: this.position.x + width / 2,
+            minZ: this.position.z - depth / 2,
+            maxZ: this.position.z + depth / 2,
+            minY: 0,
+            maxY: height,
+            width: width,
+            depth: depth,
+            height: height,
+            center: this.position.clone()
+        };
+
+        return this.collisionBox;
+    }
+
+    /**
+     * 更新碰撞体积位置
+     */
+    updateCollisionBox() {
+        if (this.collisionBox) {
+            const width = this.collisionBox.width;
+            const depth = this.collisionBox.depth;
+            
+            this.collisionBox.minX = this.position.x - width / 2;
+            this.collisionBox.maxX = this.position.x + width / 2;
+            this.collisionBox.minZ = this.position.z - depth / 2;
+            this.collisionBox.maxZ = this.position.z + depth / 2;
+            this.collisionBox.center.copy(this.position);
+        }
+    }
+
+    /**
+     * 获取碰撞体积
+     */
+    getCollisionBox() {
+        if (!this.collisionBox) {
+            this.createCollisionBox();
+        }
+        return this.collisionBox;
+    }
+
+    /**
+     * 检测点是否在碰撞体积内
+     */
+    containsPoint(point) {
+        const box = this.getCollisionBox();
+        return (
+            point.x >= box.minX &&
+            point.x <= box.maxX &&
+            point.z >= box.minZ &&
+            point.z <= box.maxZ
+        );
+    }
+
+    /**
+     * 检测是否与另一个碰撞体积相交
+     */
+    intersectsBox(otherBox) {
+        const box = this.getCollisionBox();
+        return (
+            box.minX < otherBox.maxX &&
+            box.maxX > otherBox.minX &&
+            box.minZ < otherBox.maxZ &&
+            box.maxZ > otherBox.minZ
+        );
+    }
+
+    /**
+     * 获取单位占用的网格坐标（单位很小，只占一个格子）
+     */
+    getOccupiedGridCells(cellSize = CELL_SIZE) {
+        const cells = [];
+        const gridX = Math.floor(this.position.x / cellSize);
+        const gridZ = Math.floor(this.position.z / cellSize);
+
+        cells.push({ x: gridX, z: gridZ });
+
+        return cells;
+    }
+
+    /**
+     * 创建碰撞体积可视化（调试用）
+     */
+    createCollisionVisual(color = 0x00FF00) {
+        if (!this.collisionBox) {
+            this.createCollisionBox();
+        }
+
+        const box = this.collisionBox;
+        const width = box.width;
+        const depth = box.depth;
+        const height = box.maxY - box.minY;
+
+        // 创建线框盒子
+        const geometry = new THREE.BoxGeometry(width, height, depth);
+        const edges = new THREE.EdgesGeometry(geometry);
+        const material = new THREE.LineBasicMaterial({ 
+            color: color,
+            linewidth: 2,
+            transparent: true,
+            opacity: 0.5
+        });
+        const wireframe = new THREE.LineSegments(edges, material);
+        
+        wireframe.position.set(
+            box.center.x,
+            height / 2,
+            box.center.z
+        );
+        
+        wireframe.name = 'collisionVisual';
+        this.collisionVisual = wireframe;
+        
+        return wireframe;
+    }
+
+    /**
+     * 更新碰撞体积可视化位置
+     */
+    updateCollisionVisual() {
+        if (this.collisionVisual) {
+            this.updateCollisionBox();
+            const box = this.collisionBox;
+            const height = box.maxY - box.minY;
+            
+            this.collisionVisual.position.set(
+                box.center.x,
+                height / 2,
+                box.center.z
+            );
+        }
+    }
+
+    /**
+     * 显示/隐藏碰撞体积可视化
+     */
+    toggleCollisionVisual(visible) {
+        if (this.collisionVisual) {
+            this.collisionVisual.visible = visible;
+            
+            // 如果可视化不存在但需要显示，则创建
+            if (visible && !this.collisionVisual.parent && this.mesh) {
+                this.mesh.add(this.collisionVisual);
+            }
+        } else if (visible) {
+            const visual = this.createCollisionVisual();
+            if (this.mesh) {
+                this.mesh.add(visual);
+            }
+        }
     }
 }
 

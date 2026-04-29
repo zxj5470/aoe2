@@ -14,6 +14,8 @@ import FormationSystem from '../systems/FormationSystem.js';
 import BuildingPlacementSystem from '../systems/BuildingPlacementSystem.js';
 import CombatSystem from '../systems/CombatSystem.js';
 import ResourceGatheringSystem from '../systems/ResourceGatheringSystem.js';
+import CollisionSystem from '../systems/CollisionSystem.js';
+import SpatialIndex from './SpatialIndex.js';
 import HUD from '../ui/HUD.js';
 
 class Game {
@@ -33,7 +35,7 @@ class Game {
             stone: 0
         };
         this.map = null;
-        
+
         // 系统组件
         this.inputHandler = null;
         this.selectionManager = null;
@@ -44,7 +46,18 @@ class Game {
         this.buildingPlacementSystem = null;
         this.combatSystem = null;
         this.resourceGatheringSystem = null;
+        this.collisionSystem = null;
         this.hud = null;
+
+        // 空间索引
+        this.spatialIndex = null;
+
+        // UI更新计时器
+        this.uiUpdateTimer = 0;
+        this.uiUpdateInterval = 1; // 每秒更新一次UI
+
+        // 碰撞可视化显示状态
+        this.showCollisionVisuals = false;
     }
 
     async init() {
@@ -140,26 +153,35 @@ class Game {
     }
 
     initWorld() {
-        // 初始化地图
-        this.map = new GameMap(100, 100, 2);
+        // 初始化地图（网格大小改为1x1）
+        this.map = new GameMap(200, 200, 1);
         const mapMesh = this.map.init();
         this.scene.addEntity({ getMesh: () => mapMesh });
-        
+
         // 添加地图装饰物到场景
         const decorations = this.map.getDecorations();
         for (const decoration of decorations) {
             this.scene.addEntity({ getMesh: () => decoration });
         }
-        
+
         // 初始化测试单位（验证单位渲染系统）
         this.initTestUnits();
-        
+
         // 初始化测试建筑（验证建筑渲染系统）
         this.initTestBuildings();
-        
+
         // 初始化测试资源节点（验证资源节点系统）
         this.initTestResources();
-        
+
+        // 初始化城镇中心（作为资源存储点）
+        this.initTownCenter();
+
+        // 注册单位到资源收集系统
+        this.registerUnitsToGatheringSystem();
+
+        // 注册资源节点到资源收集系统
+        this.registerResourceNodesToGatheringSystem();
+
         // 初始化单位
         this.updateResourceDisplay();
     }
@@ -168,11 +190,11 @@ class Game {
      * 初始化测试单位，用于验证单位渲染系统
      */
     initTestUnits() {
-        // 辅助函数：将坐标对齐到网格中心
+        // 辅助函数：将坐标对齐到网格中心（网格大小1x1）
         const alignToGrid = (coord) => {
-            return Math.floor(coord / 2) * 2 + 1;
+            return Math.floor(coord / 1) * 1 + 0.5;
         };
-        
+
         // 创建不同类型的测试单位
         const unitConfigs = [
             // 村民（3个）
@@ -204,58 +226,58 @@ class Game {
                 health: 50,
                 maxHealth: 50,
                 speed: 5,
-                attackDamage: config.unitType === 'knight' ? 15 : 
-                             config.unitType === 'soldier' ? 10 : 
+                attackDamage: config.unitType === 'knight' ? 15 :
+                             config.unitType === 'soldier' ? 10 :
                              config.unitType === 'archer' ? 8 : 5,
                 attackRange: config.unitType === 'archer' ? 5 : 1,
                 attackSpeed: 1,
-                armor: config.unitType === 'knight' ? 3 : 
+                armor: config.unitType === 'knight' ? 3 :
                        config.unitType === 'soldier' ? 2 : 1,
                 sightRange: 6,
                 pathfindingSystem: this.pathfinding,
-                formationSystem: this.formationSystem
+                formationSystem: this.formationSystem,
+                game: this // 传递游戏实例引用
             });
-            
+
             // 创建单位的3D模型
             const unitMesh = unit.createMesh();
             if (unitMesh) {
-                this.scene.addEntity(unit);
-                this.entities.push(unit);
+                this.addEntity(unit);
             }
         }
-        
+
         // 创建一些敌方单位
         const enemyConfigs = [
             { unitType: 'soldier', name: '敌人士兵1', x: alignToGrid(-10), z: alignToGrid(10), owner: 'enemy' },
             { unitType: 'knight', name: '敌方骑士1', x: alignToGrid(-10), z: alignToGrid(15), owner: 'enemy' },
             { unitType: 'archer', name: '敌方弓箭手1', x: alignToGrid(-15), z: alignToGrid(10), owner: 'enemy' }
         ];
-        
+
         for (const config of enemyConfigs) {
             const unit = new Unit({
                 ...config,
                 health: 50,
                 maxHealth: 50,
                 speed: 5,
-                attackDamage: config.unitType === 'knight' ? 15 : 
-                             config.unitType === 'soldier' ? 10 : 
+                attackDamage: config.unitType === 'knight' ? 15 :
+                             config.unitType === 'soldier' ? 10 :
                              config.unitType === 'archer' ? 8 : 5,
                 attackRange: config.unitType === 'archer' ? 5 : 1,
                 attackSpeed: 1,
-                armor: config.unitType === 'knight' ? 3 : 
+                armor: config.unitType === 'knight' ? 3 :
                        config.unitType === 'soldier' ? 2 : 1,
                 sightRange: 6,
                 pathfindingSystem: this.pathfinding,
-                formationSystem: this.formationSystem
+                formationSystem: this.formationSystem,
+                game: this // 传递游戏实例引用
             });
-            
+
             const unitMesh = unit.createMesh();
             if (unitMesh) {
-                this.scene.addEntity(unit);
-                this.entities.push(unit);
+                this.addEntity(unit);
             }
         }
-        
+
         console.log(`已创建 ${unitConfigs.length + enemyConfigs.length} 个测试单位`);
     }
     
@@ -263,11 +285,11 @@ class Game {
      * 初始化测试建筑，用于验证建筑渲染系统
      */
     initTestBuildings() {
-        // 辅助函数：将坐标对齐到网格中心
+        // 辅助函数：将坐标对齐到网格中心（网格大小1x1）
         const alignToGrid = (coord) => {
-            return Math.round(coord / 2) * 2 + 1;
+            return Math.round(coord / 1) * 1 + 0.5;
         };
-        
+
         // 创建不同类型的测试建筑
         const buildingConfigs = [
             // 住宅（3个）
@@ -301,22 +323,21 @@ class Game {
                 depth: this.getBuildingDepth(config.buildingType),
                 height: this.getBuildingHeight(config.buildingType)
             });
-            
+
             // 创建建筑的3D模型
             const buildingMesh = building.createMesh();
             if (buildingMesh) {
-                this.scene.addEntity(building);
-                this.entities.push(building);
+                this.addEntity(building);
             }
         }
-        
+
         // 创建一些敌方建筑
         const enemyBuildingConfigs = [
             { buildingType: 'barracks', name: '敌军兵营', x: alignToGrid(-15), z: alignToGrid(8), owner: 'enemy' },
             { buildingType: 'watch_tower', name: '敌军瞭望塔', x: alignToGrid(-18), z: alignToGrid(12), owner: 'enemy' },
             { buildingType: 'house', name: '敌军房屋', x: alignToGrid(-12), z: alignToGrid(15), owner: 'enemy' }
         ];
-        
+
         for (const config of enemyBuildingConfigs) {
             const building = new Building({
                 ...config,
@@ -326,14 +347,13 @@ class Game {
                 depth: this.getBuildingDepth(config.buildingType),
                 height: this.getBuildingHeight(config.buildingType)
             });
-            
+
             const buildingMesh = building.createMesh();
             if (buildingMesh) {
-                this.scene.addEntity(building);
-                this.entities.push(building);
+                this.addEntity(building);
             }
         }
-        
+
         console.log(`已创建 ${buildingConfigs.length + enemyBuildingConfigs.length} 个测试建筑`);
     }
     
@@ -341,11 +361,11 @@ class Game {
      * 初始化测试资源节点，用于验证资源节点系统
      */
     initTestResources() {
-        // 辅助函数：将坐标对齐到网格中心
+        // 辅助函数：将坐标对齐到网格中心（网格大小1x1）
         const alignToGrid = (coord) => {
-            return Math.round(coord / 2) * 2 + 1;
+            return Math.round(coord / 1) * 1 + 0.5;
         };
-        
+
         // 创建不同类型的测试资源节点
         const resourceConfigs = [
             // 树木（木材资源）- 对齐到网格中心
@@ -387,14 +407,159 @@ class Game {
             // 创建资源节点的3D模型
             const resourceMesh = resourceNode.createMesh();
             if (resourceMesh) {
-                this.scene.addEntity(resourceNode);
-                this.entities.push(resourceNode);
+                this.addEntity(resourceNode);
             }
         }
-        
+
         console.log(`已创建 ${resourceConfigs.length} 个测试资源节点（已对齐到网格中心）`);
     }
-    
+
+    /**
+     * 初始化城镇中心（作为资源存储点）
+     */
+    initTownCenter() {
+        const alignToGrid = (coord) => {
+            return Math.round(coord / 1) * 1 + 0.5;
+        };
+
+        // 创建城镇中心建筑（4x4网格）
+        const townCenter = new Building({
+            buildingType: 'town_center',
+            name: '城镇中心',
+            x: alignToGrid(0),
+            z: alignToGrid(0),
+            owner: 'player',
+            health: 1000,
+            maxHealth: 1000,
+            width: 4,
+            depth: 4,
+            height: 4,
+            gridSizeX: 4,
+            gridSizeZ: 4
+        });
+
+        const townCenterMesh = townCenter.createMesh();
+        if (townCenterMesh) {
+            this.addEntity(townCenter);
+        }
+
+        // 将城镇中心添加为资源存储点
+        if (this.resourceGatheringSystem) {
+            this.resourceGatheringSystem.addDropOffPoint(townCenter, ['wood', 'food', 'gold', 'stone']);
+            console.log('已创建城镇中心并添加为资源存储点');
+        }
+    }
+
+    /**
+     * 注册单位到资源收集系统
+     */
+    registerUnitsToGatheringSystem() {
+        if (!this.resourceGatheringSystem) return;
+
+        // 注册所有村民单位
+        for (const entity of this.entities) {
+            if (entity.unitType === 'villager' && entity.owner === 'player') {
+                this.resourceGatheringSystem.registerGatherer(entity);
+            }
+        }
+
+        console.log(`已注册 ${this.resourceGatheringSystem.getGathererCount()} 个村民到资源收集系统`);
+    }
+
+    /**
+     * 注册资源节点到资源收集系统
+     */
+    registerResourceNodesToGatheringSystem() {
+        if (!this.resourceGatheringSystem) return;
+
+        // 注册所有资源节点
+        for (const entity of this.entities) {
+            if (entity.type === 'resource' && entity.userData) {
+                this.resourceGatheringSystem.registerResourceNode(entity);
+            }
+        }
+
+        console.log(`已注册 ${this.resourceGatheringSystem.getResourceNodeCount()} 个资源节点到资源收集系统`);
+    }
+
+    /**
+     * 切换所有实体的碰撞体积可视化
+     */
+    toggleCollisionVisuals() {
+        if (!this.collisionSystem) return;
+
+        // 切换显示状态
+        this.showCollisionVisuals = !this.showCollisionVisuals;
+
+        console.log(`碰撞体积可视化: ${this.showCollisionVisuals ? '显示' : '隐藏'}`);
+
+        // 更新所有建筑的碰撞可视化
+        for (const building of this.collisionSystem.buildings) {
+            if (building.toggleCollisionVisual) {
+                building.toggleCollisionVisual(this.showCollisionVisuals);
+            }
+        }
+
+        // 更新所有资源节点的碰撞可视化
+        for (const resource of this.collisionSystem.resourceNodes) {
+            if (resource.toggleCollisionVisual) {
+                resource.toggleCollisionVisual(this.showCollisionVisuals);
+            }
+        }
+
+        // 更新所有单位的碰撞可视化
+        for (const unit of this.collisionSystem.units) {
+            if (unit.toggleCollisionVisual) {
+                unit.toggleCollisionVisual(this.showCollisionVisuals);
+            }
+        }
+    }
+
+    /**
+     * 选择/切换城镇中心
+     */
+    selectTownCenter() {
+        if (!this.selectionManager) return;
+
+        // 查找所有城镇中心建筑
+        const townCenters = this.entities.filter(entity => 
+            entity.type === 'building' && 
+            entity.buildingType === 'town_center' &&
+            entity.isAlive
+        );
+
+        if (townCenters.length === 0) {
+            console.log('没有找到城镇中心');
+            return;
+        }
+
+        // 获取当前选中的城镇中心索引
+        const currentlySelected = this.selectionManager.getSelectedEntities();
+        let currentIndex = -1;
+
+        if (currentlySelected.length === 1 && currentlySelected[0].buildingType === 'town_center') {
+            currentIndex = townCenters.indexOf(currentlySelected[0]);
+        }
+
+        // 计算下一个索引（循环切换）
+        const nextIndex = (currentIndex + 1) % townCenters.length;
+        const targetTownCenter = townCenters[nextIndex];
+
+        // 选择目标城镇中心
+        this.selectionManager.deselectAll();
+        this.selectionManager.selectEntity(targetTownCenter);
+
+        // 移动相机到城镇中心
+        if (this.camera) {
+            this.camera.target.x = targetTownCenter.position.x;
+            this.camera.target.z = targetTownCenter.position.z;
+            this.camera.target.y = 0;
+            this.camera.updateCameraPosition();
+        }
+
+        console.log(`已选择城镇中心 ${nextIndex + 1}/${townCenters.length}`);
+    }
+
     /**
      * 获取建筑宽度
      */
@@ -450,6 +615,9 @@ class Game {
     }
 
     initIndependentSystems() {
+        // 空间索引
+        this.spatialIndex = new SpatialIndex();
+
         // 编队系统（需要在选择系统之前创建）
         this.formationSystem = new FormationSystem();
         
@@ -487,9 +655,16 @@ class Game {
         // 建筑放置系统（需要 map）
         this.buildingPlacementSystem = new BuildingPlacementSystem(this.map, this.scene);
         
-        // 资源收集系统（需要 map）
-        this.resourceGatheringSystem = new ResourceGatheringSystem(this.map, this.resourceManager);
-        
+        // 资源收集系统（需要 map 和 spatialIndex）
+        this.resourceGatheringSystem = new ResourceGatheringSystem(
+            this.map, 
+            this.resourceManager,
+            this.spatialIndex
+        );
+
+        // 碰撞系统（需要 map）
+        this.collisionSystem = new CollisionSystem(this.map);
+
         // UI系统
         this.hud = new HUD(this);
     }
@@ -553,7 +728,21 @@ class Game {
         if (this.resourceGatheringSystem) {
             this.resourceGatheringSystem.update(deltaTime);
         }
-        
+
+        // 更新标题栏相机控制
+        if (this.hud) {
+            this.hud.updateAgeDisplayCameraControl(deltaTime);
+        }
+
+        // 每秒更新一次单位信息面板（显示携带资源量）
+        this.uiUpdateTimer += deltaTime;
+        if (this.uiUpdateTimer >= this.uiUpdateInterval) {
+            this.uiUpdateTimer = 0;
+            if (this.hud) {
+                this.hud.updateUnitInfoPanel();
+            }
+        }
+
         // 更新实体
         this.updateEntities(deltaTime);
         
@@ -573,6 +762,21 @@ class Game {
     addEntity(entity) {
         this.entities.push(entity);
         this.scene.addEntity(entity);
+
+        // 如果碰撞系统存在，注册实体并更新网格占用
+        if (this.collisionSystem) {
+            if (entity.type === 'building' || entity.type === 'resource' || entity.type === 'unit') {
+                this.collisionSystem.registerEntity(entity);
+                this.collisionSystem.updateGridOccupancy();
+            }
+        }
+
+        // 将资源节点和建筑添加到空间索引
+        if (this.spatialIndex) {
+            if (entity.type === 'resource' || entity.type === 'building') {
+                this.spatialIndex.insert(entity);
+            }
+        }
     }
 
     removeEntity(entity) {
@@ -580,6 +784,11 @@ class Game {
         if (index > -1) {
             this.entities.splice(index, 1);
             this.scene.removeEntity(entity);
+
+            // 从空间索引中移除
+            if (this.spatialIndex && (entity.type === 'resource' || entity.type === 'building')) {
+                this.spatialIndex.remove(entity);
+            }
         }
     }
 
@@ -683,7 +892,7 @@ class Game {
             if (this.selectionManager) {
                 const formationTypes = ['line', 'column', 'square', 'wedge', 'circle'];
                 const formationNames = ['线形编队', '列形编队', '方形编队', '楔形编队', '圆形编队'];
-                
+
                 for (let i = 1; i <= 5; i++) {
                     if (event.key === i.toString()) {
                         this.selectionManager.setFormationType(formationTypes[i - 1]);
@@ -693,6 +902,16 @@ class Game {
                     }
                 }
             }
+        }
+
+        // C键：切换碰撞体积可视化
+        if (event.key === 'c' || event.key === 'C') {
+            this.toggleCollisionVisuals();
+        }
+
+        // H键：选择/切换城镇中心
+        if (event.key === 'h' || event.key === 'H') {
+            this.selectTownCenter();
         }
     }
 
@@ -768,37 +987,44 @@ class Game {
     
     handleRightClick(event) {
         if (!this.selectionManager || !this.inputHandler) return;
-        
+
         const worldPos = this.inputHandler.getWorldPosition();
-        
-        // 创建右键点击特效
-        this.createClickEffect(event.clientX, event.clientY);
-        
+
         if (!this.selectionManager.hasSelection()) return;
-        
-        // 检查是否右键点击了实体
-        const raycaster = this.inputHandler.getRaycaster();
-        const intersects = raycaster.intersectObjects(this.scene.getScene().children, true);
-        
-        for (const intersect of intersects) {
-            let entity = intersect.object;
-            
-            while (entity && !entity.userData) {
-                entity = entity.parent;
-            }
-            
-            if (entity && entity.userData) {
-                // 攻击或收集资源
-                if (entity.userData.type === 'unit' || entity.userData.type === 'building') {
-                    this.selectionManager.issueAttackCommand(entity);
-                    return;
-                } else if (entity.userData.resourceType) {
-                    this.selectionManager.issueCommand('gather', entity);
-                    return;
+
+        // 使用空间索引查询右键点击位置的实体
+        const tolerance = 2.0; // 点击容差
+        const nearbyEntities = this.spatialIndex.queryPoint(worldPos.x, worldPos.z, tolerance);
+
+        console.log('[handleRightClick] 空间索引查询结果:', nearbyEntities.length, '个实体');
+
+        // 查找最近的资源节点
+        for (const entity of nearbyEntities) {
+            if (entity.type === 'resource' && entity.isAlive) {
+                console.log('[handleRightClick] 找到资源节点:', entity.resourceType);
+                
+                // 显示采集指示器（绿色框）
+                if (entity.showGatherIndicator) {
+                    console.log('[handleRightClick] 调用 showGatherIndicator()');
+                    entity.showGatherIndicator();
+                } else {
+                    console.error('[handleRightClick] entity 没有 showGatherIndicator 方法!');
                 }
+                
+                // 查找城镇中心作为投放点
+                const townCenter = this.entities.find(e => 
+                    e.type === 'building' && 
+                    e.buildingType === 'town_center' &&
+                    e.isAlive
+                );
+                
+                // 下发采集命令（传递投放点）
+                this.selectionManager.issueCommand('gather', entity, townCenter);
+                return;
             }
         }
-        
+
+        console.log('[handleRightClick] 未点击到资源节点，执行移动命令');
         // 移动命令
         this.selectionManager.issueMoveCommand(new THREE.Vector3(worldPos.x, 0, worldPos.z));
     }

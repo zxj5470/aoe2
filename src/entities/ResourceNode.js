@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import Entity from './Entity.js';
+import { CELL_SIZE, MAP_CONFIG } from '../config.js';
 
 class ResourceNode extends Entity {
     constructor(config) {
@@ -20,19 +21,276 @@ class ResourceNode extends Entity {
         this.gatherSpeed = config.gatherSpeed || 1;
         this.gatherer = null;
         this.isBeingGathered = false;
-        
+
         // 资源节点特性
         this.canRespawn = config.canRespawn || false;
         this.respawnTime = config.respawnTime || 30; // 重生时间（秒）
         this.respawnTimer = 0;
         this.isDepleted = false;
-        
+
+        // 网格大小属性（资源节点通常是1x1）
+        this.gridSizeX = config.gridSizeX || 1;
+        this.gridSizeZ = config.gridSizeZ || 1;
+
+        // 碰撞体积
+        this.collisionBox = null;
+
         // 视觉效果
         this.gatherParticles = [];
         this.particleInterval = 0;
-        
+
         // 根据资源类型设置外观配置
         this.appearanceConfig = this.getAppearanceConfig();
+
+        // 更新userData以包含资源数量（供ResourceGatheringSystem使用）
+        this.userData = {
+            type: 'resource',
+            resourceType: this.resourceType,
+            resourceAmount: this.amount,
+            entity: this,
+            owner: this.owner
+        };
+
+        // 采集指示器
+        this.gatherIndicator = null;
+        this.gatherIndicatorTimer = null;
+    }
+
+    /**
+     * 显示采集指示器（绿色方框，持续显示）
+     */
+    showGatherIndicator() {
+        // 如果已有指示器，先隐藏
+        this.hideGatherIndicator();
+
+        // 创建绿色线框方框（与选择环相同的样式，但是绿色）
+        const gridSize = CELL_SIZE;
+        const gridWidth = gridSize;
+        const gridDepth = gridSize;
+
+        const boxGeometry = new THREE.BoxGeometry(gridWidth, 0.1, gridDepth);
+        const edgesGeometry = new THREE.EdgesGeometry(boxGeometry);
+        const edgesMaterial = new THREE.LineBasicMaterial({
+            color: 0x00FF00,  // 绿色
+            transparent: true,
+            opacity: 0.9,
+            linewidth: 2
+        });
+
+        this.gatherIndicator = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+        this.gatherIndicator.position.set(0, 0.1, 0);  // 略高于选择环（0.05）
+        this.gatherIndicator.visible = true;
+        this.gatherIndicator.name = 'gatherIndicator';
+
+        // 添加到资源节点 mesh 中
+        if (this.mesh) {
+            this.mesh.add(this.gatherIndicator);
+            // 保存mesh的初始旋转，用于反向旋转指示器
+            this.meshInitialRotation = this.mesh.rotation.y;
+        }
+
+        // 反向旋转指示器，使其始终朝向世界坐标系的正方向
+        this.gatherIndicator.rotation.y = -this.mesh.rotation.y + this.meshInitialRotation;
+        
+        console.log(`[ResourceNode] 绿色采集指示器已创建，位置: ${this.gatherIndicator.position.x}, ${this.gatherIndicator.position.y}, ${this.gatherIndicator.position.z}`);
+    }
+
+    /**
+     * 隐藏采集指示器
+     */
+    hideGatherIndicator() {
+        if (this.gatherIndicator) {
+            if (this.gatherIndicator.parent) {
+                this.gatherIndicator.parent.remove(this.gatherIndicator);
+            }
+            if (this.gatherIndicator.geometry) {
+                this.gatherIndicator.geometry.dispose();
+            }
+            if (this.gatherIndicator.material) {
+                this.gatherIndicator.material.dispose();
+            }
+            this.gatherIndicator = null;
+        }
+        
+        if (this.gatherIndicatorTimer) {
+            clearInterval(this.gatherIndicatorTimer);
+            this.gatherIndicatorTimer = null;
+        }
+    }
+
+    /**
+     * 创建碰撞体积
+     */
+    createCollisionBox() {
+        // 资源节点的碰撞体积较小，基于网格大小
+        const width = this.gridSizeX * 1; // 每个网格单元是1x1
+        const depth = this.gridSizeZ * 1;
+        const height = 2; // 资源节点高度固定
+
+        this.collisionBox = {
+            minX: this.position.x - width / 2,
+            maxX: this.position.x + width / 2,
+            minZ: this.position.z - depth / 2,
+            maxZ: this.position.z + depth / 2,
+            minY: 0,
+            maxY: height,
+            width: width,
+            depth: depth,
+            height: height,
+            center: this.position.clone()
+        };
+
+        return this.collisionBox;
+    }
+
+    /**
+     * 更新碰撞体积位置
+     */
+    updateCollisionBox() {
+        if (this.collisionBox) {
+            const width = this.collisionBox.width;
+            const depth = this.collisionBox.depth;
+            
+            this.collisionBox.minX = this.position.x - width / 2;
+            this.collisionBox.maxX = this.position.x + width / 2;
+            this.collisionBox.minZ = this.position.z - depth / 2;
+            this.collisionBox.maxZ = this.position.z + depth / 2;
+            this.collisionBox.center.copy(this.position);
+        }
+    }
+
+    /**
+     * 获取碰撞体积
+     */
+    getCollisionBox() {
+        if (!this.collisionBox) {
+            this.createCollisionBox();
+        }
+        return this.collisionBox;
+    }
+
+    /**
+     * 检测点是否在碰撞体积内
+     */
+    containsPoint(point) {
+        const box = this.getCollisionBox();
+        return (
+            point.x >= box.minX &&
+            point.x <= box.maxX &&
+            point.z >= box.minZ &&
+            point.z <= box.maxZ
+        );
+    }
+
+    /**
+     * 检测是否与另一个碰撞体积相交
+     */
+    intersectsBox(otherBox) {
+        const box = this.getCollisionBox();
+        return (
+            box.minX < otherBox.maxX &&
+            box.maxX > otherBox.minX &&
+            box.minZ < otherBox.maxZ &&
+            box.maxZ > otherBox.minZ
+        );
+    }
+
+    /**
+     * 获取资源节点占用的网格坐标
+     */
+    getOccupiedGridCells(cellSize = CELL_SIZE) {
+        const cells = [];
+
+        // 资源节点中心的世界坐标
+        const worldX = this.position.x;
+        const worldZ = this.position.z;
+
+        // 计算网格偏移（地图中心在原点，网格从 -width/2 开始）
+        const halfMapWidth = MAP_CONFIG.width / 2;
+        const halfMapHeight = MAP_CONFIG.height / 2;
+
+        // 计算资源节点在网格中的索引
+        const gridX = Math.floor((worldX + halfMapWidth) / cellSize);
+        const gridZ = Math.floor((worldZ + halfMapHeight) / cellSize);
+
+        // 资源节点只占用1x1网格
+        if (gridX >= 0 && gridX < MAP_CONFIG.width && gridZ >= 0 && gridZ < MAP_CONFIG.height) {
+            cells.push({ x: gridX, z: gridZ });
+        }
+
+        return cells;
+    }
+
+    /**
+     * 创建碰撞体积可视化（调试用）
+     */
+    createCollisionVisual(color = 0xFF0000) {
+        if (!this.collisionBox) {
+            this.createCollisionBox();
+        }
+
+        const box = this.collisionBox;
+        const width = box.width;
+        const depth = box.depth;
+        const height = box.maxY - box.minY;
+
+        // 创建线框盒子
+        const geometry = new THREE.BoxGeometry(width, height, depth);
+        const edges = new THREE.EdgesGeometry(geometry);
+        const material = new THREE.LineBasicMaterial({ 
+            color: color,
+            linewidth: 2,
+            transparent: true,
+            opacity: 0.5
+        });
+        const wireframe = new THREE.LineSegments(edges, material);
+        
+        wireframe.position.set(
+            box.center.x,
+            height / 2,
+            box.center.z
+        );
+        
+        wireframe.name = 'collisionVisual';
+        this.collisionVisual = wireframe;
+        
+        return wireframe;
+    }
+
+    /**
+     * 更新碰撞体积可视化位置
+     */
+    updateCollisionVisual() {
+        if (this.collisionVisual) {
+            this.updateCollisionBox();
+            const box = this.collisionBox;
+            const height = box.maxY - box.minY;
+            
+            this.collisionVisual.position.set(
+                box.center.x,
+                height / 2,
+                box.center.z
+            );
+        }
+    }
+
+    /**
+     * 显示/隐藏碰撞体积可视化
+     */
+    toggleCollisionVisual(visible) {
+        if (this.collisionVisual) {
+            this.collisionVisual.visible = visible;
+            
+            // 如果可视化不存在但需要显示，则创建
+            if (visible && !this.collisionVisual.parent && this.mesh) {
+                this.mesh.add(this.collisionVisual);
+            }
+        } else if (visible) {
+            const visual = this.createCollisionVisual();
+            if (this.mesh) {
+                this.mesh.add(visual);
+            }
+        }
     }
     
     /**
@@ -96,19 +354,21 @@ class ResourceNode extends Entity {
         
         // 创建选择环（在设置旋转之前添加，避免选择环也跟着旋转）
         this.createSelectionRing();
-        
-        // 设置随机旋转（只影响资源节点本身，不影响选择环）
-        this.mesh.rotation.y = Math.random() * Math.PI * 2;
+
+        // 固定旋转角度为0
+        this.mesh.rotation.y = 0;
         this.mesh.scale.set(this.scale, this.scale, this.scale);
         
         // 设置userData，让选择系统能够识别实体
         this.mesh.userData = {
             type: 'resource',
             resourceType: this.resourceType,
+            resourceAmount: this.amount,
             entity: this,
-            owner: this.owner
+            owner: this.owner,
+            collisionBox: this.getCollisionBox()
         };
-        
+
         return this.mesh;
     }
     
@@ -576,9 +836,9 @@ class ResourceNode extends Entity {
      * 创建选择环（对齐网格的白色边框）
      */
     createSelectionRing() {
-        const gridSize = 2; // 网格单元格大小
+        const gridSize = CELL_SIZE;
         const size = this.appearanceConfig.size;
-        
+
         // 资源节点占用1个网格单元
         const gridWidth = gridSize;
         const gridDepth = gridSize;

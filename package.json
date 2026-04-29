@@ -17,6 +17,7 @@
     "author": "",
     "license": "MIT",
     "dependencies": {
+        "rbush": "^4.0.1",
         "three": "^0.160.0"
     },
     "devDependencies": {

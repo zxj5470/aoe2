@@ -137,15 +137,30 @@
         
         .hud-panel-center {
             position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
+            left: 280px;
+            right: 220px;
             bottom: 0;
-            width: 400px;
-            min-width: 400px;
-            max-width: 400px;
-            background: transparent;
+            height: 100%;
+            display: flex;
+            flex-direction: row;
+            background: rgba(0, 0, 0, 0.8);
         }
-        
+
+        .hud-panel-center-left {
+            width: 280px;
+            min-width: 280px;
+            height: 100%;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #8B4513;
+        }
+
+        .hud-panel-center-right {
+            flex: 1;
+            height: 100%;
+        }
+
         .hud-panel-right {
             position: absolute;
             right: 0;
@@ -158,6 +173,11 @@
             align-items: center;
             justify-content: center;
             background: rgba(0, 0, 0, 0.8);
+        }
+
+        /* 标题栏相机控制区域 */
+        .age-display {
+            cursor: ns-resize; /* 上下调整光标 */
         }
         
         .panel-title {
@@ -501,16 +521,20 @@
                         </button>
                     </div>
                 </div>
-                
+
                 <div class="hud-panel hud-panel-center">
-                    <div class="panel-title">单位信息</div>
-                    <div id="unit-info-content" class="unit-info">
-                        <div style="color: #888; text-align: center; padding: 40px 0;">
-                            未选择任何单位
+                    <div class="hud-panel-center-left">
+                        <div id="unit-info-content" class="unit-info">
+                            <div style="color: #888; text-align: center; padding: 40px 0;">
+                                未选择任何单位
+                            </div>
                         </div>
                     </div>
+                    <div class="hud-panel-center-right">
+                        <!-- 空白区域 -->
+                    </div>
                 </div>
-                
+
                 <div class="hud-panel hud-panel-right">
                     <div id="minimap">
                         <canvas id="minimap-canvas"></canvas>
@@ -524,6 +548,11 @@
                     <div class="debug-row"><span class="debug-label">Position:</span> <span class="debug-value" id="debug-position">-</span></div>
                     <div class="debug-row"><span class="debug-label">Target:</span> <span class="debug-value" id="debug-target">-</span></div>
                     <div class="debug-row"><span class="debug-label">Zoom:</span> <span class="debug-value" id="debug-zoom">-</span></div>
+                </div>
+                <div class="debug-section">
+                    <div class="debug-title">鼠标位置</div>
+                    <div class="debug-row"><span class="debug-label">屏幕坐标:</span> <span class="debug-value" id="debug-mouse-screen">-</span></div>
+                    <div class="debug-row"><span class="debug-label">世界坐标:</span> <span class="debug-value" id="debug-mouse-world">-</span></div>
                 </div>
                 <div class="debug-section">
                     <div class="debug-title">小地图视野</div>
