@@ -190,9 +190,10 @@ class Game {
      * 初始化测试单位，用于验证单位渲染系统
      */
     initTestUnits() {
-        // 辅助函数：将坐标对齐到网格中心（网格大小1x1）
-        const alignToGrid = (coord) => {
-            return Math.floor(coord / 1) * 1 + 0.5;
+        // 辅助函数：将坐标对齐到网格中心（1x1=0.5偏移, 2x2=0偏移, 3x3=0.5偏移, 4x4=0偏移）
+        const alignToGrid = (coord, size = 1) => {
+            const offset = size % 2 === 0 ? 0 : 0.5;
+            return Math.round(coord) + offset;
         };
 
         // 创建不同类型的测试单位
@@ -285,31 +286,35 @@ class Game {
      * 初始化测试建筑，用于验证建筑渲染系统
      */
     initTestBuildings() {
-        // 辅助函数：将坐标对齐到网格中心（网格大小1x1）
-        const alignToGrid = (coord) => {
-            return Math.round(coord / 1) * 1 + 0.5;
+        // 辅助函数：根据建筑尺寸对齐到网格中心
+        const alignToGrid = (coord, size = 2) => {
+            const offset = size % 2 === 0 ? 0 : 0.5;
+            return Math.round(coord) + offset;
         };
+
+        // 获取建筑尺寸的辅助函数
+        const getSize = (type) => this.getBuildingWidth(type) || 2;
 
         // 创建不同类型的测试建筑
         const buildingConfigs = [
-            // 住宅（3个）
-            { buildingType: 'house', name: '房屋1', x: alignToGrid(8), z: alignToGrid(0) },
-            { buildingType: 'house', name: '房屋2', x: alignToGrid(8), z: alignToGrid(4) },
-            { buildingType: 'house', name: '房屋3', x: alignToGrid(8), z: alignToGrid(-4) },
+            // 住宅（3个，2x2）
+            { buildingType: 'house', name: '房屋1', x: alignToGrid(8, getSize('house')), z: alignToGrid(0, getSize('house')) },
+            { buildingType: 'house', name: '房屋2', x: alignToGrid(8, getSize('house')), z: alignToGrid(4, getSize('house')) },
+            { buildingType: 'house', name: '房屋3', x: alignToGrid(8, getSize('house')), z: alignToGrid(-4, getSize('house')) },
             
             // 军事建筑
-            { buildingType: 'barracks', name: '兵营', x: alignToGrid(12), z: alignToGrid(8) },
-            { buildingType: 'stable', name: '马厩', x: alignToGrid(15), z: alignToGrid(12) },
-            { buildingType: 'archery_range', name: '射箭场', x: alignToGrid(18), z: alignToGrid(8) },
-            { buildingType: 'watch_tower', name: '瞭望塔', x: alignToGrid(20), z: alignToGrid(5) },
+            { buildingType: 'barracks', name: '兵营', x: alignToGrid(12, getSize('barracks')), z: alignToGrid(8, getSize('barracks')) },
+            { buildingType: 'stable', name: '马厩', x: alignToGrid(15, getSize('stable')), z: alignToGrid(12, getSize('stable')) },
+            { buildingType: 'archery_range', name: '射箭场', x: alignToGrid(18, getSize('archery_range')), z: alignToGrid(8, getSize('archery_range')) },
+            { buildingType: 'watch_tower', name: '瞭望塔', x: alignToGrid(20, getSize('watch_tower')), z: alignToGrid(5, getSize('watch_tower')) },
             
             // 经济建筑
-            { buildingType: 'market', name: '市场', x: alignToGrid(12), z: alignToGrid(-8) },
-            { buildingType: 'blacksmith', name: '铁匠铺', x: alignToGrid(15), z: alignToGrid(-12) },
+            { buildingType: 'market', name: '市场', x: alignToGrid(12, getSize('market')), z: alignToGrid(-8, getSize('market')) },
+            { buildingType: 'blacksmith', name: '铁匠铺', x: alignToGrid(15, getSize('blacksmith')), z: alignToGrid(-12, getSize('blacksmith')) },
             
             // 特殊建筑
-            { buildingType: 'church', name: '教堂', x: alignToGrid(20), z: alignToGrid(0) },
-            { buildingType: 'castle', name: '城堡', x: alignToGrid(25), z: alignToGrid(0) }
+            { buildingType: 'church', name: '教堂', x: alignToGrid(20, getSize('church')), z: alignToGrid(0, getSize('church')) },
+            { buildingType: 'castle', name: '城堡', x: alignToGrid(25, getSize('castle')), z: alignToGrid(0, getSize('castle')) }
         ];
         
         // 创建并添加所有建筑
@@ -333,9 +338,9 @@ class Game {
 
         // 创建一些敌方建筑
         const enemyBuildingConfigs = [
-            { buildingType: 'barracks', name: '敌军兵营', x: alignToGrid(-15), z: alignToGrid(8), owner: 'enemy' },
-            { buildingType: 'watch_tower', name: '敌军瞭望塔', x: alignToGrid(-18), z: alignToGrid(12), owner: 'enemy' },
-            { buildingType: 'house', name: '敌军房屋', x: alignToGrid(-12), z: alignToGrid(15), owner: 'enemy' }
+            { buildingType: 'barracks', name: '敌军兵营', x: alignToGrid(-15, getSize('barracks')), z: alignToGrid(8, getSize('barracks')), owner: 'enemy' },
+            { buildingType: 'watch_tower', name: '敌军瞭望塔', x: alignToGrid(-18, getSize('watch_tower')), z: alignToGrid(12, getSize('watch_tower')), owner: 'enemy' },
+            { buildingType: 'house', name: '敌军房屋', x: alignToGrid(-12, getSize('house')), z: alignToGrid(15, getSize('house')), owner: 'enemy' }
         ];
 
         for (const config of enemyBuildingConfigs) {
@@ -361,9 +366,10 @@ class Game {
      * 初始化测试资源节点，用于验证资源节点系统
      */
     initTestResources() {
-        // 辅助函数：将坐标对齐到网格中心（网格大小1x1）
-        const alignToGrid = (coord) => {
-            return Math.round(coord / 1) * 1 + 0.5;
+        // 辅助函数：将坐标对齐到网格中心（资源节点默认1x1=0.5偏移）
+        const alignToGrid = (coord, size = 1) => {
+            const offset = size % 2 === 0 ? 0 : 0.5;
+            return Math.round(coord) + offset;
         };
 
         // 创建不同类型的测试资源节点
@@ -418,16 +424,18 @@ class Game {
      * 初始化城镇中心（作为资源存储点）
      */
     initTownCenter() {
-        const alignToGrid = (coord) => {
-            return Math.round(coord / 1) * 1 + 0.5;
+        // 辅助函数：根据建筑尺寸对齐到网格中心（4x4=整数点偏移）
+        const alignToGrid = (coord, size = 4) => {
+            const offset = size % 2 === 0 ? 0 : 0.5;
+            return Math.round(coord) + offset;
         };
 
         // 创建城镇中心建筑（4x4网格）
         const townCenter = new Building({
             buildingType: 'town_center',
             name: '城镇中心',
-            x: alignToGrid(0),
-            z: alignToGrid(0),
+            x: alignToGrid(0, 4),
+            z: alignToGrid(0, 4),
             owner: 'player',
             health: 1000,
             maxHealth: 1000,
@@ -568,12 +576,12 @@ class Game {
             house: 2,
             barracks: 3,
             stable: 3,
-            archery_range: 2.5,
+            archery_range: 3,
             castle: 5,
             market: 3,
             church: 3,
-            blacksmith: 2.5,
-            watch_tower: 1.5
+            blacksmith: 3,
+            watch_tower: 2
         };
         return widths[buildingType] || 2;
     }
@@ -584,14 +592,14 @@ class Game {
     getBuildingDepth(buildingType) {
         const depths = {
             house: 2,
-            barracks: 2.5,
+            barracks: 3,
             stable: 3,
-            archery_range: 2.5,
+            archery_range: 3,
             castle: 5,
-            market: 2.5,
+            market: 3,
             church: 4,
-            blacksmith: 2.5,
-            watch_tower: 1.5
+            blacksmith: 3,
+            watch_tower: 2
         };
         return depths[buildingType] || 2;
     }

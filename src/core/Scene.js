@@ -70,7 +70,7 @@ class Scene {
 
     addGridHelper() {
         // 添加网格辅助线
-        const gridHelper = new THREE.GridHelper(200, 100, 0x000000, 0x000000);
+        const gridHelper = new THREE.GridHelper(200, 200, 0x000000, 0x000000);
         gridHelper.position.y = 0.01;
         gridHelper.material.opacity = 0.1;
         gridHelper.material.transparent = true;

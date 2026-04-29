@@ -181,12 +181,12 @@ class Building extends Entity {
         const centerGridX = Math.floor((worldX + halfMapWidth) / cellSize);
         const centerGridZ = Math.floor((worldZ + halfMapHeight) / cellSize);
 
-        // 计算建筑占用的网格范围
-        const halfGridX = Math.ceil(this.gridSizeX / 2);
-        const halfGridZ = Math.ceil(this.gridSizeZ / 2);
+        // 计算建筑占用的网格范围（左对齐，以 gridSize 为宽度）
+        const halfGridX = Math.floor(this.gridSizeX / 2);
+        const halfGridZ = Math.floor(this.gridSizeZ / 2);
 
-        for (let x = centerGridX - halfGridX; x < centerGridX + halfGridX; x++) {
-            for (let z = centerGridZ - halfGridZ; z < centerGridZ + halfGridZ; z++) {
+        for (let x = centerGridX - halfGridX; x < centerGridX - halfGridX + this.gridSizeX; x++) {
+            for (let z = centerGridZ - halfGridZ; z < centerGridZ - halfGridZ + this.gridSizeZ; z++) {
                 // 确保网格坐标在有效范围内
                 if (x >= 0 && x < MAP_CONFIG.width && z >= 0 && z < MAP_CONFIG.height) {
                     cells.push({ x, z });
@@ -270,135 +270,194 @@ class Building extends Entity {
     }
     
     /**
-     * 根据建筑类型获取外观配置
+     * 根据建筑类型获取外观配置（符号标记）
      */
     getAppearanceConfig() {
         const configs = {
             house: {
                 width: 2,
                 depth: 2,
-                height: 2,
-                wallColor: 0x4169E1,
-                roofColor: 0x8B0000,
-                roofType: 'pyramid',
-                hasDoor: true,
-                hasWindows: true,
-                baseColor: 0x8B4513,
-                decoration: 'chimney'
+                symbol: '🏠',
+                color: 0x4169E1,
+                bgColor: 0x8B4513
             },
             barracks: {
                 width: 3,
-                depth: 2.5,
-                height: 2.5,
-                wallColor: 0x1E90FF,
-                roofColor: 0x8B0000,
-                roofType: 'gable',
-                hasDoor: true,
-                hasWindows: true,
-                baseColor: 0x8B4513,
-                decoration: 'flag'
+                depth: 3,
+                symbol: '⚔️',
+                color: 0x1E90FF,
+                bgColor: 0x8B4513
             },
             stable: {
                 width: 3,
                 depth: 3,
-                height: 2.2,
-                wallColor: 0x228B22,
-                roofColor: 0x8B4513,
-                roofType: 'flat',
-                hasDoor: true,
-                hasWindows: true,
-                baseColor: 0x8B4513,
-                decoration: 'stall'
+                symbol: '🐴',
+                color: 0x228B22,
+                bgColor: 0x8B4513
             },
             archery_range: {
-                width: 2.5,
-                depth: 2.5,
-                height: 2,
-                wallColor: 0x32CD32,
-                roofColor: 0x8B4513,
-                roofType: 'pyramid',
-                hasDoor: true,
-                hasWindows: true,
-                baseColor: 0x8B4513,
-                decoration: 'target'
+                width: 3,
+                depth: 3,
+                symbol: '🏹',
+                color: 0x32CD32,
+                bgColor: 0x8B4513
             },
             castle: {
                 width: 5,
                 depth: 5,
-                height: 4,
-                wallColor: 0x00008B,
-                roofColor: 0x8B0000,
-                roofType: 'multiple',
-                hasDoor: true,
-                hasWindows: true,
-                baseColor: 0x696969,
-                decoration: 'towers'
+                symbol: '🏰',
+                color: 0x00008B,
+                bgColor: 0x696969
             },
             market: {
                 width: 3,
-                depth: 2.5,
-                height: 2,
-                wallColor: 0xDAA520,
-                roofColor: 0x8B4513,
-                roofType: 'dome',
-                hasDoor: true,
-                hasWindows: true,
-                baseColor: 0x8B4513,
-                decoration: 'stall'
+                depth: 3,
+                symbol: '💰',
+                color: 0xDAA520,
+                bgColor: 0x8B4513
             },
             church: {
                 width: 3,
                 depth: 4,
-                height: 3.5,
-                wallColor: 0xFFFAF0,
-                roofColor: 0x4B0082,
-                roofType: 'spire',
-                hasDoor: true,
-                hasWindows: true,
-                baseColor: 0x8B4513,
-                decoration: 'cross'
+                symbol: '⛪',
+                color: 0xFFFAF0,
+                bgColor: 0x8B4513
             },
             blacksmith: {
-                width: 2.5,
-                depth: 2.5,
-                height: 2,
-                wallColor: 0x708090,
-                roofColor: 0x8B0000,
-                roofType: 'gable',
-                hasDoor: true,
-                hasWindows: true,
-                baseColor: 0x8B4513,
-                decoration: 'anvil'
+                width: 3,
+                depth: 3,
+                symbol: '🔨',
+                color: 0x708090,
+                bgColor: 0x8B4513
             },
             watch_tower: {
-                width: 1.5,
-                depth: 1.5,
-                height: 3,
-                wallColor: 0x4682B4,
-                roofColor: 0x8B0000,
-                roofType: 'pyramid',
-                hasDoor: false,
-                hasWindows: true,
-                baseColor: 0x696969,
-                decoration: 'battlements'
+                width: 2,
+                depth: 2,
+                symbol: '🗼',
+                color: 0x4682B4,
+                bgColor: 0x696969
             },
             town_center: {
                 width: 4,
                 depth: 4,
-                height: 4,
-                wallColor: 0xF5DEB3,
-                roofColor: 0x8B4513,
-                roofType: 'gable',
-                hasDoor: true,
-                hasWindows: true,
-                baseColor: 0x8B4513,
-                decoration: 'flag'
+                symbol: '🏛️',
+                color: 0xF5DEB3,
+                bgColor: 0x8B4513
             }
         };
 
         return configs[this.buildingType] || configs.house;
     }
-    
+
+    createMesh() {
+        const config = this.appearanceConfig;
+        const group = new THREE.Group();
+
+        // 根据配置调整尺寸
+        this.width = config.width;
+        this.depth = config.depth;
+        this.height = 1; // 符号标记高度固定为1
+
+        // 创建建筑符号标记
+        this.createSymbolMarker(group, config);
+
+        // 应用建造进度缩放
+        if (this.isUnderConstruction) {
+            group.scale.y = this.constructionProgress / 100;
+        }
+
+        this.mesh = group;
+        this.mesh.position.copy(this.position);
+        this.mesh.rotation.y = this.rotation;
+        this.mesh.scale.set(this.scale, this.scale, this.scale);
+
+        // 设置userData，让选择系统能够识别实体
+        this.mesh.userData = {
+            type: 'building',
+            buildingType: this.buildingType,
+            entity: this,
+            owner: this.owner
+        };
+
+        // 创建选择环
+        this.createSelectionRing();
+
+        // 创建生命值条
+        this.createHealthBar();
+
+        return this.mesh;
+    }
+
+    /**
+     * 创建建筑符号标记（底座 + 符号文本）
+     */
+    createSymbolMarker(group, config) {
+        // 底座（半透明方块表示占地范围）
+        const baseGeometry = new THREE.BoxGeometry(this.width, 0.1, this.depth);
+        const baseMaterial = new THREE.MeshStandardMaterial({
+            color: config.bgColor,
+            transparent: true,
+            opacity: 0.4,
+            roughness: 0.8
+        });
+        const base = new THREE.Mesh(baseGeometry, baseMaterial);
+        base.position.y = 0.05;
+        base.receiveShadow = true;
+        base.name = 'base';
+        group.add(base);
+
+        // 底座边框
+        const edgesGeometry = new THREE.EdgesGeometry(baseGeometry);
+        const edgesMaterial = new THREE.LineBasicMaterial({
+            color: config.color,
+            transparent: true,
+            opacity: 0.8
+        });
+        const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+        edges.position.y = 0.06;
+        edges.name = 'border';
+        group.add(edges);
+
+        // 创建符号文本（使用 Canvas 纹理）
+        const canvas = document.createElement('canvas');
+        const size = 256;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // 绘制背景
+        ctx.fillStyle = this.owner === 'player' ? '#4169E1' : '#DC143C';
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2 - 10, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 绘制符号
+        ctx.font = `${size * 0.6}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(config.symbol, size / 2, size / 2 + size * 0.05);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+
+        // 符号平面（平铺在地面上）
+        const symbolSize = Math.min(this.width, this.depth) * 0.7;
+        const planeGeometry = new THREE.PlaneGeometry(symbolSize, symbolSize);
+        const planeMaterial = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        this.symbolPlane = new THREE.Mesh(planeGeometry, planeMaterial);
+        this.symbolPlane.rotation.x = -Math.PI / 2; // 水平放置在地面上
+        this.symbolPlane.rotation.z = Math.PI / 4; // 逆时针旋转45度以适应相机视角
+        this.symbolPlane.position.y = 0.12; // 放在底座上方
+        this.symbolPlane.name = 'symbol';
+        group.add(this.symbolPlane);
+    }
+
     /**
      * 获取建筑特性
      */
@@ -417,357 +476,6 @@ class Building extends Entity {
         };
 
         return features[this.buildingType] || {};
-    }
-
-    createMesh() {
-        const config = this.appearanceConfig;
-        const group = new THREE.Group();
-        
-        // 根据配置调整尺寸
-        this.width = config.width;
-        this.depth = config.depth;
-        this.height = config.height;
-        
-        // 创建地基
-        this.createBase(group, config);
-        
-        // 创建墙壁
-        this.createWalls(group, config);
-        
-        // 创建屋顶
-        this.createRoof(group, config);
-        
-        // 创建门窗
-        if (config.hasDoor) {
-            this.createDoor(group, config);
-        }
-        if (config.hasWindows) {
-            this.createWindows(group, config);
-        }
-        
-        // 创建装饰
-        this.createDecorations(group, config);
-        
-        // 应用建造进度缩放
-        if (this.isUnderConstruction) {
-            group.scale.y = this.constructionProgress / 100;
-        }
-        
-        this.mesh = group;
-        this.mesh.position.copy(this.position);
-        this.mesh.rotation.y = this.rotation;
-        this.mesh.scale.set(this.scale, this.scale, this.scale);
-        
-        // 设置userData，让选择系统能够识别实体
-        this.mesh.userData = {
-            type: 'building',
-            buildingType: this.buildingType,
-            entity: this,
-            owner: this.owner
-        };
-        
-        // 创建选择环
-        this.createSelectionRing();
-        
-        // 创建生命值条
-        this.createHealthBar();
-        
-        return this.mesh;
-    }
-    
-    /**
-     * 创建建筑地基
-     */
-    createBase(group, config) {
-        const baseGeometry = new THREE.BoxGeometry(this.width + 0.2, 0.2, this.depth + 0.2);
-        const baseMaterial = new THREE.MeshStandardMaterial({ 
-            color: config.baseColor,
-            roughness: 0.9
-        });
-        const base = new THREE.Mesh(baseGeometry, baseMaterial);
-        base.position.y = 0.1;
-        base.castShadow = true;
-        base.receiveShadow = true;
-        base.name = 'base';
-        group.add(base);
-    }
-    
-    /**
-     * 创建墙壁
-     */
-    createWalls(group, config) {
-        const playerColor = this.owner === 'player' ? config.wallColor : 0xDC143C;
-        
-        const wallGeometry = new THREE.BoxGeometry(this.width, this.height, this.depth);
-        const wallMaterial = new THREE.MeshStandardMaterial({ 
-            color: playerColor,
-            roughness: 0.7,
-            metalness: 0.1
-        });
-        const walls = new THREE.Mesh(wallGeometry, wallMaterial);
-        walls.position.y = this.height / 2 + 0.2;
-        walls.castShadow = true;
-        walls.receiveShadow = true;
-        walls.name = 'walls';
-        group.add(walls);
-    }
-    
-    /**
-     * 创建屋顶（根据类型）
-     */
-    createRoof(group, config) {
-        const roofMaterial = new THREE.MeshStandardMaterial({ 
-            color: config.roofColor,
-            roughness: 0.8
-        });
-        
-        switch (config.roofType) {
-            case 'pyramid':
-                // 金字塔屋顶
-                const pyramidGeometry = new THREE.ConeGeometry(
-                    Math.max(this.width, this.depth) * 0.7,
-                    this.height * 0.5,
-                    4
-                );
-                const pyramid = new THREE.Mesh(pyramidGeometry, roofMaterial);
-                pyramid.position.y = this.height + 0.2;
-                pyramid.rotation.y = Math.PI / 4;
-                pyramid.castShadow = true;
-                pyramid.name = 'roof';
-                group.add(pyramid);
-                break;
-                
-            case 'gable':
-                // 双坡屋顶
-                const gableGeometry = new THREE.CylinderGeometry(
-                    0.1,
-                    Math.max(this.width, this.depth) * 0.6,
-                    this.height * 0.6,
-                    4
-                );
-                const gable = new THREE.Mesh(gableGeometry, roofMaterial);
-                gable.position.y = this.height + 0.3;
-                gable.rotation.x = Math.PI / 2;
-                gable.rotation.z = Math.PI / 4;
-                gable.castShadow = true;
-                gable.name = 'roof';
-                group.add(gable);
-                break;
-                
-            case 'flat':
-                // 平顶
-                const flatGeometry = new THREE.BoxGeometry(
-                    this.width + 0.3,
-                    0.15,
-                    this.depth + 0.3
-                );
-                const flat = new THREE.Mesh(flatGeometry, roofMaterial);
-                flat.position.y = this.height + 0.3;
-                flat.castShadow = true;
-                flat.name = 'roof';
-                group.add(flat);
-                break;
-                
-            case 'dome':
-                // 圆顶
-                const domeGeometry = new THREE.SphereGeometry(
-                    Math.max(this.width, this.depth) * 0.4,
-                    16,
-                    8,
-                    0,
-                    Math.PI * 2,
-                    0,
-                    Math.PI / 2
-                );
-                const dome = new THREE.Mesh(domeGeometry, roofMaterial);
-                dome.position.y = this.height + 0.2;
-                dome.castShadow = true;
-                dome.name = 'roof';
-                group.add(dome);
-                break;
-                
-            case 'spire':
-                // 尖塔屋顶
-                const spireGeometry = new THREE.ConeGeometry(
-                    Math.max(this.width, this.depth) * 0.5,
-                    this.height * 0.8,
-                    8
-                );
-                const spire = new THREE.Mesh(spireGeometry, roofMaterial);
-                spire.position.y = this.height + 0.4;
-                spire.castShadow = true;
-                spire.name = 'roof';
-                group.add(spire);
-                break;
-                
-            case 'multiple':
-                // 多塔屋顶（城堡）
-                const mainRoofGeometry = new THREE.BoxGeometry(
-                    this.width - 0.5,
-                    0.2,
-                    this.depth - 0.5
-                );
-                const mainRoof = new THREE.Mesh(mainRoofGeometry, roofMaterial);
-                mainRoof.position.y = this.height + 0.3;
-                mainRoof.castShadow = true;
-                mainRoof.name = 'mainRoof';
-                group.add(mainRoof);
-                
-                // 四个角落的塔
-                const towerPositions = [
-                    { x: -(this.width - 0.5) / 2, z: -(this.depth - 0.5) / 2 },
-                    { x: (this.width - 0.5) / 2, z: -(this.depth - 0.5) / 2 },
-                    { x: -(this.width - 0.5) / 2, z: (this.depth - 0.5) / 2 },
-                    { x: (this.width - 0.5) / 2, z: (this.depth - 0.5) / 2 }
-                ];
-                
-                towerPositions.forEach(pos => {
-                    const towerGeometry = new THREE.ConeGeometry(0.3, 0.8, 4);
-                    const tower = new THREE.Mesh(towerGeometry, roofMaterial);
-                    tower.position.set(pos.x, this.height + 0.7, pos.z);
-                    tower.rotation.y = Math.PI / 4;
-                    tower.castShadow = true;
-                    tower.name = 'towerRoof';
-                    group.add(tower);
-                });
-                break;
-        }
-    }
-    
-    /**
-     * 创建门
-     */
-    createDoor(group, config) {
-        const doorGeometry = new THREE.BoxGeometry(0.6, this.height * 0.5, 0.1);
-        const doorMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x654321,
-            roughness: 0.9
-        });
-        const door = new THREE.Mesh(doorGeometry, doorMaterial);
-        door.position.set(0, this.height * 0.25 + 0.2, this.depth / 2 + 0.05);
-        door.name = 'door';
-        group.add(door);
-        
-        // 门框
-        const frameGeometry = new THREE.BoxGeometry(0.8, this.height * 0.55, 0.12);
-        const frameMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x8B4513,
-            roughness: 0.9
-        });
-        const frame = new THREE.Mesh(frameGeometry, frameMaterial);
-        frame.position.set(0, this.height * 0.25 + 0.2, this.depth / 2 + 0.06);
-        frame.name = 'doorFrame';
-        group.add(frame);
-    }
-    
-    /**
-     * 创建窗户
-     */
-    createWindows(group, config) {
-        const windowMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x87CEEB,
-            transparent: true,
-            opacity: 0.7
-        });
-        
-        // 前面窗户
-        const frontWindowGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.05);
-        const frontWindow = new THREE.Mesh(frontWindowGeometry, windowMaterial);
-        frontWindow.position.set(0, this.height * 0.6, this.depth / 2 + 0.05);
-        frontWindow.name = 'frontWindow';
-        group.add(frontWindow);
-        
-        // 侧面窗户
-        if (this.width > 2) {
-            const sideWindow = new THREE.Mesh(frontWindowGeometry, windowMaterial);
-            sideWindow.position.set(this.width / 2 + 0.05, this.height * 0.6, 0);
-            sideWindow.name = 'sideWindow';
-            group.add(sideWindow);
-        }
-    }
-    
-    /**
-     * 创建装饰
-     */
-    createDecorations(group, config) {
-        switch (config.decoration) {
-            case 'chimney':
-                // 烟囱
-                const chimneyGeometry = new THREE.BoxGeometry(0.2, 0.5, 0.2);
-                const chimneyMaterial = new THREE.MeshStandardMaterial({ 
-                    color: 0x8B4513,
-                    roughness: 0.9
-                });
-                const chimney = new THREE.Mesh(chimneyGeometry, chimneyMaterial);
-                chimney.position.set(this.width * 0.2, this.height + 0.6, this.depth * 0.2);
-                chimney.name = 'chimney';
-                group.add(chimney);
-                break;
-                
-            case 'flag':
-                // 旗帜
-                const poleGeometry = new THREE.CylinderGeometry(0.02, 0.02, 1.5, 8);
-                const poleMaterial = new THREE.MeshStandardMaterial({ 
-                    color: 0x8B4513,
-                    roughness: 0.9
-                });
-                const pole = new THREE.Mesh(poleGeometry, poleMaterial);
-                pole.position.set(this.width * 0.4, this.height + 1.2, this.depth * 0.4);
-                pole.name = 'flagPole';
-                group.add(pole);
-                
-                const flagGeometry = new THREE.PlaneGeometry(0.6, 0.4);
-                const flagMaterial = new THREE.MeshStandardMaterial({ 
-                    color: this.owner === 'player' ? 0x4169E1 : 0xDC143C,
-                    side: THREE.DoubleSide
-                });
-                const flag = new THREE.Mesh(flagGeometry, flagMaterial);
-                flag.position.set(this.width * 0.4, this.height + 1.8, this.depth * 0.4);
-                flag.name = 'flag';
-                group.add(flag);
-                break;
-                
-            case 'stall':
-                // 货摊支架
-                const stallGeometry = new THREE.BoxGeometry(0.1, 1, 0.1);
-                const stallMaterial = new THREE.MeshStandardMaterial({ 
-                    color: 0x8B4513,
-                    roughness: 0.9
-                });
-                for (let i = -1; i <= 1; i += 2) {
-                    const stall = new THREE.Mesh(stallGeometry, stallMaterial);
-                    stall.position.set(i * this.width * 0.3, this.height * 0.5, this.depth / 2 + 0.3);
-                    stall.name = 'stall';
-                    group.add(stall);
-                }
-                break;
-                
-            case 'battlements':
-                // 垛口（防御建筑）
-                const battlementHeight = 0.2;
-                const battlementGeometry = new THREE.BoxGeometry(0.2, battlementHeight, 0.2);
-                const battlementMaterial = new THREE.MeshStandardMaterial({ 
-                    color: config.wallColor,
-                    roughness: 0.7
-                });
-                
-                const positions = [
-                    { x: -this.width / 2 + 0.2, z: -this.depth / 2 + 0.2 },
-                    { x: 0, z: -this.depth / 2 + 0.2 },
-                    { x: this.width / 2 - 0.2, z: -this.depth / 2 + 0.2 },
-                    { x: -this.width / 2 + 0.2, z: this.depth / 2 - 0.2 },
-                    { x: 0, z: this.depth / 2 - 0.2 },
-                    { x: this.width / 2 - 0.2, z: this.depth / 2 - 0.2 }
-                ];
-                
-                positions.forEach(pos => {
-                    const battlement = new THREE.Mesh(battlementGeometry, battlementMaterial);
-                    battlement.position.set(pos.x, this.height + 0.2, pos.z);
-                    battlement.name = 'battlement';
-                    group.add(battlement);
-                });
-                break;
-        }
     }
 
     createSelectionRing() {
@@ -819,15 +527,13 @@ class Building extends Entity {
      * 创建生命值条
      */
     createHealthBar() {
-        const config = this.appearanceConfig;
-        
-        // 创建生命值条容器
+        // 创建生命值条容器（符号上方）
         const healthBarGroup = new THREE.Group();
-        healthBarGroup.position.y = this.height + 1.2;
+        healthBarGroup.position.y = 0.3;
         healthBarGroup.name = 'healthBarGroup';
         
         // 背景
-        const bgGeometry = new THREE.PlaneGeometry(Math.max(this.width, this.depth) * 1.5, 0.25);
+        const bgGeometry = new THREE.PlaneGeometry(Math.max(this.width, this.depth) * 0.8, 0.15);
         const bgMaterial = new THREE.MeshBasicMaterial({ 
             color: 0x000000,
             side: THREE.DoubleSide,
@@ -840,7 +546,7 @@ class Building extends Entity {
         healthBarGroup.add(background);
         
         // 生命值填充
-        const healthGeometry = new THREE.PlaneGeometry(Math.max(this.width, this.depth) * 1.5, 0.2);
+        const healthGeometry = new THREE.PlaneGeometry(Math.max(this.width, this.depth) * 0.8, 0.1);
         const healthMaterial = new THREE.MeshBasicMaterial({ 
             color: 0x00FF00,
             side: THREE.DoubleSide
@@ -851,7 +557,7 @@ class Building extends Entity {
         healthBarGroup.add(this.healthBar);
         
         // 边框
-        const borderGeometry = new THREE.PlaneGeometry(Math.max(this.width, this.depth) * 1.55, 0.27);
+        const borderGeometry = new THREE.PlaneGeometry(Math.max(this.width, this.depth) * 0.85, 0.17);
         const borderMaterial = new THREE.MeshBasicMaterial({ 
             color: 0xFFFFFF,
             side: THREE.DoubleSide,
@@ -927,40 +633,13 @@ class Building extends Entity {
             if (this.mesh) {
                 const progress = this.constructionProgress / 100;
                 
-                // 垂直升起动画
-                const baseY = progress * 0.5;
-                const base = this.mesh.getObjectByName('base');
-                if (base) {
-                    base.position.y = 0.1 + (1 - progress) * 0.5;
-                }
+                // 整体缩放动画
+                this.mesh.scale.y = progress;
                 
-                // 墙壁逐渐显现
-                const walls = this.mesh.getObjectByName('walls');
-                if (walls) {
-                    walls.position.y = (this.height / 2 + 0.2) * progress;
-                    walls.scale.y = progress;
+                // 符号透明度渐变
+                if (this.symbolPlane) {
+                    this.symbolPlane.material.opacity = progress;
                 }
-                
-                // 屋顶逐渐出现
-                const roof = this.mesh.getObjectByName('roof');
-                if (roof) {
-                    roof.position.y = (this.height + 0.2) * progress;
-                    roof.scale.setScalar(progress);
-                }
-                
-                // 添加建造进度颜色变化
-                this.mesh.children.forEach(child => {
-                    if (child.material) {
-                        const originalColor = new THREE.Color(this.appearanceConfig.wallColor);
-                        const progressColor = originalColor.clone().lerp(
-                            new THREE.Color(0x8B4513),
-                            1 - progress
-                        );
-                        if (child.name === 'walls' || child.name === 'base') {
-                            child.material.color = progressColor;
-                        }
-                    }
-                });
                 
                 // 更新生命值条显示建造进度
                 if (this.healthBar) {

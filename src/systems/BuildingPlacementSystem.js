@@ -147,12 +147,13 @@ class BuildingPlacementSystem {
 
         this.previewMesh.visible = true;
 
-        // 对齐到网格
-        const cellX = Math.floor(mousePosition.x / CELL_SIZE);
-        const cellZ = Math.floor(mousePosition.z / CELL_SIZE);
+        // 对齐到网格（与 Grid.getCellAtPosition() 一致的偏移转换）
+        const gridHalf = this.grid.width / 2;
+        const cellX = Math.floor(mousePosition.x / CELL_SIZE + gridHalf);
+        const cellZ = Math.floor(mousePosition.z / CELL_SIZE + gridHalf);
 
-        const worldX = cellX * CELL_SIZE + CELL_SIZE / 2;
-        const worldZ = cellZ * CELL_SIZE + CELL_SIZE / 2;
+        const worldX = cellX * CELL_SIZE + CELL_SIZE / 2 - gridHalf;
+        const worldZ = cellZ * CELL_SIZE + CELL_SIZE / 2 - gridHalf;
         
         this.previewMesh.position.set(worldX, 0, worldZ);
         
@@ -203,12 +204,13 @@ class BuildingPlacementSystem {
         // 扣除资源
         resourceManager.spendResources(this.requiredResources);
 
-        // 对齐到网格
-        const cellX = Math.floor(mousePosition.x / CELL_SIZE);
-        const cellZ = Math.floor(mousePosition.z / CELL_SIZE);
+        // 对齐到网格（与 Grid.getCellAtPosition() 一致的偏移转换）
+        const gridHalf = this.grid.width / 2;
+        const cellX = Math.floor(mousePosition.x / CELL_SIZE + gridHalf);
+        const cellZ = Math.floor(mousePosition.z / CELL_SIZE + gridHalf);
 
-        const worldX = cellX * CELL_SIZE + CELL_SIZE / 2;
-        const worldZ = cellZ * CELL_SIZE + CELL_SIZE / 2;
+        const worldX = cellX * CELL_SIZE + CELL_SIZE / 2 - gridHalf;
+        const worldZ = cellZ * CELL_SIZE + CELL_SIZE / 2 - gridHalf;
         
         // 创建建筑
         const building = this.createBuilding(config, worldX, worldZ);
