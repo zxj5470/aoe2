@@ -517,24 +517,36 @@ class HUD {
             }
         }
 
-        // 绘制摄像机视野框（直接画矩形，变换会自动旋转成菱形）
+        // 绘制摄像机视野框（垂直于画布的矩形，不受菱形切变影响）
         if (this.game.camera) {
             const cameraTarget = this.game.camera.target;
             const camera = this.game.camera.getCamera();
 
             const halfW = (camera.right - camera.left) / 2;
             const halfH = (camera.top - camera.bottom) / 2;
-    
-            // 使用与菱形小地图一致的变换绘制视野框
-            ctx.setTransform(0.5, 0.375, -0.5, 0.375, 100, 100);
+
+            // 将视野中心 (cx, cz) 通过菱形投影变换到 canvas 坐标
+            const cx = cameraTarget.x;
+            const cz = cameraTarget.z;
+            const centerCanvasX = 0.5 * cx - 0.5 * cz + 100;
+            const centerCanvasY = 0.375 * cx + 0.375 * cz + 100;
+
+            // 计算视野在 canvas 上的包围盒半宽/半高
+            // 菱形投影下视野四个角的最值:
+            //   x 方向: 0.5*halfW + 0.5*halfH
+            //   y 方向: 0.375*halfW + 0.375*halfH
+            const canvasHalfW = 0.5 * halfW + 0.5 * halfH;
+            const canvasHalfH = 0.375 * halfW + 0.375 * halfH;
+
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
 
             ctx.strokeStyle = '#FFFFFF';
-            ctx.lineWidth = 4;
+            ctx.lineWidth = 2;
             ctx.strokeRect(
-                cameraTarget.x - halfW,
-                cameraTarget.z - halfH,
-                halfW * 2,
-                halfH * 2
+                centerCanvasX - canvasHalfW,
+                centerCanvasY - canvasHalfH,
+                canvasHalfW * 2,
+                canvasHalfH * 2
             );
         }
 

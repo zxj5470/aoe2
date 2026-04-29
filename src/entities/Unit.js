@@ -746,10 +746,14 @@ class Unit extends Entity {
         // 如果有路径，跟随路径
         if (this.path.length > 0 && this.currentPathIndex < this.path.length) {
             const currentCell = this.path[this.currentPathIndex];
+            const gs = this.pathfindingSystem.grid;
+            const cellSize = gs.cellSize;
+            const halfW = gs.width * cellSize / 2;
+            const halfH = gs.height * cellSize / 2;
             targetPos = new THREE.Vector3(
-                currentCell.x * 2 + 1,
+                currentCell.x * cellSize + cellSize / 2 - halfW,
                 0,
-                currentCell.y * 2 + 1
+                currentCell.y * cellSize + cellSize / 2 - halfH
             );
             
             const distance = this.position.distanceTo(targetPos);

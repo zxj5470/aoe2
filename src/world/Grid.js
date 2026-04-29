@@ -40,8 +40,9 @@ class Grid {
     }
 
     getCellAtPosition(worldX, worldZ) {
-        const x = Math.floor(worldX / this.cellSize);
-        const y = Math.floor(worldZ / this.cellSize);
+        // 世界坐标 (-100~100) 转换到网格索引 (0~199)
+        const x = Math.floor(worldX / this.cellSize + this.width / 2);
+        const y = Math.floor(worldZ / this.cellSize + this.height / 2);
         return this.getCell(x, y);
     }
 
