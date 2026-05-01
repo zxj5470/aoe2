@@ -28,12 +28,14 @@ class ResourceNode extends Entity {
         this.respawnTimer = 0;
         this.isDepleted = false;
 
-        // 网格大小属性（资源节点通常是1x1）
+        // 网格大小属性（资源节点占用完整 1x1 网格）
         this.gridSizeX = config.gridSizeX || 1;
         this.gridSizeZ = config.gridSizeZ || 1;
 
-        // 碰撞体积
+        // 碰撞体积（基于完整网格大小）
         this.collisionBox = null;
+        this._halfWidth = this.gridSizeX / 2;
+        this._halfDepth = this.gridSizeZ / 2;
 
         // 视觉效果
         this.gatherParticles = [];
@@ -213,9 +215,18 @@ class ResourceNode extends Entity {
         const gridX = Math.floor((worldX + halfMapWidth) / cellSize);
         const gridZ = Math.floor((worldZ + halfMapHeight) / cellSize);
 
-        // 资源节点只占用1x1网格
-        if (gridX >= 0 && gridX < MAP_CONFIG.width && gridZ >= 0 && gridZ < MAP_CONFIG.height) {
-            cells.push({ x: gridX, z: gridZ });
+        // 资源节点占用 gridSizeX x gridSizeZ 网格
+        const startX = gridX - Math.floor(this.gridSizeX / 2);
+        const startZ = gridZ - Math.floor(this.gridSizeZ / 2);
+
+        for (let dx = 0; dx < this.gridSizeX; dx++) {
+            for (let dz = 0; dz < this.gridSizeZ; dz++) {
+                const cx = startX + dx;
+                const cz = startZ + dz;
+                if (cx >= 0 && cx < MAP_CONFIG.width && cz >= 0 && cz < MAP_CONFIG.height) {
+                    cells.push({ x: cx, z: cz });
+                }
+            }
         }
 
         return cells;
@@ -308,14 +319,14 @@ class ResourceNode extends Entity {
             stone: {
                 type: 'rock',
                 color: 0x696969,
-                size: 1.0,
+                size: 0.35,
                 irregular: false
             },
             gold: {
                 type: 'ore',
                 color: 0xFFD700,
                 secondaryColor: 0x8B8000,
-                size: 0.8,
+                size: 0.3,
                 sparkle: false
             },
             food: {
@@ -875,20 +886,21 @@ class ResourceNode extends Entity {
     }
     
     /**
-     * 获取碰撞盒
+     * 获取碰撞盒（用于空间索引，严格对应 1x1 网格）
      */
     getCollisionBox() {
-        const size = this.appearanceConfig.size;
+        // 所有的自然资源要素都是 1x1 网格，半宽固定为 0.5
+        const halfSize = 0.5;
         return {
             min: new THREE.Vector3(
-                this.position.x - size / 2,
+                this.position.x - halfSize,
                 this.position.y,
-                this.position.z - size / 2
+                this.position.z - halfSize
             ),
             max: new THREE.Vector3(
-                this.position.x + size / 2,
-                this.position.y + size,
-                this.position.z + size / 2
+                this.position.x + halfSize,
+                this.position.y + 2,
+                this.position.z + halfSize
             )
         };
     }

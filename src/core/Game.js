@@ -17,6 +17,7 @@ import ResourceGatheringSystem from '../systems/ResourceGatheringSystem.js';
 import CollisionSystem from '../systems/CollisionSystem.js';
 import SpatialIndex from './SpatialIndex.js';
 import HUD from '../ui/HUD.js';
+import { CELL_SIZE, MAP_CONFIG } from '../config.js';
 
 class Game {
     constructor() {
@@ -994,46 +995,39 @@ class Game {
     }
     
     handleRightClick(event) {
-        if (!this.selectionManager || !this.inputHandler) return;
+        if (!this.selectionManager || !this.inputHandler || !this.spatialIndex) return;
 
+        // 使用事件中的鼠标坐标强制更新世界坐标
+        this.inputHandler.updateWorldPosition(event.clientX, event.clientY);
         const worldPos = this.inputHandler.getWorldPosition();
 
         if (!this.selectionManager.hasSelection()) return;
 
-        // 使用空间索引查询右键点击位置的实体
-        const tolerance = 2.0; // 点击容差
-        const nearbyEntities = this.spatialIndex.queryPoint(worldPos.x, worldPos.z, tolerance);
-
-        console.log('[handleRightClick] 空间索引查询结果:', nearbyEntities.length, '个实体');
+        // 使用空间索引查询点击位置的非移动要素
+        // tolerance 设为 0.05 覆盖浮点误差，同时确保精确匹配网格
+        const nearbyEntities = this.spatialIndex.queryPoint(worldPos.x, worldPos.z, 0.05);
 
         // 查找最近的资源节点
         for (const entity of nearbyEntities) {
             if (entity.type === 'resource' && entity.isAlive) {
-                console.log('[handleRightClick] 找到资源节点:', entity.resourceType);
+                console.log('[handleRightClick] 找到资源节点:', entity.resourceType, '中心:', entity.position);
                 
-                // 显示采集指示器（绿色框）
                 if (entity.showGatherIndicator) {
-                    console.log('[handleRightClick] 调用 showGatherIndicator()');
                     entity.showGatherIndicator();
-                } else {
-                    console.error('[handleRightClick] entity 没有 showGatherIndicator 方法!');
                 }
                 
-                // 查找城镇中心作为投放点
                 const townCenter = this.entities.find(e => 
                     e.type === 'building' && 
                     e.buildingType === 'town_center' &&
                     e.isAlive
                 );
                 
-                // 下发采集命令（传递投放点）
                 this.selectionManager.issueCommand('gather', entity, townCenter);
                 return;
             }
         }
 
         console.log('[handleRightClick] 未点击到资源节点，执行移动命令');
-        // 移动命令
         this.selectionManager.issueMoveCommand(new THREE.Vector3(worldPos.x, 0, worldPos.z));
     }
     

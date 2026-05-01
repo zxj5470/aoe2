@@ -790,6 +790,26 @@ class Building extends Entity {
         console.log(`建筑 ${this.name} 已摧毁`);
     }
 
+    /**
+     * 获取碰撞盒（基于网格大小，用于空间索引）
+     */
+    getCollisionBox() {
+        const halfW = (this.gridSizeX || this.width) / 2;
+        const halfD = (this.gridSizeZ || this.depth) / 2;
+        return {
+            min: new THREE.Vector3(
+                this.position.x - halfW,
+                this.position.y,
+                this.position.z - halfD
+            ),
+            max: new THREE.Vector3(
+                this.position.x + halfW,
+                this.position.y + this.height,
+                this.position.z + halfD
+            )
+        };
+    }
+
     getOccupiedCells() {
         const cells = [];
         const gridX = Math.floor(this.position.x / CELL_SIZE);

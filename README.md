@@ -39,23 +39,32 @@
 - npm >= 8.0.0
 
 ### 安装依赖
-\\ash
+
+```bash
 npm install
-\
+```
+
 ### 开发模式
-\\ash
+
+```bash
 npm run dev
-\启动后访问 http://localhost:5173 查看项目
+```
+
+启动后访问 http://localhost:5173 查看项目
 
 ### 构建生产版本
-\\ash
+
+```bash
 npm run build
-\构建产物将输出到 dist/ 目录
+```
+
+构建产物将输出到 dist/ 目录
 
 ### 预览生产版本
-\\ash
+
+```bash
 npm run preview
-\
+```
 ## 控制说明
 
 ### 相机控制
@@ -82,7 +91,8 @@ npm run preview
 
 ## 项目结构
 
-\aoe2/
+```
+aoe2/
 ├── src/
 │   ├── main.js                     # 应用入口
 │   ├── core/                       # 核心系统
@@ -115,7 +125,8 @@ npm run preview
 ├── feature.md                      # 功能文档
 ├── plan.md                         # 开发计划
 └── roadmap.md                      # 路线图
-\
+```
+
 ## 开发路线图
 
 ### 阶段一：基础架构
@@ -187,12 +198,15 @@ npm run preview
 - 常量使用大写蛇形命名（UPPER_SNAKE_CASE）
 
 ### 提交规范
-\<type>: <subject>
+
+```
+<type>: <subject>
 
 <body>
 
 <footer>
-\
+```
+
 类型（type）:
 - feat: 新功能
 - fix: 修复bug

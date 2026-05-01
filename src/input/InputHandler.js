@@ -149,10 +149,12 @@ class InputHandler {
         }
     }
 
-    updateWorldPosition() {
-        // 使用射线投射获取鼠标在世界空间中的位置
-        this.mouseVector.x = (this.mouse.x / this.canvas.clientWidth) * 2 - 1;
-        this.mouseVector.y = -(this.mouse.y / this.canvas.clientHeight) * 2 + 1;
+    updateWorldPosition(clientX = this.mouse.x, clientY = this.mouse.y) {
+        const rect = this.canvas.getBoundingClientRect();
+        
+        // 使用传入的或缓存的鼠标坐标
+        this.mouseVector.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+        this.mouseVector.y = -((clientY - rect.top) / rect.height) * 2 + 1;
         
         this.raycaster.setFromCamera(this.mouseVector, this.camera.getCamera());
         
