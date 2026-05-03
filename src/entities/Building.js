@@ -425,12 +425,6 @@ class Building extends Entity {
         canvas.height = size;
         const ctx = canvas.getContext('2d');
 
-        // 绘制背景
-        ctx.fillStyle = this.owner === 'player' ? '#4169E1' : '#DC143C';
-        ctx.beginPath();
-        ctx.arc(size / 2, size / 2, size / 2 - 10, 0, Math.PI * 2);
-        ctx.fill();
-
         // 绘制符号
         ctx.font = `${size * 0.9}px serif`;
         ctx.textAlign = 'center';
@@ -443,6 +437,12 @@ class Building extends Entity {
             const ageLevel = Math.min(Math.max(this.ageLevel || 1, 1), 4);
             ctx.fillText(romanNumerals[ageLevel - 1], size / 2, size / 2 + size * 0.05);
         } else {
+            // 其他建筑保留圆圈背景
+            ctx.fillStyle = this.owner === 'player' ? '#4169E1' : '#DC143C';
+            ctx.beginPath();
+            ctx.arc(size / 2, size / 2, size / 2 - 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#FFFFFF';
             ctx.fillText(config.symbol, size / 2, size / 2 + size * 0.05);
         }
 
@@ -498,11 +498,6 @@ class Building extends Entity {
         canvas.height = size;
         const ctx = canvas.getContext('2d');
 
-        ctx.fillStyle = this.owner === 'player' ? '#4169E1' : '#DC143C';
-        ctx.beginPath();
-        ctx.arc(size / 2, size / 2, size / 2 - 10, 0, Math.PI * 2);
-        ctx.fill();
-
         ctx.font = `${size * 0.9}px serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -513,6 +508,12 @@ class Building extends Entity {
             const ageLevel = Math.min(Math.max(this.ageLevel || 1, 1), 4);
             ctx.fillText(romanNumerals[ageLevel - 1], size / 2, size / 2 + size * 0.05);
         } else {
+            // 其他建筑保留圆圈背景
+            ctx.fillStyle = this.owner === 'player' ? '#4169E1' : '#DC143C';
+            ctx.beginPath();
+            ctx.arc(size / 2, size / 2, size / 2 - 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#FFFFFF';
             ctx.fillText(config.symbol, size / 2, size / 2 + size * 0.05);
         }
 
