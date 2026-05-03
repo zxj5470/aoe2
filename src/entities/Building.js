@@ -432,7 +432,7 @@ class Building extends Entity {
         ctx.fill();
 
         // 绘制符号
-        ctx.font = `${size * 0.75}px serif`;
+        ctx.font = `${size * 0.9}px serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = '#FFFFFF';
@@ -503,7 +503,7 @@ class Building extends Entity {
         ctx.arc(size / 2, size / 2, size / 2 - 10, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.font = `${size * 0.75}px serif`;
+        ctx.font = `${size * 0.9}px serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = '#FFFFFF';
