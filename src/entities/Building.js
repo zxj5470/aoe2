@@ -432,11 +432,19 @@ class Building extends Entity {
         ctx.fill();
 
         // 绘制符号
-        ctx.font = `${size * 0.6}px serif`;
+        ctx.font = `${size * 0.75}px serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillText(config.symbol, size / 2, size / 2 + size * 0.05);
+        
+        // 如果是城镇中心，根据时代绘制罗马数字
+        if (this.buildingType === 'town_center') {
+            const romanNumerals = ['I', 'II', 'III', 'IV'];
+            const ageLevel = Math.min(Math.max(this.ageLevel || 1, 1), 4);
+            ctx.fillText(romanNumerals[ageLevel - 1], size / 2, size / 2 + size * 0.05);
+        } else {
+            ctx.fillText(config.symbol, size / 2, size / 2 + size * 0.05);
+        }
 
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
@@ -466,6 +474,52 @@ class Building extends Entity {
         this.symbolPlane.position.set(posX, 0.12, posZ); // 放在底座上方
         this.symbolPlane.name = 'symbol';
         group.add(this.symbolPlane);
+    }
+
+    /**
+     * 设置时代等级并更新符号显示
+     * @param {number} level 时代等级（1-4）
+     */
+    setAgeLevel(level) {
+        this.ageLevel = Math.min(Math.max(level, 1), 4);
+        this.updateSymbolTexture();
+    }
+
+    /**
+     * 更新符号纹理（用于城镇中心时代升级后刷新显示）
+     */
+    updateSymbolTexture() {
+        if (!this.symbolPlane || !this.mesh) return;
+
+        const config = this.appearanceConfig;
+        const canvas = document.createElement('canvas');
+        const size = 256;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = this.owner === 'player' ? '#4169E1' : '#DC143C';
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2 - 10, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.font = `${size * 0.75}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#FFFFFF';
+
+        if (this.buildingType === 'town_center') {
+            const romanNumerals = ['I', 'II', 'III', 'IV'];
+            const ageLevel = Math.min(Math.max(this.ageLevel || 1, 1), 4);
+            ctx.fillText(romanNumerals[ageLevel - 1], size / 2, size / 2 + size * 0.05);
+        } else {
+            ctx.fillText(config.symbol, size / 2, size / 2 + size * 0.05);
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        this.symbolPlane.material.map = texture;
+        this.symbolPlane.material.needsUpdate = true;
     }
 
     /**

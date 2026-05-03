@@ -5,6 +5,7 @@ import GameMap from '../world/Map.js';
 import InputHandler from '../input/InputHandler.js';
 import SelectionManager from '../input/SelectionManager.js';
 import ResourceManager from '../entities/ResourceManager.js';
+import Player from '../entities/Player.js';
 import Unit from '../entities/Unit.js';
 import Building from '../entities/Building.js';
 import ResourceNode from '../entities/ResourceNode.js';
@@ -41,6 +42,7 @@ class Game {
         this.inputHandler = null;
         this.selectionManager = null;
         this.resourceManager = null;
+        this.player = null;
         this.movementSystem = null;
         this.pathfinding = null;
         this.formationSystem = null;
@@ -454,6 +456,8 @@ class Game {
 
         const townCenterMesh = townCenter.createMesh();
         if (townCenterMesh) {
+            // 设置城镇中心的时代等级
+            townCenter.setAgeLevel(this.player.getAgeLevel());
             this.addEntity(townCenter);
         }
 
@@ -643,6 +647,18 @@ class Game {
         this.resourceManager.addListener((type, amount) => {
             this.resources[type] = amount;
             this.updateResourceDisplay();
+        });
+        
+        // 玩家系统
+        this.player = new Player({
+            id: 'player',
+            name: '玩家',
+            ageLevel: 1,
+            gold: 100,
+            wood: 100,
+            food: 100,
+            stone: 50,
+            maxPopulation: 20
         });
         
         // 战斗系统
