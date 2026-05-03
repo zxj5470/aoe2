@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 /**
  * 罗马数字Canvas绘制工具
  * 用于绘制城镇中心的时代罗马数字
@@ -20,7 +21,7 @@ class RomanNumeralCanvas {
         ctx.clearRect(0, 0, size, size);
 
         // 绘制罗马数字
-        const romanNumerals = ['I', 'II', 'III', 'IV'];
+        const romanNumerals = ['Ⅰ', 'Ⅱ', 'Ⅲ', 'Ⅳ'];
         const numeral = romanNumerals[Math.min(Math.max(ageLevel - 1, 0), 3)] || 'I';
 
         // 设置字体 - 使用更大的字体尺寸
