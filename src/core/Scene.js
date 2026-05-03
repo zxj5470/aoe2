@@ -53,12 +53,13 @@ class Scene {
     }
 
     setupGround() {
-        // 创建地面
-        const groundGeometry = new THREE.PlaneGeometry(200, 200);
+        // 地面由 Terrain 系统渲染，此处不创建额外的地面网格
+        // 仅创建一个不可见的接收阴影平面
+        const groundGeometry = new THREE.PlaneGeometry(500, 500);
         const groundMaterial = new THREE.MeshStandardMaterial({
-            color: 0x3d8c40,
-            roughness: 0.8,
-            metalness: 0.1
+            color: 0x000000,
+            transparent: true,
+            opacity: 0
         });
         
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);

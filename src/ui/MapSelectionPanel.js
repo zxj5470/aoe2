@@ -64,9 +64,11 @@ class MapSelectionPanel {
             border-radius: 12px;
             padding: 20px;
             width: 500px;
-            max-height: 70vh;
+            max-width: 90vw;
+            max-height: 90vh;
             overflow: hidden;
             display: none;
+            flex-direction: column;
             z-index: 1000;
             box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
         `;
@@ -104,12 +106,21 @@ class MapSelectionPanel {
                 color: #FF6347;
             }
             
+            .map-selection-panel .map-panel-content {
+                flex: 1;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
+            }
+            
             .map-selection-panel .map-list {
                 display: grid;
                 grid-template-columns: repeat(2, 1fr);
                 gap: 12px;
-                max-height: 400px;
                 overflow-y: auto;
+                flex: 1;
+                min-height: 0;
             }
             
             .map-selection-panel .map-item {
@@ -290,7 +301,7 @@ class MapSelectionPanel {
 
     show() {
         if (this.panel) {
-            this.panel.style.display = 'block';
+            this.panel.style.display = 'flex';
             // 添加背景遮罩
             this.addOverlay();
         }

@@ -26,28 +26,38 @@ class Terrain {
             size.height
         );
 
-        // 创建材质数组，为每个网格单元设置不同的材质
-        const materials = [];
-        const totalCells = size.width * size.height;
+        // 使用顶点颜色为每个网格单元设置不同颜色
+        const vertexCount = geometry.attributes.position.count;
+        const colors = new Float32Array(vertexCount * 3);
 
         for (let x = 0; x < size.width; x++) {
             for (let y = 0; y < size.height; y++) {
                 const cell = this.grid.getCell(x, y);
                 const terrainType = this.terrainTypes[cell.type] || this.terrainTypes.grass;
-                
-                const material = new THREE.MeshStandardMaterial({
-                    color: terrainType.color,
-                    roughness: terrainType.roughness,
-                    metalness: terrainType.metalness,
-                    flatShading: true
-                });
-                
-                materials.push(material);
+                const color = new THREE.Color(terrainType.color);
+
+                // 每个网格单元有 2 个三角形，共 6 个顶点
+                const cellIndex = (y * size.width + x) * 6;
+                for (let v = 0; v < 6; v++) {
+                    const idx = (cellIndex + v) * 3;
+                    colors[idx] = color.r;
+                    colors[idx + 1] = color.g;
+                    colors[idx + 2] = color.b;
+                }
             }
         }
 
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const material = new THREE.MeshStandardMaterial({
+            vertexColors: true,
+            roughness: 0.8,
+            metalness: 0.1,
+            flatShading: true
+        });
+
         // 创建网格（居中到世界坐标系原点）
-        this.mesh = new THREE.Mesh(geometry, materials);
+        this.mesh = new THREE.Mesh(geometry, material);
         this.mesh.rotation.x = -Math.PI / 2;
         this.mesh.receiveShadow = true;
         this.mesh.position.set(0, 0, 0);
@@ -62,14 +72,20 @@ class Terrain {
         if (!cell) return;
 
         const size = this.grid.getSize();
-        const index = y * size.width + x;
+        const terrainType = this.terrainTypes[cell.type] || this.terrainTypes.grass;
+        const color = new THREE.Color(terrainType.color);
 
-        if (index >= 0 && index < this.mesh.material.length) {
-            const terrainType = this.terrainTypes[cell.type] || this.terrainTypes.grass;
-            this.mesh.material[index].color.setHex(terrainType.color);
-            this.mesh.material[index].roughness = terrainType.roughness;
-            this.mesh.material[index].metalness = terrainType.metalness;
+        const cellIndex = (y * size.width + x) * 6;
+        const colors = this.mesh.geometry.attributes.color.array;
+
+        for (let v = 0; v < 6; v++) {
+            const idx = (cellIndex + v) * 3;
+            colors[idx] = color.r;
+            colors[idx + 1] = color.g;
+            colors[idx + 2] = color.b;
         }
+
+        this.mesh.geometry.attributes.color.needsUpdate = true;
     }
 
     addTerrainFeature(type, x, y, size = 1) {

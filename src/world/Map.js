@@ -20,8 +20,10 @@ class GameMap {
         // 创建地形网格
         this.mesh = this.terrain.createTerrainMesh();
         
-        // 生成随机地形
-        this.terrain.generateRandomTerrain();
+        // 仅在没有预设地图数据时生成随机地形
+        if (!this.mapData) {
+            this.terrain.generateRandomTerrain();
+        }
         
         // 添加装饰物
         this.addDecorations();
