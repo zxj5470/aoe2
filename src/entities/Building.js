@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import Entity from './Entity.js';
+import RomanNumeralCanvas from './RomanNumeralCanvas.js';
 import { CELL_SIZE, MAP_CONFIG } from '../config.js';
 
 class Building extends Entity {
@@ -418,36 +419,34 @@ class Building extends Entity {
         edges.name = 'border';
         group.add(edges);
 
-        // 创建符号文本（使用 Canvas 纹理）
-        const canvas = document.createElement('canvas');
-        const size = 256;
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d');
-
-        // 绘制符号
-        ctx.font = `${size * 0.9}px serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#FFFFFF';
+        // 创建符号纹理
+        let texture;
         
-        // 如果是城镇中心，根据时代绘制罗马数字
+        // 如果是城镇中心，使用罗马数字绘制工具
         if (this.buildingType === 'town_center') {
-            const romanNumerals = ['I', 'II', 'III', 'IV'];
-            const ageLevel = Math.min(Math.max(this.ageLevel || 1, 1), 4);
-            ctx.fillText(romanNumerals[ageLevel - 1], size / 2, size / 2 + size * 0.05);
+            texture = RomanNumeralCanvas.createTexture(this.ageLevel || 1);
         } else {
-            // 其他建筑保留圆圈背景
+            // 其他建筑保留原有圆圈背景样式
+            const canvas = document.createElement('canvas');
+            const size = 256;
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
             ctx.fillStyle = this.owner === 'player' ? '#4169E1' : '#DC143C';
             ctx.beginPath();
             ctx.arc(size / 2, size / 2, size / 2 - 10, 0, Math.PI * 2);
             ctx.fill();
+
+            ctx.font = `${size * 0.7}px serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
             ctx.fillStyle = '#FFFFFF';
             ctx.fillText(config.symbol, size / 2, size / 2 + size * 0.05);
-        }
 
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.minFilter = THREE.LinearFilter;
+            texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+        }
 
         // 符号平面（平铺在地面上）
         let symbolSize = Math.min(this.width, this.depth) * 0.7;
@@ -491,36 +490,34 @@ class Building extends Entity {
     updateSymbolTexture() {
         if (!this.symbolPlane || !this.mesh) return;
 
-        const config = this.appearanceConfig;
-        const canvas = document.createElement('canvas');
-        const size = 256;
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d');
-
-        ctx.font = `${size * 0.9}px serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#FFFFFF';
-
         if (this.buildingType === 'town_center') {
-            const romanNumerals = ['I', 'II', 'III', 'IV'];
-            const ageLevel = Math.min(Math.max(this.ageLevel || 1, 1), 4);
-            ctx.fillText(romanNumerals[ageLevel - 1], size / 2, size / 2 + size * 0.05);
+            // 使用罗马数字绘制工具更新纹理
+            RomanNumeralCanvas.updateTexture(this.symbolPlane, this.ageLevel || 1);
         } else {
-            // 其他建筑保留圆圈背景
+            // 其他建筑保留原有逻辑
+            const config = this.appearanceConfig;
+            const canvas = document.createElement('canvas');
+            const size = 256;
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
             ctx.fillStyle = this.owner === 'player' ? '#4169E1' : '#DC143C';
             ctx.beginPath();
             ctx.arc(size / 2, size / 2, size / 2 - 10, 0, Math.PI * 2);
             ctx.fill();
+
+            ctx.font = `${size * 0.7}px serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
             ctx.fillStyle = '#FFFFFF';
             ctx.fillText(config.symbol, size / 2, size / 2 + size * 0.05);
-        }
 
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.minFilter = THREE.LinearFilter;
-        this.symbolPlane.material.map = texture;
-        this.symbolPlane.material.needsUpdate = true;
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            this.symbolPlane.material.map = texture;
+            this.symbolPlane.material.needsUpdate = true;
+        }
     }
 
     /**
