@@ -6,8 +6,11 @@ class Terrain {
         this.mesh = null;
         this.terrainTypes = {
             grass: { color: 0x3d8c40, roughness: 0.8, metalness: 0.1 },
+            grassland: { color: 0x3d8c40, roughness: 0.8, metalness: 0.1 },
             water: { color: 0x1e90ff, roughness: 0.2, metalness: 0.3 },
             sand: { color: 0xf4a460, roughness: 0.9, metalness: 0.1 },
+            desert: { color: 0xF5DEB3, roughness: 0.9, metalness: 0.1 },
+            sand_dunes: { color: 0xF0D58C, roughness: 0.9, metalness: 0.1 },
             forest: { color: 0x228b22, roughness: 0.7, metalness: 0.1 },
             stone: { color: 0x808080, roughness: 0.9, metalness: 0.2 },
             mountain: { color: 0x696969, roughness: 0.95, metalness: 0.1 }

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import Entity from './Entity.js';
-import { CELL_SIZE, MAP_CONFIG } from '../config.js';
+import { CELL_SIZE, MAP_CONFIG, getPlayerColor } from '../config.js';
 
 class Unit extends Entity {
     constructor(config) {
@@ -124,7 +124,8 @@ class Unit extends Entity {
         
         // 获取外观配置
         const config = this.appearanceConfig;
-        const playerColor = this.owner === 'player' ? config.bodyColor : 0xDC143C;
+        const playerColorHex = getPlayerColor(this.owner);
+        const playerColor = new THREE.Color(playerColorHex).getHex() || config.bodyColor;
         
         // 身体（根据单位类型调整尺寸）
         const bodyGeometry = new THREE.BoxGeometry(

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import Entity from './Entity.js';
 import RomanNumeralCanvas from './RomanNumeralCanvas.js';
-import { CELL_SIZE, MAP_CONFIG } from '../config.js';
+import { CELL_SIZE, MAP_CONFIG, getPlayerColor } from '../config.js';
 
 class Building extends Entity {
     constructor(config) {
@@ -451,10 +451,10 @@ class Building extends Entity {
         base.name = 'base';
         group.add(base);
 
-        // 底座边框
+        // 底座边框（使用玩家颜色）
         const edgesGeometry = new THREE.EdgesGeometry(baseGeometry);
         const edgesMaterial = new THREE.LineBasicMaterial({
-            color: config.color,
+            color: new THREE.Color(getPlayerColor(this.owner)),
             transparent: true,
             opacity: 0.8
         });
@@ -477,7 +477,7 @@ class Building extends Entity {
             canvas.height = size;
             const ctx = canvas.getContext('2d');
 
-            ctx.fillStyle = this.owner === 'player' ? '#4169E1' : '#DC143C';
+            ctx.fillStyle = getPlayerColor(this.owner);
             ctx.beginPath();
             ctx.arc(size / 2, size / 2, size / 2 - 10, 0, Math.PI * 2);
             ctx.fill();
@@ -546,7 +546,7 @@ class Building extends Entity {
             canvas.height = size;
             const ctx = canvas.getContext('2d');
 
-            ctx.fillStyle = this.owner === 'player' ? '#4169E1' : '#DC143C';
+            ctx.fillStyle = getPlayerColor(this.owner);
             ctx.beginPath();
             ctx.arc(size / 2, size / 2, size / 2 - 10, 0, Math.PI * 2);
             ctx.fill();
@@ -585,7 +585,7 @@ class Building extends Entity {
     }
 
     createSelectionRing() {
-        // 创建对齐网格的白色边框
+        // 创建对齐网格的玩家颜色边框
         const gridSize = CELL_SIZE;
 
         // 计算建筑物的实际占用范围（对齐到网格）
@@ -604,11 +604,11 @@ class Building extends Entity {
         const halfWidth = gridWidth / 2;
         const halfDepth = gridDepth / 2;
         
-        // 创建白色边框（使用BoxGeometry作为线框）
+        // 创建玩家颜色边框（使用BoxGeometry作为线框）
         const boxGeometry = new THREE.BoxGeometry(gridWidth, 0.1, gridDepth);
         const edgesGeometry = new THREE.EdgesGeometry(boxGeometry);
         const edgesMaterial = new THREE.LineBasicMaterial({ 
-            color: 0xFFFFFF,
+            color: new THREE.Color(getPlayerColor(this.owner)),
             transparent: true,
             opacity: 0.8,
             linewidth: 2

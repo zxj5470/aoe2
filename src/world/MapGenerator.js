@@ -162,6 +162,26 @@ class MapGenerator {
             this.addOasis(data, cx, cy, 15);
         }
 
+        // 红蓝双方城镇中心位置（距离地图中心 0.4 地图宽度，对称分布）
+        const centerX = Math.floor(width / 2);
+        const centerY = Math.floor(height / 2);
+        const offset = Math.floor(width * 0.4);
+        
+        // 红方城镇中心（左侧）
+        data.townCenters = data.townCenters || [];
+        data.townCenters.push({
+            owner: 'red',
+            x: centerX - offset,
+            y: centerY
+        });
+        
+        // 蓝方城镇中心（右侧）
+        data.townCenters.push({
+            owner: 'blue',
+            x: centerX + offset,
+            y: centerY
+        });
+
         // 生成资源
         this.generateStandardResources(data, width, height, 'normal');
 

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CELL_SIZE } from '../config.js';
+import { CELL_SIZE, getPlayerColor, getPlayerName } from '../config.js';
 
 class HUD {
     constructor(game) {
@@ -388,6 +388,7 @@ class HUD {
         
         if (selectedEntities.length === 1) {
             const entity = selectedEntities[0];
+            const ownerName = this.getOwnerDisplayName(entity.owner);
 
             html = `
                 <div class="info-row">
@@ -397,6 +398,10 @@ class HUD {
                 <div class="info-row">
                     <span>类型:</span>
                     <span>${entity.type}</span>
+                </div>
+                <div class="info-row">
+                    <span>所属:</span>
+                    <span style="color: ${this.getOwnerColor(entity.owner)}">${ownerName}</span>
                 </div>
             `;
 
@@ -454,6 +459,14 @@ class HUD {
         this.unitInfoContent.innerHTML = html;
     }
 
+    getOwnerDisplayName(owner) {
+        return getPlayerName(owner);
+    }
+
+    getOwnerColor(owner) {
+        return getPlayerColor(owner);
+    }
+
     /**
      * 渲染小地图（使用 Canvas Transform 菱形切变优化）
      */
@@ -464,9 +477,9 @@ class HUD {
         /** @type {CanvasRenderingContext2D} */
         const ctx = this.minimapContext;
 
-        // 1. 清空画布
+        // 1. 清空画布，默认黑色背景
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#3d8c40';
+        ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // 2. 设置菱形切变变换（高度压缩为原来的75%）
@@ -486,8 +499,9 @@ class HUD {
         const minZ = -mapSize.height / 2;
         const maxZ = mapSize.height / 2;
 
-        // 绘制背景大地色块
-        ctx.fillStyle = '#4a9c50';
+        // 绘制背景大地色块（阿拉伯地图用浅黄色，其他用绿色）
+        const mapType = this.game.selectedMapType || 'default';
+        ctx.fillStyle = mapType === 'arabia' ? '#F5DEB3' : '#4a9c50';
         ctx.fillRect(minX, minZ, mapSize.width, mapSize.height);
 
         // 绘制菱形网格（直接画直线，变换会自动处理）
@@ -512,12 +526,12 @@ class HUD {
             if (!entity.isAlive) continue;
             
             if (entity.type === 'unit') {
-                ctx.fillStyle = entity.owner === 'player' ? '#4169E1' : '#DC143C';
+                ctx.fillStyle = getPlayerColor(entity.owner);
                 ctx.beginPath();
                 ctx.arc(entity.position.x, entity.position.z, 2, 0, Math.PI * 2);
                 ctx.fill();
             } else if (entity.type === 'building') {
-                ctx.fillStyle = entity.owner === 'player' ? '#4169E1' : '#DC143C';
+                ctx.fillStyle = getPlayerColor(entity.owner);
                 ctx.fillRect(entity.position.x - 3, entity.position.z - 3, 6, 6);
             } else if (entity.type === 'resource') {
                 // 资源节点使用对应颜色

@@ -208,11 +208,18 @@ class Game {
         // 使用地图生成器生成地图数据
         const mapData = this.mapGenerator.generateMap(mapType);
         
-        // 获取默认城镇中心位置（地图中心）
-        const tcPos = this.mapGenerator.getDefaultTownCenterPosition(mapData);
-        
-        // 生成默认金矿簇（围绕城镇中心，8块3x3金矿）
-        this.mapGenerator.generateDefaultGoldClusters(mapData, tcPos.x, tcPos.y, 20, 8);
+        // 阿拉伯地图：为每个城镇中心生成金矿簇
+        if (mapType === 'arabia' && mapData.townCenters) {
+            for (const tc of mapData.townCenters) {
+                this.mapGenerator.generateDefaultGoldClusters(mapData, tc.x, tc.y, 20);
+            }
+        } else {
+            // 其他地图：获取默认城镇中心位置（地图中心）
+            const tcPos = this.mapGenerator.getDefaultTownCenterPosition(mapData);
+            
+            // 生成默认金矿簇（围绕城镇中心）
+            this.mapGenerator.generateDefaultGoldClusters(mapData, tcPos.x, tcPos.y, 20);
+        }
         
         // 使用生成的地图数据初始化地图
         this.map = new GameMap(mapData.width, mapData.height, 1);
@@ -233,9 +240,44 @@ class Game {
         // 根据地图数据添加资源节点
         this.spawnResourcesFromMapData(mapData);
 
+        // 阿拉伯地图：生成红蓝双方城镇中心
+        if (mapType === 'arabia' && mapData.townCenters) {
+            this.spawnTownCenters(mapData);
+        }
+
         console.log(`已生成地图: ${mapType} (${mapData.width}x${mapData.height})`);
-        console.log(`城镇中心位置: (${tcPos.x}, ${tcPos.y})`);
-        console.log(`金矿簇数量: ${mapData.resources.filter(r => r.type === 'gold').length / 9} 块`);
+    }
+
+    spawnTownCenters(mapData) {
+        const alignToGrid = (coord, size = 4) => {
+            const offset = size % 2 === 0 ? 0 : 0.5;
+            return Math.round(coord) + offset;
+        };
+
+        for (const tc of mapData.townCenters) {
+            const worldX = tc.x - mapData.width / 2 + 0.5;
+            const worldZ = tc.y - mapData.height / 2 + 0.5;
+            
+            const townCenter = new Building({
+                buildingType: 'town_center',
+                name: `${tc.owner}_town_center`,
+                x: alignToGrid(worldX, 4),
+                z: alignToGrid(worldZ, 4),
+                owner: tc.owner,
+                health: 1000,
+                maxHealth: 1000,
+                width: 4,
+                depth: 4,
+                height: 3
+            });
+
+            const tcMesh = townCenter.createMesh();
+            if (tcMesh) {
+                this.addEntity(townCenter);
+            }
+        }
+
+        console.log(`已生成 ${mapData.townCenters.length} 个城镇中心`);
     }
 
     spawnResourcesFromMapData(mapData) {
@@ -278,17 +320,16 @@ class Game {
     }
 
     initEntities() {
-        // 初始化测试单位（验证单位渲染系统）
-        this.initTestUnits();
-
-        // 初始化测试建筑（验证建筑渲染系统）
-        this.initTestBuildings();
-
-        // 初始化测试资源节点（验证资源节点系统）
-        this.initTestResources();
-
-        // 初始化城镇中心（作为资源存储点）
-        this.initTownCenter();
+        // 阿拉伯地图：只初始化城镇中心、村民和羊
+        if (this.selectedMapType === 'arabia') {
+            this.initArabiaEntities();
+        } else {
+            // 其他地图：初始化测试实体
+            this.initTestUnits();
+            this.initTestBuildings();
+            this.initTestResources();
+            this.initTownCenter();
+        }
 
         // 注册单位到资源收集系统
         this.registerUnitsToGatheringSystem();
@@ -298,6 +339,122 @@ class Game {
 
         // 初始化单位
         this.updateResourceDisplay();
+    }
+
+    initArabiaEntities() {
+        const alignToGrid = (coord, size = 1) => {
+            const offset = size % 2 === 0 ? 0 : 0.5;
+            return Math.round(coord) + offset;
+        };
+
+        // 获取所有城镇中心
+        const townCenters = this.entities.filter(e => e.buildingType === 'town_center');
+
+        for (const tc of townCenters) {
+            const tcX = tc.position.x;
+            const tcZ = tc.position.z;
+            const owner = tc.owner;
+
+            // 每个城镇中心生成 3 个村民
+            for (let i = 0; i < 3; i++) {
+                const angle = (i / 3) * Math.PI * 2;
+                const distance = 5;
+                const x = alignToGrid(tcX + Math.cos(angle) * distance, 1);
+                const z = alignToGrid(tcZ + Math.sin(angle) * distance, 1);
+
+                const villager = new Unit({
+                    unitType: 'villager',
+                    name: `${owner}_villager_${i + 1}`,
+                    x,
+                    z,
+                    owner,
+                    health: 50,
+                    maxHealth: 50,
+                    speed: 5,
+                    attackDamage: 5,
+                    attackRange: 1,
+                    attackSpeed: 1,
+                    armor: 1,
+                    sightRange: 6,
+                    pathfindingSystem: this.pathfinding,
+                    formationSystem: this.formationSystem,
+                    game: this
+                });
+
+                const villagerMesh = villager.createMesh();
+                if (villagerMesh) {
+                    this.addEntity(villager);
+                }
+            }
+        }
+
+        // 生成 8 只羊（4 只在城镇中心 8 格范围内，4 只在 16 格范围内）
+        this.spawnSheepAroundTownCenters(townCenters, alignToGrid);
+
+        console.log(`阿拉伯地图初始化：${townCenters.length} 个城镇中心，${townCenters.length * 3} 个村民，8 只羊`);
+    }
+
+    spawnSheepAroundTownCenters(townCenters, alignToGrid) {
+        const sheepCount = 8;
+        const sheepPerTC = Math.floor(sheepCount / townCenters.length);
+        let sheepIndex = 0;
+
+        for (const tc of townCenters) {
+            const tcX = tc.position.x;
+            const tcZ = tc.position.z;
+
+            // 4 只在 8 格范围内
+            for (let i = 0; i < 2; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 3 + Math.random() * 5;
+                const x = alignToGrid(tcX + Math.cos(angle) * distance, 1);
+                const z = alignToGrid(tcZ + Math.sin(angle) * distance, 1);
+
+                const sheep = new ResourceNode({
+                    resourceType: 'food',
+                    name: `sheep_${sheepIndex++}`,
+                    x,
+                    z,
+                    amount: 100,
+                    health: 100,
+                    maxHealth: 100,
+                    gatherSpeed: 1,
+                    canRespawn: false,
+                    respawnTime: 0
+                });
+
+                const sheepMesh = sheep.createMesh();
+                if (sheepMesh) {
+                    this.addEntity(sheep);
+                }
+            }
+
+            // 4 只在 16 格范围内
+            for (let i = 0; i < 2; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 8 + Math.random() * 8;
+                const x = alignToGrid(tcX + Math.cos(angle) * distance, 1);
+                const z = alignToGrid(tcZ + Math.sin(angle) * distance, 1);
+
+                const sheep = new ResourceNode({
+                    resourceType: 'food',
+                    name: `sheep_${sheepIndex++}`,
+                    x,
+                    z,
+                    amount: 100,
+                    health: 100,
+                    maxHealth: 100,
+                    gatherSpeed: 1,
+                    canRespawn: false,
+                    respawnTime: 0
+                });
+
+                const sheepMesh = sheep.createMesh();
+                if (sheepMesh) {
+                    this.addEntity(sheep);
+                }
+            }
+        }
     }
     
     /**
