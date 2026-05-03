@@ -6,6 +6,7 @@ class Scene {
         this.ambientLight = null;
         this.directionalLight = null;
         this.entities = [];
+        this.pathVisualizers = new Map();
     }
 
     init() {
@@ -111,6 +112,83 @@ class Scene {
 
     getScene() {
         return this.scene;
+    }
+
+    /**
+     * 可视化路径
+     * @param {string} unitId - 单位ID
+     * @param {Array} path - 路径单元格数组
+     * @param {Grid} grid - 网格系统
+     */
+    visualizePath(unitId, path, grid) {
+        this.clearPathVisualizer(unitId);
+
+        if (!path || path.length === 0) {
+            return;
+        }
+
+        const cellSize = grid.cellSize;
+        const halfW = grid.width * cellSize / 2;
+        const halfH = grid.height * cellSize / 2;
+
+        // 创建路径点
+        const points = [];
+        for (const cell of path) {
+            const x = cell.x * cellSize + cellSize / 2 - halfW;
+            const z = cell.y * cellSize + cellSize / 2 - halfH;
+            points.push(new THREE.Vector3(x, 0.05, z));
+        }
+
+        // 创建路径线
+        const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+        const lineMaterial = new THREE.LineBasicMaterial({
+            color: 0xffaa00,
+            linewidth: 2
+        });
+        const line = new THREE.Line(lineGeometry, lineMaterial);
+
+        // 创建路径点标记
+        const markers = [];
+        for (const point of points) {
+            const markerGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 8);
+            const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+            const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+            marker.position.copy(point);
+            marker.position.y = 0.1;
+            markers.push(marker);
+        }
+
+        // 添加到场景
+        this.scene.add(line);
+        for (const marker of markers) {
+            this.scene.add(marker);
+        }
+
+        this.pathVisualizers.set(unitId, { line, markers });
+    }
+
+    /**
+     * 清除路径可视化
+     * @param {string} unitId - 单位ID
+     */
+    clearPathVisualizer(unitId) {
+        const visualizer = this.pathVisualizers.get(unitId);
+        if (visualizer) {
+            this.scene.remove(visualizer.line);
+            for (const marker of visualizer.markers) {
+                this.scene.remove(marker);
+            }
+            this.pathVisualizers.delete(unitId);
+        }
+    }
+
+    /**
+     * 清除所有路径可视化
+     */
+    clearAllPathVisualizers() {
+        for (const unitId of this.pathVisualizers.keys()) {
+            this.clearPathVisualizer(unitId);
+        }
     }
 }
 

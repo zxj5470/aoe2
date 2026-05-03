@@ -16,6 +16,8 @@ class Pathfinding {
     }
 
     findPath(startX, startZ, endX, endZ, options = {}) {
+        console.log(`[Pathfinding] findPath 被调用: (${startX.toFixed(1)}, ${startZ.toFixed(1)}) → (${endX.toFixed(1)}, ${endZ.toFixed(1)})`);
+        
         const {
             allowDiagonals = true,
             avoidEnemies = false,
@@ -27,12 +29,17 @@ class Pathfinding {
         if (useCache) {
             const cachedPath = this.getCachedPath(startX, startZ, endX, endZ, options);
             if (cachedPath) {
+                console.log(`[Pathfinding] 使用缓存路径`);
                 return cachedPath;
             }
         }
 
         let startCell = this.grid.getCellAtPosition(startX, startZ);
         let endCell = this.grid.getCellAtPosition(endX, endZ);
+        
+        console.log(`[Pathfinding] 转换后的单元格: 起点 (${startCell?.x}, ${startCell?.y}) → 终点 (${endCell?.x}, ${endCell?.y})`);
+        if (startCell) console.log(`[Pathfinding] 起点单元格: walkable=${startCell.walkable}, occupied=${startCell.occupied}`);
+        if (endCell) console.log(`[Pathfinding] 终点单元格: walkable=${endCell.walkable}, occupied=${endCell.occupied}`);
 
         if (!startCell || !endCell) {
             return { path: [], success: false };

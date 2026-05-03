@@ -63,6 +63,9 @@ class Unit extends Entity {
         this.pathfindingSystem = config.pathfindingSystem || null;
         this.formationSystem = config.formationSystem || null;
         this.game = config.game || null; // 游戏实例引用
+        
+        // 唯一ID用于路径可视化
+        this.id = config.id || `unit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     }
     
     /**
@@ -755,11 +758,13 @@ class Unit extends Entity {
                 0,
                 currentCell.y * cellSize + cellSize / 2 - halfH
             );
+            console.log(`[Unit] 正在跟随路径: 点 ${this.currentPathIndex}/${this.path.length} → (${targetPos.x.toFixed(1)}, ${targetPos.z.toFixed(1)})`);
             
             const distance = this.position.distanceTo(targetPos);
             
             if (distance < 0.5) {
                 this.currentPathIndex++;
+                console.log(`[Unit] 到达路径点 ${this.currentPathIndex - 1}，下一个是 ${this.currentPathIndex}`);
                 if (this.currentPathIndex >= this.path.length) {
                     // 到达最终目标
                     console.log(`[村民移动] 到达目标位置 - isReturning: ${this.isReturning}, carryAmount: ${this.carryAmount}`);
@@ -783,9 +788,16 @@ class Unit extends Entity {
                     this.path = [];
                     this.currentAction = 'idle';
                     this.setAnimationState('idle');
+                    
+                    // 清除路径可视化
+                    if (this.game && this.game.scene) {
+                        this.game.scene.clearPathVisualizer(this.id);
+                    }
                     return;
                 }
             }
+        } else {
+            console.log(`[Unit] 没有可用路径，直接走直线到 (${targetPos.x.toFixed(1)}, ${targetPos.z.toFixed(1)})`);
         }
         
         if (targetPos) {
@@ -901,6 +913,7 @@ class Unit extends Entity {
         
         // 如果有路径规划系统，计算路径
         if (this.pathfindingSystem) {
+            console.log(`[Unit] 开始寻路: 起点 (${this.position.x.toFixed(1)}, ${this.position.z.toFixed(1)}) → 终点 (${targetPosition.x.toFixed(1)}, ${targetPosition.z.toFixed(1)})`);
             const result = this.pathfindingSystem.findPath(
                 this.position.x,
                 this.position.z,
@@ -909,10 +922,27 @@ class Unit extends Entity {
             );
             
             if (result.success) {
-                this.path = result.path;
+                console.log(`[Unit] 找到路径! 原始路径长度: ${result.path.length} 个点`);
+                // 打印原始路径点信息
+                result.path.forEach((cell, i) => console.log(`[Unit] 原始点 ${i}: (${cell.x}, ${cell.y})`));
+                
+                // 平滑路径
+                this.path = this.pathfindingSystem.smoothPath(result.path);
                 this.currentPathIndex = 0;
+                console.log(`[Unit] 平滑后路径长度: ${this.path.length} 个点`);
+                
+                // 可视化路径
+                if (this.game && this.game.scene && this.pathfindingSystem && this.pathfindingSystem.grid) {
+                    this.game.scene.visualizePath(this.id, this.path, this.pathfindingSystem.grid);
+                }
             } else {
                 this.path = [];
+                console.log('[Unit] 未找到路径，将直线移动');
+                
+                // 清除路径可视化
+                if (this.game && this.game.scene) {
+                    this.game.scene.clearPathVisualizer(this.id);
+                }
             }
         }
     }
@@ -981,6 +1011,11 @@ class Unit extends Entity {
         // 重置动画状态
         this.setAnimationState('idle');
         this.path = [];
+        
+        // 清除路径可视化
+        if (this.game && this.game.scene) {
+            this.game.scene.clearPathVisualizer(this.id);
+        }
     }
 
     updateSelectionVisual() {

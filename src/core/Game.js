@@ -85,11 +85,14 @@ class Game {
         // 初始化不依赖地图的系统
         this.initIndependentSystems();
         
-        // 初始化游戏世界
-        this.initWorld();
+        // 初始化地图（只创建网格和地图对象）
+        this.initMapOnly();
         
-        // 初始化依赖地图的系统
+        // 初始化依赖地图的系统（包括碰撞系统）
         this.initMapDependentSystems();
+        
+        // 初始化所有实体（现在碰撞系统已经准备好了）
+        this.initEntities();
         
         // 设置事件监听
         this.setupEventListeners();
@@ -153,7 +156,7 @@ class Game {
         }
     }
 
-    initWorld() {
+    initMapOnly() {
         // 初始化地图（网格大小改为1x1）
         this.map = new GameMap(200, 200, 1);
         const mapMesh = this.map.init();
@@ -164,7 +167,9 @@ class Game {
         for (const decoration of decorations) {
             this.scene.addEntity({ getMesh: () => decoration });
         }
+    }
 
+    initEntities() {
         // 初始化测试单位（验证单位渲染系统）
         this.initTestUnits();
 
@@ -929,13 +934,13 @@ class Game {
     }
 
     onMouseDown(event) {
-            this.camera.handleMouseDown(event);
-            
-            // 处理左键点击
-            if (event.button === 0) {
-                this.handleLeftClick(event);
-            }
+        this.camera.handleMouseDown(event);
+        
+        // 处理左键点击
+        if (event.button === 0) {
+            this.handleLeftClick(event);
         }
+    }
     
     onMouseUp(event) {
         this.camera.handleMouseUp(event);
@@ -969,29 +974,55 @@ class Game {
     handleLeftClick(event) {
         if (!this.inputHandler || !this.selectionManager) return;
         
-        const raycaster = this.inputHandler.getRaycaster();
-        const mousePos = this.inputHandler.getMousePosition();
+        // 使用统一的拾取方法获取实体
+        const pickedEntity = this.pickAtMouse();
         
-        // 检查是否点击了实体
-        const intersects = raycaster.intersectObjects(this.scene.getScene().children, true);
-        
-        for (const intersect of intersects) {
-            let entity = intersect.object;
-            
-            // 向上查找实体对象
-            while (entity && !entity.userData) {
-                entity = entity.parent;
-            }
-            
-            if (entity && entity.userData) {
-                // 找到实体，执行选择逻辑
-                this.handleEntitySelection(entity, event.shiftKey);
-                return;
-            }
+        if (pickedEntity) {
+            // 找到实体，执行选择逻辑
+            this.handleEntitySelection(pickedEntity, event.shiftKey);
+            return;
         }
         
         // 没有点击到实体，取消选择
         this.selectionManager.deselectAll();
+    }
+
+    /**
+     * 统一的拾取方法：从鼠标位置拾取实体
+     * @returns {Entity|null} 拾取到的实体，没有则返回 null
+     */
+    pickAtMouse() {
+        if (!this.inputHandler || !this.scene) return null;
+        
+        const raycaster = this.inputHandler.getRaycaster();
+        const mousePos = this.inputHandler.getMousePosition();
+        
+        // 将屏幕坐标转换为归一化设备坐标 (NDC)
+        const canvas = this.canvas;
+        const rect = canvas.getBoundingClientRect();
+        const ndcX = ((mousePos.x - rect.left) / rect.width) * 2 - 1;
+        const ndcY = -((mousePos.y - rect.top) / rect.height) * 2 + 1;
+        
+        // 设置射线
+        raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera.getCamera());
+        
+        // 执行射线检测
+        const intersects = raycaster.intersectObjects(this.scene.getScene().children, true);
+        
+        // 遍历相交结果，找到绑定了 entity 的 mesh
+        for (const intersect of intersects) {
+            let currentObj = intersect.object;
+            
+            // 向上遍历父对象，查找有 entity userData 的对象
+            while (currentObj) {
+                if (currentObj.userData && currentObj.userData.entity) {
+                    return currentObj.userData.entity;
+                }
+                currentObj = currentObj.parent;
+            }
+        }
+        
+        return null;
     }
     
     handleRightClick(event) {

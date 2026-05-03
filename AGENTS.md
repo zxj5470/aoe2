@@ -132,7 +132,14 @@ animate()         // 每帧更新逻辑
 addEntity()       // 添加实体到场景
 removeEntity()    // 从场景移除实体
 updateEntities()  // 更新所有实体状态
+pickAtMouse()     // 统一拾取方法：从鼠标位置拾取实体，返回 Entity 或 null
 ```
+
+**统一拾取系统**:
+- 所有实体（Unit、Building、ResourceNode）在创建 mesh 时必须在 `mesh.userData.entity` 绑定自身
+- 使用 `game.pickAtMouse()` 作为唯一的拾取入口，避免重复实现射线检测逻辑
+- 拾取流程：使用 InputHandler 的 Raycaster 检测 → 遍历相交对象 → 向上查找有 entity 的 mesh → 返回实体对象
+- 调试面板的鼠标拾取功能使用的就是这个统一方法
 
 **资源加载**:
 - 模拟资源加载过程（纹理、音频、模型）
@@ -230,6 +237,7 @@ this.position.y = height;
   - 小地图视野
   - 地图范围
   - 建筑面板配置
+  - 鼠标拾取（显示当前鼠标位置下方的实体信息）
 
 **HUD API**:
 

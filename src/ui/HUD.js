@@ -113,7 +113,12 @@ class HUD {
             mapHeight: document.getElementById('debug-map-height'),
             panelRows: document.getElementById('debug-panel-rows'),
             panelCols: document.getElementById('debug-panel-cols'),
-            panelButtons: document.getElementById('debug-panel-buttons')
+            panelButtons: document.getElementById('debug-panel-buttons'),
+            pickType: document.getElementById('debug-pick-type'),
+            pickName: document.getElementById('debug-pick-name'),
+            pickPosition: document.getElementById('debug-pick-position'),
+            pickOwner: document.getElementById('debug-pick-owner'),
+            pickHealth: document.getElementById('debug-pick-health')
         };
 
         // 鼠标位置追踪
@@ -646,6 +651,9 @@ class HUD {
             }
         }
 
+        // 更新鼠标拾取信息
+        this.updateMousePickInfo();
+
         // 更新小地图视野信息
         if (this.game.camera && this.game.map) {
             const cameraTarget = this.game.camera.target;
@@ -738,6 +746,45 @@ class HUD {
             } else if (emptyElement) {
                 emptyElement.innerHTML = `<span class="debug-label">空白按钮:</span> <span class="debug-value">${emptyCount}个</span>`;
             }
+        }
+    }
+
+    updateMousePickInfo() {
+        if (!this.debugElements.pickType) return;
+
+        if (!this.game.inputHandler || !this.game.entities) {
+            this.debugElements.pickType.textContent = '-';
+            this.debugElements.pickName.textContent = '-';
+            this.debugElements.pickPosition.textContent = '-';
+            this.debugElements.pickOwner.textContent = '-';
+            this.debugElements.pickHealth.textContent = '-';
+            return;
+        }
+
+        // 使用 Game 类的统一拾取方法
+        const pickedEntity = this.game.pickAtMouse();
+        const worldPos = this.game.inputHandler.getWorldPosition();
+
+        if (pickedEntity && pickedEntity.isAlive) {
+            this.debugElements.pickType.textContent = pickedEntity.type || '-';
+            this.debugElements.pickName.textContent = pickedEntity.name || '-';
+            this.debugElements.pickPosition.textContent = `(${pickedEntity.position.x.toFixed(1)}, ${pickedEntity.position.z.toFixed(1)})`;
+            this.debugElements.pickOwner.textContent = pickedEntity.owner || '-';
+
+            if (pickedEntity.health !== undefined && pickedEntity.maxHealth !== undefined) {
+                const healthPercent = Math.round((pickedEntity.health / pickedEntity.maxHealth) * 100);
+                this.debugElements.pickHealth.textContent = `${pickedEntity.health}/${pickedEntity.maxHealth} (${healthPercent}%)`;
+            } else if (pickedEntity.amount !== undefined) {
+                this.debugElements.pickHealth.textContent = `${pickedEntity.amount}`;
+            } else {
+                this.debugElements.pickHealth.textContent = '-';
+            }
+        } else {
+            this.debugElements.pickType.textContent = '地形/无';
+            this.debugElements.pickName.textContent = worldPos ? `(${worldPos.x.toFixed(1)}, ${worldPos.z.toFixed(1)})` : '-';
+            this.debugElements.pickPosition.textContent = '-';
+            this.debugElements.pickOwner.textContent = '-';
+            this.debugElements.pickHealth.textContent = '-';
         }
     }
 

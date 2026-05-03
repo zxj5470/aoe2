@@ -43,7 +43,12 @@ class Grid {
         // 世界坐标 (-100~100) 转换到网格索引 (0~199)
         const x = Math.floor(worldX / this.cellSize + this.width / 2);
         const y = Math.floor(worldZ / this.cellSize + this.height / 2);
-        return this.getCell(x, y);
+        console.log(`[Grid] 世界坐标 (${worldX.toFixed(1)}, ${worldZ.toFixed(1)}) → 网格索引 (${x}, ${y})`);
+        const cell = this.getCell(x, y);
+        if (cell) {
+            console.log(`[Grid] 对应单元格 (${cell.x}, ${cell.y}): walkable=${cell.walkable}, occupied=${cell.occupied}`);
+        }
+        return cell;
     }
 
     isWalkable(x, y) {
