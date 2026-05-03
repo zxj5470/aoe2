@@ -25,11 +25,11 @@ class FormationSystem {
     createLineFormation(units, targetPosition) {
         const positions = [];
         const spacing = 2;
-        const direction = new THREE.Vector3(1, 0, 0);
         
         for (let i = 0; i < units.length; i++) {
             const offset = (i - (units.length - 1) / 2) * spacing;
-            const position = targetPosition.clone().add(direction.multiplyScalar(offset));
+            // 使用新的向量避免原地修改
+            const position = targetPosition.clone().add(new THREE.Vector3(offset, 0, 0));
             positions.push(position);
         }
         
@@ -39,11 +39,11 @@ class FormationSystem {
     createColumnFormation(units, targetPosition) {
         const positions = [];
         const spacing = 2;
-        const direction = new THREE.Vector3(0, 0, 1);
         
         for (let i = 0; i < units.length; i++) {
             const offset = (i - (units.length - 1) / 2) * spacing;
-            const position = targetPosition.clone().add(direction.multiplyScalar(offset));
+            // 使用新的向量避免原地修改
+            const position = targetPosition.clone().add(new THREE.Vector3(0, 0, offset));
             positions.push(position);
         }
         
