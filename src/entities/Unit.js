@@ -461,8 +461,10 @@ class Unit extends Entity {
             return;
         }
 
-        // 检查是否到达资源点
-        const distanceToResource = this.position.distanceTo(this.currentResource.position);
+        // 检查是否到达资源点（只计算XZ平面距离）
+        const dx = this.position.x - this.currentResource.position.x;
+        const dz = this.position.z - this.currentResource.position.z;
+        const distanceToResource = Math.sqrt(dx * dx + dz * dz);
         if (distanceToResource > 1.5) {
             // 还在前往资源点的路上
             return;
@@ -762,7 +764,10 @@ class Unit extends Entity {
             );
             console.log(`[Unit] 正在跟随路径: 点 ${this.currentPathIndex}/${this.path.length} → (${targetPos.x.toFixed(1)}, ${targetPos.z.toFixed(1)})`);
             
-            const distance = this.position.distanceTo(targetPos);
+            // 只计算XZ平面上的距离，忽略高度差
+            const dx = this.position.x - targetPos.x;
+            const dz = this.position.z - targetPos.z;
+            const distance = Math.sqrt(dx * dx + dz * dz);
             
             if (distance < 0.5) {
             this.currentPathIndex++;
@@ -774,7 +779,10 @@ class Unit extends Entity {
                 // 如果是返回城镇中心，检查距离并交付资源
                 // 注意：城镇中心是4x4网格的大型建筑，使用更大的到达判定距离
                 if (this.isReturning && this.dropOffPoint) {
-                    const distanceToTownCenter = this.position.distanceTo(this.dropOffPoint.position);
+                    // 只计算XZ平面距离
+                    const dx = this.position.x - this.dropOffPoint.position.x;
+                    const dz = this.position.z - this.dropOffPoint.position.z;
+                    const distanceToTownCenter = Math.sqrt(dx * dx + dz * dz);
                     const townCenterArrivalDistance = 3; // 城镇中心较大（4x4网格），3单位距离即可
                     
                     console.log(`[村民移动] 距离城镇中心: ${distanceToTownCenter.toFixed(1)}, 判定距离: ${townCenterArrivalDistance}`);
@@ -818,7 +826,9 @@ class Unit extends Entity {
         if (targetPos) {
             const direction = new THREE.Vector3()
                 .subVectors(targetPos, this.position);
-            const distance = direction.length();
+            
+            // 只计算XZ平面上的距离，忽略高度差
+            const distance = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
             
             if (distance > 0.1) {
                 direction.normalize();
@@ -834,7 +844,10 @@ class Unit extends Entity {
 
                         // 如果是返回城镇中心，检查距离并交付资源
                         if (this.isReturning && this.dropOffPoint) {
-                            const distanceToTownCenter = this.position.distanceTo(this.dropOffPoint.position);
+                            // 只计算XZ平面距离
+                            const dx = this.position.x - this.dropOffPoint.position.x;
+                            const dz = this.position.z - this.dropOffPoint.position.z;
+                            const distanceToTownCenter = Math.sqrt(dx * dx + dz * dz);
                             const townCenterArrivalDistance = 3;
                             
                             console.log(`[村民移动-无路径] 距离城镇中心: ${distanceToTownCenter.toFixed(1)}, 判定距离: ${townCenterArrivalDistance}`);
@@ -866,6 +879,9 @@ class Unit extends Entity {
                 
                 newPosition.x = Math.max(minX, Math.min(maxX, newPosition.x));
                 newPosition.z = Math.max(minZ, Math.min(maxZ, newPosition.z));
+                
+                const terrainHeight = this.getTerrainHeightAt(newPosition.x, newPosition.z);
+                newPosition.y = terrainHeight;
                 
                 this.position.copy(newPosition);
                 this.mesh.position.copy(this.position);
@@ -1112,6 +1128,29 @@ class Unit extends Entity {
         };
 
         return this.collisionBox;
+    }
+
+    /**
+     * 获取指定世界坐标处的地形高度
+     */
+    getTerrainHeightAt(worldX, worldZ) {
+        if (!this.game || !this.game.map) return 0;
+        
+        const map = this.game.map;
+        const grid = map.grid;
+        if (!grid) return 0;
+        
+        const size = grid.getSize();
+        const mapWidth = size.width * size.cellSize;
+        const mapHeight = size.height * size.cellSize;
+        
+        const gridX = Math.floor((worldX + mapWidth / 2) / size.cellSize);
+        const gridY = Math.floor((worldZ + mapHeight / 2) / size.cellSize);
+        
+        if (gridX < 0 || gridX >= size.width || gridY < 0 || gridY >= size.height) return 0;
+        
+        const cell = grid.getCell(gridX, gridY);
+        return cell ? (cell.height || 0) : 0;
     }
 
     /**

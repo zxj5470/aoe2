@@ -76,6 +76,93 @@ class MapGenerator {
         return data;
     }
 
+    generateRandomHeight(data, roughness = 0.8, maxHeight = 2.0) {
+        const { width, height } = data;
+        const size = Math.max(width, height);
+        const gridSize = this.nextPowerOfTwo(size) + 1;
+
+        const grid = new Array(gridSize);
+        for (let i = 0; i < gridSize; i++) {
+            grid[i] = new Array(gridSize).fill(0);
+        }
+
+        grid[0][0] = Math.random();
+        grid[0][gridSize - 1] = Math.random();
+        grid[gridSize - 1][0] = Math.random();
+        grid[gridSize - 1][gridSize - 1] = Math.random();
+
+        let step = gridSize - 1;
+        let scale = 0.5;
+
+        while (step > 1) {
+            const half = Math.floor(step / 2);
+
+            for (let x = 0; x < gridSize - 1; x += step) {
+                for (let y = 0; y < gridSize - 1; y += step) {
+                    const avg = (grid[x][y] + grid[x + step][y] + grid[x][y + step] + grid[x + step][y + step]) / 4;
+                    grid[x + half][y + half] = avg + (Math.random() - 0.5) * scale;
+                }
+            }
+
+            for (let x = 0; x < gridSize; x += half) {
+                for (let y = (x + half) % step; y < gridSize; y += step) {
+                    let sum = 0;
+                    let count = 0;
+                    if (x - half >= 0) { sum += grid[x - half][y]; count++; }
+                    if (x + half < gridSize) { sum += grid[x + half][y]; count++; }
+                    if (y - half >= 0) { sum += grid[x][y - half]; count++; }
+                    if (y + half < gridSize) { sum += grid[x][y + half]; count++; }
+                    grid[x][y] = sum / count + (Math.random() - 0.5) * scale;
+                }
+            }
+
+            step = half;
+            scale *= roughness;
+        }
+
+        let minVal = Infinity;
+        let maxVal = -Infinity;
+        for (let x = 0; x < gridSize; x++) {
+            for (let y = 0; y < gridSize; y++) {
+                if (grid[x][y] < minVal) minVal = grid[x][y];
+                if (grid[x][y] > maxVal) maxVal = grid[x][y];
+            }
+        }
+
+        const range = maxVal - minVal || 1;
+
+        for (let x = 0; x < width; x++) {
+            for (let y = 0; y < height; y++) {
+                const normalized = (grid[x][y] - minVal) / range;
+                data.heightData[x][y] = normalized * maxHeight;
+            }
+        }
+
+        if (data.townCenters) {
+            const flatRadius = 12;
+            for (const tc of data.townCenters) {
+                for (let dx = -flatRadius; dx <= flatRadius; dx++) {
+                    for (let dy = -flatRadius; dy <= flatRadius; dy++) {
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist <= flatRadius) {
+                            const gx = Math.floor(tc.x + dx);
+                            const gy = Math.floor(tc.y + dy);
+                            if (gx >= 0 && gx < width && gy >= 0 && gy < height) {
+                                data.heightData[gx][gy] = 0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    nextPowerOfTwo(n) {
+        let v = 1;
+        while (v < n) v <<= 1;
+        return v;
+    }
+
     addOasis(data, cx, cy, radius) {
         for (let dx = -radius; dx <= radius; dx++) {
             for (let dy = -radius; dy <= radius; dy++) {

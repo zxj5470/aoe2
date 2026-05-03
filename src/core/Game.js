@@ -284,11 +284,16 @@ class Game {
         if (!mapData.resources || mapData.resources.length === 0) return;
 
         for (const resource of mapData.resources) {
+            const terrainHeight = mapData.heightData && mapData.heightData[resource.x] 
+                ? mapData.heightData[resource.x][resource.y] || 0 
+                : 0;
+
             const resourceNode = new ResourceNode({
                 resourceType: resource.type,
                 name: resource.type + '_' + Math.random().toString(36).substr(2, 9),
                 x: resource.x - mapData.width / 2 + 0.5, // 转换为世界坐标
                 z: resource.y - mapData.height / 2 + 0.5,
+                y: terrainHeight, // 资源放置在地形表面之上
                 amount: resource.amount,
                 health: 100,
                 maxHealth: 100,
