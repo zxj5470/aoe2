@@ -25,30 +25,31 @@ class Scene {
     }
 
     setupLighting() {
-        // 环境光
-        this.ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        // 环境光（降低强度以增加对比度）
+        this.ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
         this.scene.add(this.ambientLight);
         
-        // 主方向光（太阳光）
-        this.directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        this.directionalLight.position.set(50, 100, 50);
+        // 主方向光（太阳光）- 增强强度，添加暖色调
+        this.directionalLight = new THREE.DirectionalLight(0xfff4e0, 2.0);
+        this.directionalLight.position.set(80, 120, 60);
         this.directionalLight.castShadow = true;
         
-        // 设置阴影参数
-        this.directionalLight.shadow.mapSize.width = 2048;
-        this.directionalLight.shadow.mapSize.height = 2048;
+        // 设置阴影参数 - 扩大范围以覆盖整个地图
+        this.directionalLight.shadow.mapSize.width = 4096;
+        this.directionalLight.shadow.mapSize.height = 4096;
         this.directionalLight.shadow.camera.near = 0.5;
-        this.directionalLight.shadow.camera.far = 500;
-        this.directionalLight.shadow.camera.left = -100;
-        this.directionalLight.shadow.camera.right = 100;
-        this.directionalLight.shadow.camera.top = 100;
-        this.directionalLight.shadow.camera.bottom = -100;
-        this.directionalLight.shadow.bias = -0.0001;
+        this.directionalLight.shadow.camera.far = 600;
+        this.directionalLight.shadow.camera.left = -150;
+        this.directionalLight.shadow.camera.right = 150;
+        this.directionalLight.shadow.camera.top = 150;
+        this.directionalLight.shadow.camera.bottom = -150;
+        this.directionalLight.shadow.bias = -0.0005;
+        this.directionalLight.shadow.normalBias = 0.02;
         
         this.scene.add(this.directionalLight);
         
-        // 添加辅助光源
-        const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.3);
+        // 添加辅助光源（半球光模拟天空和地面的颜色散射）
+        const hemisphereLight = new THREE.HemisphereLight(0x87ceeb, 0x3d8c40, 0.4);
         this.scene.add(hemisphereLight);
     }
 
