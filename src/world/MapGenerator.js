@@ -173,71 +173,253 @@ class MapGenerator {
 
     generateStandardResources(data, width, height, density) {
         const counts = {
-            low: { wood: 15, stone: 8, gold: 5, food: 10 },
-            normal: { wood: 30, stone: 15, gold: 10, food: 20 },
-            high: { wood: 50, stone: 25, gold: 15, food: 30 },
-            gold: { wood: 20, stone: 10, gold: 30, food: 15 }
+            low: { wood: 25, stone: 8, gold: 5, food: 10 },
+            normal: { wood: 180, stone: 15, gold: 10, food: 20 },
+            high: { wood: 300, stone: 25, gold: 15, food: 30 },
+            gold: { wood: 40, stone: 10, gold: 30, food: 15 }
         };
 
         const count = counts[density] || counts.normal;
 
-        this.generateResourceClusters(data, 'wood', count.wood, width, height);
-        this.generateResourceClusters(data, 'stone', count.stone, width, height);
-        this.generateResourceClusters(data, 'gold', count.gold, width, height);
-        this.generateResourceClusters(data, 'food', count.food, width, height);
+        this.generateForestClusters(data, 'wood', count.wood, width, height);
+        this.generateWildResourceClusters(data, 'gold', count.gold, width, height);
+        this.generateWildResourceClusters(data, 'stone', count.stone, width, height);
+        this.generateWildResourceClusters(data, 'food', count.food, width, height);
+    }
+
+    generateWildResourceClusters(data, type, count, width, height) {
+        const clusterCount = count;
+        for (let i = 0; i < clusterCount; i++) {
+            const clusterSize = 2 + Math.floor(Math.random() * 3);
+            this.generateWildCluster(data, type, clusterSize, width, height);
+        }
+    }
+
+    generateWildCluster(data, type, size, width, height) {
+        let attempts = 0;
+        while (attempts < 50) {
+            const x = Math.floor(Math.random() * (width - 10)) + 5;
+            const y = Math.floor(Math.random() * (height - 10)) + 5;
+
+            const shape = this.generateWildShape(size);
+            const cells = this.tryPlaceWildCluster(data, x, y, shape);
+
+            if (cells) {
+                for (const { x: cx, y: cy } of cells) {
+                    data.resources.push({
+                        type,
+                        x: cx,
+                        y: cy,
+                        amount: this.getResourceAmount(type)
+                    });
+                }
+                return true;
+            }
+            attempts++;
+        }
+        return false;
+    }
+
+    generateWildShape(size) {
+        if (size === 2) {
+            return Math.random() < 0.5 ? [[0,0],[1,0]] : [[0,0],[0,1]];
+        }
+        if (size === 3) {
+            const shapes = [
+                [[0,0],[1,0],[2,0]],
+                [[0,0],[0,1],[0,2]],
+                [[0,0],[1,0],[0,1]],
+                [[0,0],[1,0],[1,1]],
+            ];
+            return shapes[Math.floor(Math.random() * shapes.length)];
+        }
+        const shapes = [
+            [[0,0],[1,0],[2,0],[3,0]],
+            [[0,0],[1,0],[0,1],[1,1]],
+            [[0,0],[1,0],[2,0],[0,1]],
+            [[0,0],[1,0],[0,1],[1,1]],
+        ];
+        return shapes[Math.floor(Math.random() * shapes.length)];
+    }
+
+    tryPlaceWildCluster(data, startX, startY, shape) {
+        const margin = 2;
+        const cells = [];
+        for (const [dx, dy] of shape) {
+            const x = startX + dx;
+            const y = startY + dy;
+            if (x < margin || x >= data.width - margin ||
+                y < margin || y >= data.height - margin) {
+                return null;
+            }
+            if (!data.walkable[x] || !data.walkable[x][y]) {
+                return null;
+            }
+            if (data.resources && data.resources.some(r => r.x === x && r.y === y)) {
+                return null;
+            }
+            cells.push({ x, y });
+        }
+        return cells;
+    }
+
+    generateForestClusters(data, type, count, width, height) {
+        const townCenters = data.townCenters || [];
+        const tcPositions = townCenters.length > 0
+            ? townCenters.map(tc => ({ x: tc.x, y: tc.y }))
+            : [{ x: Math.floor(width / 2), y: Math.floor(height / 2) }];
+
+        const clusterSize = 24;
+        const clusterCount = Math.max(10, Math.floor(count / clusterSize));
+
+        for (let i = 0; i < clusterCount; i++) {
+            const tc = tcPositions[Math.floor(Math.random() * tcPositions.length)];
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 10 + Math.random() * 30;
+            const startX = Math.floor(tc.x + Math.cos(angle) * distance);
+            const startY = Math.floor(tc.y + Math.sin(angle) * distance);
+
+            const forestShape = this.generateForestShape(clusterSize);
+            const cells = this.tryPlaceForest(data, startX, startY, forestShape);
+
+            if (cells) {
+                for (const { x, y } of cells) {
+                    data.resources.push({
+                        type,
+                        x,
+                        y,
+                        amount: this.getResourceAmount(type)
+                    });
+                }
+            }
+        }
+    }
+
+    generateForestShape(size) {
+        const cells = [];
+        const radius = Math.ceil(Math.sqrt(size / Math.PI));
+        for (let dx = -radius; dx <= radius; dx++) {
+            for (let dy = -radius; dy <= radius; dy++) {
+                if (dx * dx + dy * dy <= radius * radius + 1) {
+                    cells.push([dx, dy]);
+                }
+            }
+        }
+        return cells.slice(0, size);
+    }
+
+    tryPlaceForest(data, startX, startY, shape) {
+        const margin = 2;
+        const cells = [];
+        for (const [dx, dy] of shape) {
+            const x = startX + dx;
+            const y = startY + dy;
+            if (x < margin || x >= data.width - margin ||
+                y < margin || y >= data.height - margin) {
+                return null;
+            }
+            if (!data.walkable[x] || !data.walkable[x][y]) {
+                return null;
+            }
+            if (data.resources && data.resources.some(r => r.x === x && r.y === y)) {
+                return null;
+            }
+            cells.push({ x, y });
+        }
+        return cells;
     }
 
     generateDefaultGoldClusters(data, centerX, centerY, maxDistance = 20, clusterCount = 8) {
-        const clusters = [];
-        const clusterSize = 3;
+        this.generateDefaultResourcesAroundTC(data, centerX, centerY, maxDistance);
+        return [];
+    }
 
-        for (let i = 0; i < clusterCount; i++) {
-            let attempts = 0;
-            let placed = false;
+    generateDefaultResourcesAroundTC(data, centerX, centerY, maxDistance = 20) {
+        const goldCluster1 = this.generateResourceCluster(data, centerX, centerY, maxDistance, 'gold', 8);
+        const goldCluster2 = this.generateResourceCluster(data, centerX, centerY, maxDistance, 'gold', 6);
+        const stoneCluster1 = this.generateResourceCluster(data, centerX, centerY, maxDistance, 'stone', 6);
+        const stoneCluster2 = this.generateResourceCluster(data, centerX, centerY, maxDistance, 'stone', 3);
+        const foodCluster = this.generateResourceCluster(data, centerX, centerY, maxDistance, 'food', 8);
 
-            while (attempts < 50 && !placed) {
-                const angle = Math.random() * Math.PI * 2;
-                const distance = 5 + Math.random() * (maxDistance - 5);
-                const gx = Math.floor(centerX + Math.cos(angle) * distance);
-                const gy = Math.floor(centerY + Math.sin(angle) * distance);
+        return {
+            gold: [goldCluster1, goldCluster2],
+            stone: [stoneCluster1, stoneCluster2],
+            food: [foodCluster]
+        };
+    }
 
-                if (gx < clusterSize || gx >= data.width - clusterSize ||
-                    gy < clusterSize || gy >= data.height - clusterSize) {
-                    attempts++;
-                    continue;
+    generateResourceCluster(data, centerX, centerY, maxDistance, type, cellCount) {
+        let attempts = 0;
+        while (attempts < 100) {
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 5 + Math.random() * (maxDistance - 5);
+            const startX = Math.floor(centerX + Math.cos(angle) * distance);
+            const startY = Math.floor(centerY + Math.sin(angle) * distance);
+
+            const shape = this.generateClusterShape(cellCount);
+            const cells = this.tryPlaceShape(data, startX, startY, shape);
+
+            if (cells) {
+                for (const { x, y } of cells) {
+                    data.resources.push({
+                        type,
+                        x,
+                        y,
+                        amount: this.getResourceAmount(type)
+                    });
                 }
+                return cells;
+            }
 
-                let canPlace = true;
-                for (let dx = 0; dx < clusterSize; dx++) {
-                    for (let dy = 0; dy < clusterSize; dy++) {
-                        if (!data.walkable[gx + dx] || !data.walkable[gx + dx][gy + dy]) {
-                            canPlace = false;
-                            break;
-                        }
-                    }
-                    if (!canPlace) break;
-                }
+            attempts++;
+        }
+        return [];
+    }
 
-                if (canPlace) {
-                    for (let dx = 0; dx < clusterSize; dx++) {
-                        for (let dy = 0; dy < clusterSize; dy++) {
-                            data.resources.push({
-                                type: 'gold',
-                                x: gx + dx,
-                                y: gy + dy,
-                                amount: 200 + Math.floor(Math.random() * 100)
-                            });
-                        }
-                    }
-                    clusters.push({ x: gx, y: gy });
-                    placed = true;
-                }
+    generateClusterShape(cellCount) {
+        const shapes = {
+            8: [
+                [[0,0],[1,0],[2,0],[3,0],[0,1],[1,1],[2,1],[3,1]],
+                [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[0,2],[1,2]],
+                [[0,0],[1,0],[2,0],[0,1],[2,1],[0,2],[1,2],[2,2]],
+            ],
+            6: [
+                [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]],
+                [[0,0],[1,0],[0,1],[1,1],[0,2],[1,2]],
+            ],
+            3: [
+                [[0,0],[1,0],[0,1]],
+                [[0,0],[1,0],[1,1]],
+                [[0,0],[0,1],[1,1]],
+                [[1,0],[0,1],[1,1]],
+            ]
+        };
 
-                attempts++;
+        const options = shapes[cellCount];
+        if (!options) {
+            return [[0, 0]];
+        }
+        return options[Math.floor(Math.random() * options.length)];
+    }
+
+    tryPlaceShape(data, startX, startY, shape) {
+        const margin = 2;
+        for (const [dx, dy] of shape) {
+            const x = startX + dx;
+            const y = startY + dy;
+            if (x < margin || x >= data.width - margin ||
+                y < margin || y >= data.height - margin) {
+                return null;
+            }
+            if (!data.walkable[x] || !data.walkable[x][y]) {
+                return null;
+            }
+            if (data.resources && data.resources.some(r => r.x === x && r.y === y)) {
+                return null;
             }
         }
 
-        return clusters;
+        return shape.map(([dx, dy]) => ({ x: startX + dx, y: startY + dy }));
     }
 
     getDefaultTownCenterPosition(data) {
@@ -256,16 +438,22 @@ class MapGenerator {
 
     generateResourceClusters(data, type, count, width, height) {
         for (let i = 0; i < count; i++) {
-            const x = Math.floor(Math.random() * (width - 10)) + 5;
-            const y = Math.floor(Math.random() * (height - 10)) + 5;
-            
-            if (data.walkable[x][y]) {
-                data.resources.push({
-                    type,
-                    x,
-                    y,
-                    amount: this.getResourceAmount(type)
-                });
+            let attempts = 0;
+            let placed = false;
+            while (attempts < 20 && !placed) {
+                const x = Math.floor(Math.random() * (width - 10)) + 5;
+                const y = Math.floor(Math.random() * (height - 10)) + 5;
+
+                if (data.walkable[x][y] && !data.resources.some(r => r.x === x && r.y === y)) {
+                    data.resources.push({
+                        type,
+                        x,
+                        y,
+                        amount: this.getResourceAmount(type)
+                    });
+                    placed = true;
+                }
+                attempts++;
             }
         }
     }
