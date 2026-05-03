@@ -208,6 +208,12 @@ class Game {
         // 使用地图生成器生成地图数据
         const mapData = this.mapGenerator.generateMap(mapType);
         
+        // 获取默认城镇中心位置（地图中心）
+        const tcPos = this.mapGenerator.getDefaultTownCenterPosition(mapData);
+        
+        // 生成默认金矿簇（围绕城镇中心，8块3x3金矿）
+        this.mapGenerator.generateDefaultGoldClusters(mapData, tcPos.x, tcPos.y, 20, 8);
+        
         // 使用生成的地图数据初始化地图
         this.map = new GameMap(mapData.width, mapData.height, 1);
         
@@ -228,6 +234,8 @@ class Game {
         this.spawnResourcesFromMapData(mapData);
 
         console.log(`已生成地图: ${mapType} (${mapData.width}x${mapData.height})`);
+        console.log(`城镇中心位置: (${tcPos.x}, ${tcPos.y})`);
+        console.log(`金矿簇数量: ${mapData.resources.filter(r => r.type === 'gold').length / 9} 块`);
     }
 
     spawnResourcesFromMapData(mapData) {

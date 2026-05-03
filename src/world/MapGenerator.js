@@ -561,6 +561,82 @@ class MapGenerator {
     }
 
     /**
+     * 生成默认金矿簇（围绕城镇中心）
+     * @param {Object} data - 地图数据
+     * @param {number} centerX - 城镇中心X坐标（网格）
+     * @param {number} centerY - 城镇中心Y坐标（网格）
+     * @param {number} maxDistance - 最大距离（格）
+     * @param {number} clusterCount - 金矿簇数量
+     */
+    generateDefaultGoldClusters(data, centerX, centerY, maxDistance = 20, clusterCount = 8) {
+        const clusters = [];
+        const clusterSize = 3; // 3x3 大小
+
+        for (let i = 0; i < clusterCount; i++) {
+            let attempts = 0;
+            let placed = false;
+
+            while (attempts < 50 && !placed) {
+                // 在城镇中心周围随机生成位置
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 5 + Math.random() * (maxDistance - 5); // 最小距离5格，最大20格
+                const gx = Math.floor(centerX + Math.cos(angle) * distance);
+                const gy = Math.floor(centerY + Math.sin(angle) * distance);
+
+                // 检查边界
+                if (gx < clusterSize || gx >= data.width - clusterSize ||
+                    gy < clusterSize || gy >= data.height - clusterSize) {
+                    attempts++;
+                    continue;
+                }
+
+                // 检查是否可放置（区域内都可通行）
+                let canPlace = true;
+                for (let dx = 0; dx < clusterSize; dx++) {
+                    for (let dy = 0; dy < clusterSize; dy++) {
+                        if (!data.walkable[gx + dx] || !data.walkable[gx + dx][gy + dy]) {
+                            canPlace = false;
+                            break;
+                        }
+                    }
+                    if (!canPlace) break;
+                }
+
+                if (canPlace) {
+                    // 在3x3区域内生成多个金矿点
+                    for (let dx = 0; dx < clusterSize; dx++) {
+                        for (let dy = 0; dy < clusterSize; dy++) {
+                            data.resources.push({
+                                type: 'gold',
+                                x: gx + dx,
+                                y: gy + dy,
+                                amount: 200 + Math.floor(Math.random() * 100)
+                            });
+                        }
+                    }
+                    clusters.push({ x: gx, y: gy });
+                    placed = true;
+                }
+
+                attempts++;
+            }
+        }
+
+        return clusters;
+    }
+
+    /**
+     * 获取默认城镇中心位置
+     */
+    getDefaultTownCenterPosition(data) {
+        // 返回地图中心位置
+        return {
+            x: Math.floor(data.width / 2),
+            y: Math.floor(data.height / 2)
+        };
+    }
+
+    /**
      * 生成淘金潮资源分布
      */
     generateGoldRushResources(data, width, height) {

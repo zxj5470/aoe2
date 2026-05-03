@@ -510,14 +510,24 @@ class HUD {
         // 绘制实体
         for (const entity of this.game.entities) {
             if (!entity.isAlive) continue;
-            ctx.fillStyle = entity.owner === 'player' ? '#4169E1' : '#DC143C';
+            
             if (entity.type === 'unit') {
+                ctx.fillStyle = entity.owner === 'player' ? '#4169E1' : '#DC143C';
                 ctx.beginPath();
                 ctx.arc(entity.position.x, entity.position.z, 2, 0, Math.PI * 2);
                 ctx.fill();
             } else if (entity.type === 'building') {
+                ctx.fillStyle = entity.owner === 'player' ? '#4169E1' : '#DC143C';
                 ctx.fillRect(entity.position.x - 3, entity.position.z - 3, 6, 6);
             } else if (entity.type === 'resource') {
+                // 资源节点使用对应颜色
+                const resourceColors = {
+                    wood: '#228B22',    // 深绿色 - 树木
+                    stone: '#C0C0C0',   // 灰白色 - 石矿
+                    gold: '#FFD700',    // 金色 - 金矿
+                    food: '#90EE90'     // 浅绿色 - 食物
+                };
+                ctx.fillStyle = resourceColors[entity.resourceType] || '#FFFFFF';
                 ctx.fillRect(entity.position.x - 2, entity.position.z - 2, 4, 4);
             }
         }
