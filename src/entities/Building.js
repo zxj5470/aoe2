@@ -442,7 +442,19 @@ class Building extends Entity {
         texture.minFilter = THREE.LinearFilter;
 
         // 符号平面（平铺在地面上）
-        const symbolSize = Math.min(this.width, this.depth) * 0.7;
+        // 对于大型建筑（如城镇中心4x4），符号只显示在左上角2x2区域
+        let symbolSize = Math.min(this.width, this.depth) * 0.7;
+        let symbolOffsetX = 0;
+        let symbolOffsetZ = 0;
+        
+        // 如果建筑尺寸大于2x2，将符号放在左上角2x2区域
+        if (this.width > 2 || this.depth > 2) {
+            symbolSize = 1.4; // 2x2区域的70%
+            // 左上角偏移：从中心向左移动 (width/2 - 1)，向前移动 (depth/2 - 1)
+            symbolOffsetX = -(this.width / 2 - 1);
+            symbolOffsetZ = this.depth / 2 - 1;
+        }
+        
         const planeGeometry = new THREE.PlaneGeometry(symbolSize, symbolSize);
         const planeMaterial = new THREE.MeshBasicMaterial({
             map: texture,
@@ -453,7 +465,7 @@ class Building extends Entity {
         this.symbolPlane = new THREE.Mesh(planeGeometry, planeMaterial);
         this.symbolPlane.rotation.x = -Math.PI / 2; // 水平放置在地面上
         this.symbolPlane.rotation.z = Math.PI / 4; // 逆时针旋转45度以适应相机视角
-        this.symbolPlane.position.y = 0.12; // 放在底座上方
+        this.symbolPlane.position.set(symbolOffsetX, 0.12, symbolOffsetZ); // 放在左上角区域
         this.symbolPlane.name = 'symbol';
         group.add(this.symbolPlane);
     }
