@@ -89,9 +89,14 @@ class Camera {
      * 限制相机目标点在地图边界内
      */
     clampTargetToBounds() {
-        const boundary = 105;
+        const mapSize = this.map ? this.map.getSize() : { width: 200, height: 200 };
+        const boundary = Math.min(mapSize.width, mapSize.height) / 2 - 5;
         this.target.x = Math.max(-boundary, Math.min(boundary, this.target.x));
         this.target.z = Math.max(-boundary, Math.min(boundary, this.target.z));
+    }
+
+    setMap(map) {
+        this.map = map;
     }
 
     handleKeyboardMovement(deltaTime) {

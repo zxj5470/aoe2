@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import Scene from './Scene.js';
 import Camera from './Camera.js';
 import GameMap from '../world/Map.js';
+import MapGenerator from '../world/MapGenerator.js';
+import MapSelectionPanel from '../ui/MapSelectionPanel.js';
 import InputHandler from '../input/InputHandler.js';
 import SelectionManager from '../input/SelectionManager.js';
 import ResourceManager from '../entities/ResourceManager.js';
@@ -52,6 +54,11 @@ class Game {
         this.collisionSystem = null;
         this.hud = null;
 
+        // 地图系统
+        this.mapGenerator = null;
+        this.mapSelectionPanel = null;
+        this.selectedMapType = 'arabia';
+
         // 空间索引
         this.spatialIndex = null;
 
@@ -81,15 +88,26 @@ class Game {
         // 设置时钟
         this.clock = new THREE.Clock();
         
+        // 初始化地图生成器和选择面板
+        this.initMapSystem();
+        
+        // 显示地图选择面板，等待玩家选择地图
+        await this.showMapSelection();
+        
         // 加载资源
         await this.loadResources();
         
         // 初始化不依赖地图的系统
         this.initIndependentSystems();
         
-        // 初始化地图（只创建网格和地图对象）
-        this.initMapOnly();
-        
+        // 根据选择的地图类型初始化地图
+        this.initMapWithType(this.selectedMapType);
+
+        // 设置相机的地图引用（用于边界限制）
+        if (this.camera) {
+            this.camera.setMap(this.map);
+        }
+
         // 初始化依赖地图的系统（包括碰撞系统）
         this.initMapDependentSystems();
         
@@ -156,6 +174,86 @@ class Game {
                 loadingScreen.style.display = 'none';
             }, 500);
         }
+    }
+
+    initMapSystem() {
+        // 创建地图生成器
+        this.mapGenerator = new MapGenerator();
+        
+        // 创建地图选择面板
+        this.mapSelectionPanel = new MapSelectionPanel(this);
+        
+        // 设置地图选择回调
+        this.mapSelectionPanel.setOnMapSelected((mapType) => {
+            this.selectedMapType = mapType;
+            console.log(`地图选择完成: ${mapType}`);
+        });
+    }
+
+    async showMapSelection() {
+        return new Promise((resolve) => {
+            // 显示地图选择面板
+            this.mapSelectionPanel.show();
+            
+            // 设置回调，当玩家选择地图后继续游戏初始化
+            this.mapSelectionPanel.setOnMapSelected((mapType) => {
+                this.selectedMapType = mapType;
+                console.log(`已选择地图: ${mapType}`);
+                resolve();
+            });
+        });
+    }
+
+    initMapWithType(mapType) {
+        // 使用地图生成器生成地图数据
+        const mapData = this.mapGenerator.generateMap(mapType);
+        
+        // 使用生成的地图数据初始化地图
+        this.map = new GameMap(mapData.width, mapData.height, 1);
+        
+        // 将地图生成器传递给地图对象，以便渲染地形和资源
+        this.map.setMapGenerator(this.mapGenerator);
+        this.map.setMapData(mapData);
+        
+        const mapMesh = this.map.init();
+        this.scene.addEntity({ getMesh: () => mapMesh });
+
+        // 添加地图装饰物到场景
+        const decorations = this.map.getDecorations();
+        for (const decoration of decorations) {
+            this.scene.addEntity({ getMesh: () => decoration });
+        }
+
+        // 根据地图数据添加资源节点
+        this.spawnResourcesFromMapData(mapData);
+
+        console.log(`已生成地图: ${mapType} (${mapData.width}x${mapData.height})`);
+    }
+
+    spawnResourcesFromMapData(mapData) {
+        if (!mapData.resources || mapData.resources.length === 0) return;
+
+        for (const resource of mapData.resources) {
+            const resourceNode = new ResourceNode({
+                resourceType: resource.type,
+                name: resource.type + '_' + Math.random().toString(36).substr(2, 9),
+                x: resource.x - mapData.width / 2 + 0.5, // 转换为世界坐标
+                z: resource.y - mapData.height / 2 + 0.5,
+                amount: resource.amount,
+                health: 100,
+                maxHealth: 100,
+                gatherSpeed: 1,
+                canRespawn: true,
+                respawnTime: 60
+            });
+
+            const resourceMesh = resourceNode.createMesh();
+            if (resourceMesh) {
+                this.addEntity(resourceNode);
+            }
+        }
+
+        console.log(`已生成 ${mapData.resources.length} 个资源节点`);
     }
 
     initMapOnly() {

@@ -12,6 +12,8 @@ class GameMap {
         this.mesh = null;
         this.resources = [];
         this.decorations = [];
+        this.mapGenerator = null;
+        this.mapData = null;
     }
 
     init() {
@@ -222,6 +224,46 @@ class GameMap {
             gridWidth: this.width,
             gridHeight: this.height
         };
+    }
+
+    setMapGenerator(mapGenerator) {
+        this.mapGenerator = mapGenerator;
+    }
+
+    setMapData(mapData) {
+        this.mapData = mapData;
+        
+        // 更新地图尺寸
+        this.width = mapData.width;
+        this.height = mapData.height;
+        
+        // 更新网格
+        this.grid = new Grid(mapData.width, mapData.height, this.cellSize);
+        
+        // 根据地图数据更新网格属性
+        if (mapData.terrain && mapData.walkable) {
+            for (let x = 0; x < mapData.width; x++) {
+                for (let y = 0; y < mapData.height; y++) {
+                    const terrainType = mapData.terrain[x][y];
+                    const walkable = mapData.walkable[x][y];
+                    const cellHeight = mapData.heightData ? (mapData.heightData[x] ? mapData.heightData[x][y] : 0) : 0;
+                    
+                    const cell = this.grid.getCell(x, y);
+                    if (cell) {
+                        cell.type = terrainType;
+                        cell.walkable = walkable;
+                        cell.height = cellHeight;
+                    }
+                }
+            }
+        }
+        
+        // 更新地形
+        this.terrain = new Terrain(this.grid);
+    }
+
+    getMapData() {
+        return this.mapData;
     }
 }
 
