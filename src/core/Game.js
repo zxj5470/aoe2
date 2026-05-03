@@ -661,6 +661,9 @@ class Game {
             maxPopulation: 20
         });
         
+        // 绑定玩家事件监听器
+        this.bindPlayerEvents();
+        
         // 战斗系统
         this.combatSystem = new CombatSystem();
     }
@@ -832,6 +835,65 @@ class Game {
         if (woodElement) woodElement.textContent = this.resources.wood;
         if (foodElement) foodElement.textContent = this.resources.food;
         if (stoneElement) stoneElement.textContent = this.resources.stone;
+    }
+
+    /**
+     * 绑定玩家事件监听器
+     */
+    bindPlayerEvents() {
+        // 时代变化事件
+        this.player.on('ageChange', (data) => {
+            console.log(`[Player Event] 时代变化: ${data.oldLevel} -> ${data.newLevel} (${data.ageName})`);
+            
+            // 更新城镇中心的罗马数字显示
+            const townCenter = this.entities.find(e => e.buildingType === 'town_center');
+            if (townCenter) {
+                townCenter.setAgeLevel(data.newLevel);
+            }
+            
+            // 更新界面显示
+            const ageElement = document.getElementById('age-display');
+            if (ageElement) {
+                ageElement.textContent = data.ageName;
+            }
+            
+            const ageIconElement = document.getElementById('age-icon');
+            if (ageIconElement) {
+                ageIconElement.textContent = data.romanNumeral;
+            }
+        });
+        
+        // 资源变化事件
+        this.player.on('resourceChange', (data) => {
+            console.log(`[Player Event] 资源变化: ${data.type} ${data.oldAmount} -> ${data.newAmount}`);
+            
+            // 更新资源显示
+            this.resources[data.type] = data.newAmount;
+            this.updateResourceDisplay();
+        });
+        
+        // 人口变化事件
+        this.player.on('populationChange', (data) => {
+            console.log(`[Player Event] 人口变化: ${data.oldCurrent}/${data.max} -> ${data.newCurrent}/${data.max}`);
+            
+            // 更新人口显示
+            const populationElement = document.getElementById('population-display');
+            if (populationElement) {
+                populationElement.textContent = `${data.newCurrent}/${data.max}`;
+            }
+        });
+        
+        // 单位添加事件
+        this.player.on('unitAdd', (data) => {
+            console.log(`[Player Event] 单位添加: ${data.unit.unitType}`);
+            // 可以在这里添加单位创建后的界面更新逻辑
+        });
+        
+        // 单位移除事件
+        this.player.on('unitRemove', (data) => {
+            console.log(`[Player Event] 单位移除: ${data.unit.unitType}`);
+            // 可以在这里添加单位移除后的界面更新逻辑
+        });
     }
 
     onWindowResize() {
