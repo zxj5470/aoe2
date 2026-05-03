@@ -959,6 +959,11 @@ class Game {
     }    
     onMouseMove(event) {
         this.camera.handleMouseMove(event);
+        
+        // 更新 InputHandler 的鼠标位置
+        if (this.inputHandler) {
+            this.inputHandler.onMouseMove(event);
+        }
     }
     
     onWheel(event) {
@@ -975,7 +980,7 @@ class Game {
         if (!this.inputHandler || !this.selectionManager) return;
         
         // 使用统一的拾取方法获取实体
-        const pickedEntity = this.pickAtMouse();
+        const pickedEntity = this.pickAtMouse(event);
         
         if (pickedEntity) {
             // 找到实体，执行选择逻辑
@@ -989,13 +994,21 @@ class Game {
 
     /**
      * 统一的拾取方法：从鼠标位置拾取实体
+     * @param {MouseEvent} event - 鼠标事件对象，用于获取点击坐标
      * @returns {Entity|null} 拾取到的实体，没有则返回 null
      */
-    pickAtMouse() {
+    pickAtMouse(event = null) {
         if (!this.inputHandler || !this.scene) return null;
         
         const raycaster = this.inputHandler.getRaycaster();
-        const mousePos = this.inputHandler.getMousePosition();
+        
+        // 如果有 event，直接使用 event 的坐标；否则使用 InputHandler 的坐标
+        let mousePos;
+        if (event && event.clientX !== undefined) {
+            mousePos = { x: event.clientX, y: event.clientY };
+        } else {
+            mousePos = this.inputHandler.getMousePosition();
+        }
         
         // 将屏幕坐标转换为归一化设备坐标 (NDC)
         const canvas = this.canvas;
@@ -1215,20 +1228,16 @@ class Game {
     handleEntitySelection(entity, addToSelection) {
         if (!this.selectionManager) return;
         
-        // 获取实际的实体对象
         let actualEntity = entity;
         
-        // 从userData中获取实体引用
         if (entity.userData && entity.userData.entity) {
             actualEntity = entity.userData.entity;
-        } else {
-            // 尝试从entities列表中找到对应的实体
+        } else if (entity.isAlive === undefined) {
             actualEntity = this.entities.find(e => e.mesh === entity || e.mesh === entity.parent);
         }
         
         if (!actualEntity || !actualEntity.isAlive) return;
         
-        // 所有类型的实体都可以被选择
         this.selectionManager.selectEntity(actualEntity, addToSelection);
     }
 }
