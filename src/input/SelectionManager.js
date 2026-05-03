@@ -16,30 +16,34 @@ class SelectionManager {
     }
 
     selectEntity(entity, addToSelection = false) {
+        console.log('[selectEntity] entity:', entity.name, 'isAlive:', entity.isAlive, 'addToSelection:', addToSelection, 'current selectedEntities:', this.selectedEntities.length);
         if (!entity || !entity.isAlive) return;
-        
+
         if (!addToSelection) {
             this.deselectAll();
         }
-        
+
         if (!this.selectedEntities.includes(entity)) {
             // 检查是否超过最大选择数量
             if (this.selectedEntities.length >= this.maxSelection) {
+                console.log('[selectEntity] max selection reached');
                 return;
             }
-            
+
             // 检查类型一致性
             if (this.selectedEntities.length > 0) {
                 const firstType = this.selectedEntities[0].type;
                 if (entity.type !== firstType) {
+                    console.log('[selectEntity] type mismatch, firstType:', firstType, 'entity.type:', entity.type);
                     return;
                 }
             }
-            
+
             entity.select();
             this.selectedEntities.push(entity);
             this.selectionType = entity.type;
-            
+
+            console.log('[selectEntity] successfully selected, total:', this.selectedEntities.length);
             this.notifyListeners('select', entity);
         }
     }
@@ -162,10 +166,13 @@ class SelectionManager {
     }
 
     issueMoveCommand(targetPosition) {
+        console.log('[issueMoveCommand] called, targetPosition:', targetPosition, 'selectedEntities:', this.selectedEntities.length, 'type:', this.selectionType, 'formationSystem:', !!this.formationSystem);
+
         // 如果选择的是单位类型，尝试使用编队系统
         if (this.selectionType === 'unit' && this.formationSystem) {
             const units = this.selectedEntities.filter(entity => entity.type === 'unit');
-            
+            console.log('[issueMoveCommand] units count:', units.length);
+
             if (units.length > 1) {
                 // 多个单位，使用编队移动
                 const formationAssignments = this.formationSystem.createFormation(
@@ -173,26 +180,28 @@ class SelectionManager {
                     targetPosition,
                     this.formationType
                 );
-                
+
                 // 为每个单位分配编队位置
                 for (const assignment of formationAssignments) {
                     if (assignment.unit.moveTo) {
                         assignment.unit.moveTo(assignment.position);
                     }
                 }
-                
+
                 this.notifyListeners('move', { targetPosition, formation: this.formationType });
                 return;
             }
         }
-        
+
         // 单个单位或无法使用编队，直接移动
+        console.log('[issueMoveCommand] falling through to direct move');
         for (const entity of this.selectedEntities) {
+            console.log('[issueMoveCommand] entity:', entity.name, 'has moveTo:', typeof entity.moveTo);
             if (entity.moveTo) {
                 entity.moveTo(targetPosition);
             }
         }
-        
+
         this.notifyListeners('move', targetPosition);
     }
     

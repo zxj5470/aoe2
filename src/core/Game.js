@@ -1039,13 +1039,21 @@ class Game {
     }
     
     handleRightClick(event) {
-        if (!this.selectionManager || !this.inputHandler || !this.spatialIndex) return;
+        if (!this.selectionManager || !this.inputHandler || !this.spatialIndex) {
+            console.log('[handleRightClick] early return: selectionManager=', !!this.selectionManager, 'inputHandler=', !!this.inputHandler, 'spatialIndex=', !!this.spatialIndex);
+            return;
+        }
 
         // 使用事件中的鼠标坐标强制更新世界坐标
         this.inputHandler.updateWorldPosition(event.clientX, event.clientY);
         const worldPos = this.inputHandler.getWorldPosition();
 
-        if (!this.selectionManager.hasSelection()) return;
+        if (!this.selectionManager.hasSelection()) {
+            console.log('[handleRightClick] no selection, returning. selectedEntities count:', this.selectionManager.selectedEntities.length);
+            return;
+        }
+
+        console.log('[handleRightClick] worldPos:', worldPos, 'selectedEntities:', this.selectionManager.selectedEntities.length, 'type:', this.selectionManager.selectionType);
 
         // 使用空间索引查询点击位置的非移动要素
         // tolerance 设为 0.05 覆盖浮点误差，同时确保精确匹配网格
@@ -1226,18 +1234,21 @@ class Game {
     }
     
     handleEntitySelection(entity, addToSelection) {
+        console.log('[handleEntitySelection] entity:', entity, 'isAlive:', entity?.isAlive, 'userData:', entity?.userData);
         if (!this.selectionManager) return;
-        
+
         let actualEntity = entity;
-        
+
         if (entity.userData && entity.userData.entity) {
             actualEntity = entity.userData.entity;
         } else if (entity.isAlive === undefined) {
             actualEntity = this.entities.find(e => e.mesh === entity || e.mesh === entity.parent);
         }
-        
+
+        console.log('[handleEntitySelection] actualEntity:', actualEntity, 'isAlive:', actualEntity?.isAlive);
+
         if (!actualEntity || !actualEntity.isAlive) return;
-        
+
         this.selectionManager.selectEntity(actualEntity, addToSelection);
     }
 }

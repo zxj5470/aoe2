@@ -736,6 +736,7 @@ class Unit extends Entity {
     }
 
     updateMovement(deltaTime) {
+        // console.log(`[updateMovement] isMoving: ${this.isMoving}, path.length: ${this.path.length}, currentPathIndex: ${this.currentPathIndex}, targetPosition: ${this.targetPosition}`);
         if (!this.isMoving) {
             this.setAnimationState('idle');
             return;
@@ -763,38 +764,51 @@ class Unit extends Entity {
             const distance = this.position.distanceTo(targetPos);
             
             if (distance < 0.5) {
-                this.currentPathIndex++;
-                console.log(`[Unit] 到达路径点 ${this.currentPathIndex - 1}，下一个是 ${this.currentPathIndex}`);
-                if (this.currentPathIndex >= this.path.length) {
-                    // 到达最终目标
-                    console.log(`[村民移动] 到达目标位置 - isReturning: ${this.isReturning}, carryAmount: ${this.carryAmount}`);
+            this.currentPathIndex++;
+            console.log(`[Unit] 到达路径点 ${this.currentPathIndex - 1}，下一个是 ${this.currentPathIndex}`);
+            if (this.currentPathIndex >= this.path.length) {
+                // 到达最终目标
+                console.log(`[村民移动] 到达目标位置 - isReturning: ${this.isReturning}, carryAmount: ${this.carryAmount}`);
 
-                    // 如果是返回城镇中心，检查距离并交付资源
-                    // 注意：城镇中心是4x4网格的大型建筑，使用更大的到达判定距离
-                    if (this.isReturning && this.dropOffPoint) {
-                        const distanceToTownCenter = this.position.distanceTo(this.dropOffPoint.position);
-                        const townCenterArrivalDistance = 3; // 城镇中心较大（4x4网格），3单位距离即可
-                        
-                        console.log(`[村民移动] 距离城镇中心: ${distanceToTownCenter.toFixed(1)}, 判定距离: ${townCenterArrivalDistance}`);
-                        
-                        if (distanceToTownCenter <= townCenterArrivalDistance) {
-                            console.log('[村民移动] 已到达城镇中心，开始交付资源');
-                            this.deliverResources();
-                        }
-                    }
-
-                    // 到达最终目标
-                    this.isMoving = false;
-                    this.path = [];
-                    this.currentAction = 'idle';
-                    this.setAnimationState('idle');
+                // 如果是返回城镇中心，检查距离并交付资源
+                // 注意：城镇中心是4x4网格的大型建筑，使用更大的到达判定距离
+                if (this.isReturning && this.dropOffPoint) {
+                    const distanceToTownCenter = this.position.distanceTo(this.dropOffPoint.position);
+                    const townCenterArrivalDistance = 3; // 城镇中心较大（4x4网格），3单位距离即可
                     
-                    // 清除路径可视化
-                    if (this.game && this.game.scene) {
-                        this.game.scene.clearPathVisualizer(this.id);
+                    console.log(`[村民移动] 距离城镇中心: ${distanceToTownCenter.toFixed(1)}, 判定距离: ${townCenterArrivalDistance}`);
+                    
+                    if (distanceToTownCenter <= townCenterArrivalDistance) {
+                        console.log('[村民移动] 已到达城镇中心，开始交付资源');
+                        this.deliverResources();
                     }
-                    return;
                 }
+
+                // 到达最终目标
+                this.isMoving = false;
+                this.path = [];
+                this.currentAction = 'idle';
+                this.setAnimationState('idle');
+                
+                // 清除路径可视化
+                if (this.game && this.game.scene) {
+                    this.game.scene.clearPathVisualizer(this.id);
+                }
+                return;
+            }
+            
+            // 到达中间路径点，更新目标位置为下一个路径点
+            const nextCell = this.path[this.currentPathIndex];
+            const gs = this.pathfindingSystem.grid;
+            const cellSize = gs.cellSize;
+            const halfW = gs.width * cellSize / 2;
+            const halfH = gs.height * cellSize / 2;
+            targetPos = new THREE.Vector3(
+                nextCell.x * cellSize + cellSize / 2 - halfW,
+                0,
+                nextCell.y * cellSize + cellSize / 2 - halfH
+            );
+            console.log(`[Unit] 更新目标位置到路径点 ${this.currentPathIndex}: (${targetPos.x.toFixed(1)}, ${targetPos.z.toFixed(1)})`);
             }
         } else {
             console.log(`[Unit] 没有可用路径，直接走直线到 (${targetPos.x.toFixed(1)}, ${targetPos.z.toFixed(1)})`);
@@ -890,6 +904,8 @@ class Unit extends Entity {
     }
 
     moveTo(targetPosition) {
+        console.log(`[Unit.moveTo] 被调用! targetPosition: (${targetPosition.x}, ${targetPosition.y}, ${targetPosition.z})`);
+        
         // 限制目标位置在地图边界内
         const mapWidth = this.pathfindingSystem ? this.pathfindingSystem.grid.width * this.pathfindingSystem.grid.cellSize : MAP_CONFIG.width * MAP_CONFIG.cellSize;
         const mapHeight = this.pathfindingSystem ? this.pathfindingSystem.grid.height * this.pathfindingSystem.grid.cellSize : MAP_CONFIG.height * MAP_CONFIG.cellSize;
