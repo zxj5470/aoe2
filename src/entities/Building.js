@@ -91,22 +91,38 @@ class Building extends Entity {
      * 创建碰撞体积
      */
     createCollisionBox() {
-        // 碰撞体积使用网格大小计算（网格现在是1x1）
-        const width = this.gridSizeX * 1; // 每个网格单元是1x1
-        const depth = this.gridSizeZ * 1;
+        // 对于城镇中心，只有左上角的2x2区域参与碰撞检测
+        let width = this.gridSizeX * 1; // 每个网格单元是1x1
+        let depth = this.gridSizeZ * 1;
+        let offsetX = 0;
+        let offsetZ = 0;
+        
+        if (this.buildingType === 'town_center') {
+            // 城镇中心使用2x2碰撞盒，定位到左上角
+            width = 2;
+            depth = 2;
+            // 左上角偏移：从中心向左移动1格，向前移动1格
+            offsetX = -(this.gridSizeX - width) / 2;
+            offsetZ = -(this.gridSizeZ - depth) / 2;
+        }
+        
         const height = this.height;
 
         this.collisionBox = {
-            minX: this.position.x - width / 2,
-            maxX: this.position.x + width / 2,
-            minZ: this.position.z - depth / 2,
-            maxZ: this.position.z + depth / 2,
+            minX: this.position.x + offsetX - width / 2,
+            maxX: this.position.x + offsetX + width / 2,
+            minZ: this.position.z + offsetZ - depth / 2,
+            maxZ: this.position.z + offsetZ + depth / 2,
             minY: 0,
             maxY: height,
             width: width,
             depth: depth,
             height: height,
-            center: this.position.clone()
+            center: new THREE.Vector3(
+                this.position.x + offsetX,
+                this.position.y,
+                this.position.z + offsetZ
+            )
         };
 
         return this.collisionBox;
@@ -120,11 +136,24 @@ class Building extends Entity {
             const width = this.collisionBox.width;
             const depth = this.collisionBox.depth;
             
-            this.collisionBox.minX = this.position.x - width / 2;
-            this.collisionBox.maxX = this.position.x + width / 2;
-            this.collisionBox.minZ = this.position.z - depth / 2;
-            this.collisionBox.maxZ = this.position.z + depth / 2;
-            this.collisionBox.center.copy(this.position);
+            let offsetX = 0;
+            let offsetZ = 0;
+            
+            if (this.buildingType === 'town_center') {
+                // 保持左上角偏移
+                offsetX = -(this.gridSizeX - width) / 2;
+                offsetZ = -(this.gridSizeZ - depth) / 2;
+            }
+            
+            this.collisionBox.minX = this.position.x + offsetX - width / 2;
+            this.collisionBox.maxX = this.position.x + offsetX + width / 2;
+            this.collisionBox.minZ = this.position.z + offsetZ - depth / 2;
+            this.collisionBox.maxZ = this.position.z + offsetZ + depth / 2;
+            this.collisionBox.center.set(
+                this.position.x + offsetX,
+                this.position.y,
+                this.position.z + offsetZ
+            );
         }
     }
 
@@ -182,12 +211,27 @@ class Building extends Entity {
         const centerGridX = Math.floor((worldX + halfMapWidth) / cellSize);
         const centerGridZ = Math.floor((worldZ + halfMapHeight) / cellSize);
 
-        // 计算建筑占用的网格范围（左对齐，以 gridSize 为宽度）
-        const halfGridX = Math.floor(this.gridSizeX / 2);
-        const halfGridZ = Math.floor(this.gridSizeZ / 2);
+        // 计算实际占用的网格大小（城镇中心只有左上角2x2参与碰撞）
+        let actualGridSizeX = this.gridSizeX;
+        let actualGridSizeZ = this.gridSizeZ;
+        let offsetX = 0;
+        let offsetZ = 0;
+        
+        if (this.buildingType === 'town_center') {
+            // 城镇中心只占用左上角2x2区域
+            actualGridSizeX = 2;
+            actualGridSizeZ = 2;
+            // 左上角偏移
+            offsetX = -(this.gridSizeX - actualGridSizeX) / 2;
+            offsetZ = -(this.gridSizeZ - actualGridSizeZ) / 2;
+        }
 
-        for (let x = centerGridX - halfGridX; x < centerGridX - halfGridX + this.gridSizeX; x++) {
-            for (let z = centerGridZ - halfGridZ; z < centerGridZ - halfGridZ + this.gridSizeZ; z++) {
+        // 计算建筑占用的网格范围
+        const halfGridX = Math.floor(actualGridSizeX / 2);
+        const halfGridZ = Math.floor(actualGridSizeZ / 2);
+
+        for (let x = centerGridX - halfGridX + offsetX; x < centerGridX - halfGridX + offsetX + actualGridSizeX; x++) {
+            for (let z = centerGridZ - halfGridZ + offsetZ; z < centerGridZ - halfGridZ + offsetZ + actualGridSizeZ; z++) {
                 // 确保网格坐标在有效范围内
                 if (x >= 0 && x < MAP_CONFIG.width && z >= 0 && z < MAP_CONFIG.height) {
                     cells.push({ x, z });
@@ -856,18 +900,31 @@ class Building extends Entity {
      * 获取碰撞盒（基于网格大小，用于空间索引）
      */
     getCollisionBox() {
-        const halfW = (this.gridSizeX || this.width) / 2;
-        const halfD = (this.gridSizeZ || this.depth) / 2;
+        let actualGridSizeX = this.gridSizeX || this.width;
+        let actualGridSizeZ = this.gridSizeZ || this.depth;
+        let offsetX = 0;
+        let offsetZ = 0;
+        
+        if (this.buildingType === 'town_center') {
+            // 城镇中心只有左上角2x2区域参与碰撞
+            actualGridSizeX = 2;
+            actualGridSizeZ = 2;
+            offsetX = -(this.gridSizeX - actualGridSizeX) / 2;
+            offsetZ = -(this.gridSizeZ - actualGridSizeZ) / 2;
+        }
+        
+        const halfW = actualGridSizeX / 2;
+        const halfD = actualGridSizeZ / 2;
         return {
             min: new THREE.Vector3(
-                this.position.x - halfW,
+                this.position.x + offsetX - halfW,
                 this.position.y,
-                this.position.z - halfD
+                this.position.z + offsetZ - halfD
             ),
             max: new THREE.Vector3(
-                this.position.x + halfW,
+                this.position.x + offsetX + halfW,
                 this.position.y + this.height,
-                this.position.z + halfD
+                this.position.z + offsetZ + halfD
             )
         };
     }
@@ -877,11 +934,24 @@ class Building extends Entity {
         const gridX = Math.floor(this.position.x / CELL_SIZE);
         const gridZ = Math.floor(this.position.z / CELL_SIZE);
 
-        for (let dx = 0; dx < this.width; dx++) {
-            for (let dz = 0; dz < this.depth; dz++) {
+        // 城镇中心只有左上角2x2区域参与碰撞
+        let actualWidth = this.width;
+        let actualDepth = this.depth;
+        let offsetX = 0;
+        let offsetZ = 0;
+        
+        if (this.buildingType === 'town_center') {
+            actualWidth = 2;
+            actualDepth = 2;
+            offsetX = -(this.width - actualWidth) / 2;
+            offsetZ = -(this.depth - actualDepth) / 2;
+        }
+
+        for (let dx = 0; dx < actualWidth; dx++) {
+            for (let dz = 0; dz < actualDepth; dz++) {
                 cells.push({
-                    x: gridX + dx,
-                    z: gridZ + dz
+                    x: gridX + dx + offsetX,
+                    z: gridZ + dz + offsetZ
                 });
             }
         }

@@ -76,7 +76,7 @@ class Unit extends Entity {
             villager: {
                 bodyColor: 0x4169E1,
                 bodyHeight: 1.2,
-                bodyWidth: 0.6,
+                bodyWidth: 0.4,
                 headSize: 0.25,
                 weaponType: 'none',
                 scale: 1.0
@@ -84,7 +84,7 @@ class Unit extends Entity {
             soldier: {
                 bodyColor: 0x1E90FF,
                 bodyHeight: 1.4,
-                bodyWidth: 0.7,
+                bodyWidth: 0.4,
                 headSize: 0.25,
                 weaponType: 'sword',
                 scale: 1.0
@@ -100,7 +100,7 @@ class Unit extends Entity {
             archer: {
                 bodyColor: 0x228B22,
                 bodyHeight: 1.3,
-                bodyWidth: 0.5,
+                bodyWidth: 0.4,
                 headSize: 0.25,
                 weaponType: 'bow',
                 scale: 0.95
@@ -108,7 +108,7 @@ class Unit extends Entity {
             scout: {
                 bodyColor: 0x8B4513,
                 bodyHeight: 1.1,
-                bodyWidth: 0.5,
+                bodyWidth: 0.4,
                 headSize: 0.22,
                 weaponType: 'none',
                 scale: 0.9
