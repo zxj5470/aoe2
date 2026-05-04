@@ -433,8 +433,29 @@ class Unit extends Entity {
         }
     }
 
+    die() {
+        super.die();
+        this.currentAction = 'dying';
+        this.animationState = 'dying';
+        this.animationProgress = 0;
+        this.isMoving = false;
+        this.isAttacking = false;
+        this.targetPosition = null;
+        this.targetEntity = null;
+        this._deathTimer = 0;
+        this._deathDuration = 1.5;
+        this._deathStartY = this.mesh ? this.mesh.position.y : 0;
+    }
+
     update(deltaTime) {
-        if (!this.isAlive) return;
+        if (!this.isAlive) {
+            this._deathTimer = (this._deathTimer || 0) + deltaTime;
+            this.animateDying(deltaTime);
+            if (this._deathTimer >= (this._deathDuration || 1.5)) {
+                this._markedForRemoval = true;
+            }
+            return;
+        }
 
         this.updateAction(deltaTime);
         this.updateMovement(deltaTime);
@@ -704,16 +725,18 @@ class Unit extends Entity {
      * 死亡动画
      */
     animateDying(deltaTime) {
-        const deathProgress = Math.min(this.animationProgress / 2, 1);
+        const progress = Math.min((this._deathTimer || 0) / (this._deathDuration || 1.5), 1);
         
-        // 身体倒下
         if (this.mesh) {
-            this.mesh.rotation.x = deathProgress * Math.PI / 2;
-            this.mesh.position.y -= deathProgress * 0.5;
-        }
-        
-        if (deathProgress >= 1) {
-            this.die();
+            this.mesh.rotation.x = progress * Math.PI / 2;
+            this.mesh.position.y = (this._deathStartY || 0) - progress * 0.5;
+            
+            this.mesh.traverse(child => {
+                if (child.material && child.material.transparent !== undefined) {
+                    child.material.transparent = true;
+                    child.material.opacity = 1 - progress;
+                }
+            });
         }
     }
 

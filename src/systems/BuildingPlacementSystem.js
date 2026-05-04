@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import Building from '../entities/Building.js';
 import { CELL_SIZE } from '../config.js';
 
 class BuildingPlacementSystem {
@@ -229,29 +230,46 @@ class BuildingPlacementSystem {
     }
 
     createBuilding(config, x, z) {
-        import('../entities/Building.js').then(module => {
-            const Building = module.default;
-            
-            const building = new Building({
-                name: config.name,
-                buildingType: this.currentBuildingType,
-                x: x,
-                y: 0,
-                z: z,
-                width: config.width,
-                depth: config.depth,
-                height: config.height,
-                health: config.health,
-                maxHealth: config.health,
-                owner: 'player',
-                isUnderConstruction: true,
-                constructionProgress: 0
-            });
-            
-            building.createMesh();
-            
-            return building;
+        const building = new Building({
+            name: config.name,
+            buildingType: this.currentBuildingType,
+            x: x,
+            y: 0,
+            z: z,
+            width: config.width,
+            depth: config.depth,
+            height: config.height,
+            health: config.health,
+            maxHealth: config.health,
+            owner: 'player',
+            isUnderConstruction: true,
+            constructionProgress: 0
         });
+
+        building.createMesh();
+        return building;
+    }
+
+    togglePlacement(buildingType) {
+        if (this.isPlacing && this.currentBuildingType === buildingType) {
+            this.cancelPlacement();
+            return;
+        }
+
+        this.cancelPlacement();
+
+        const normalizedType = buildingType.replace(/-/g, '_');
+        const matchType = Object.keys(this.buildingTypes).find(
+            key => key === normalizedType || key === buildingType
+        );
+
+        if (matchType) {
+            this.currentBuildingType = matchType;
+            const config = this.buildingTypes[matchType];
+            this.requiredResources = config.cost;
+            this.isPlacing = true;
+            this.createPreviewMesh(config);
+        }
     }
 
     cancelPlacement() {

@@ -17,6 +17,7 @@ import BuildingPlacementSystem from '../systems/BuildingPlacementSystem.js';
 import CombatSystem from '../systems/CombatSystem.js';
 import ResourceGatheringSystem from '../systems/ResourceGatheringSystem.js';
 import CollisionSystem from '../systems/CollisionSystem.js';
+import AISystem from '../systems/AISystem.js';
 import SpatialIndex from './SpatialIndex.js';
 import HUD from '../ui/HUD.js';
 import { CELL_SIZE, MAP_CONFIG } from '../config.js';
@@ -50,6 +51,7 @@ class Game {
         this.combatSystem = null;
         this.resourceGatheringSystem = null;
         this.collisionSystem = null;
+        this.aiSystem = null;
         this.hud = null;
 
         // 地图系统
@@ -935,6 +937,8 @@ class Game {
         
         // 战斗系统
         this.combatSystem = new CombatSystem();
+        
+        this.aiSystem = new AISystem(this);
     }
     
     initMapDependentSystems() {
@@ -1031,6 +1035,11 @@ class Game {
             this.combatSystem.update(deltaTime);
         }
         
+        // 更新AI系统
+        if (this.aiSystem) {
+            this.aiSystem.update(deltaTime);
+        }
+        
         // 更新资源收集系统
         if (this.resourceGatheringSystem) {
             this.resourceGatheringSystem.update(deltaTime);
@@ -1058,10 +1067,16 @@ class Game {
     }
 
     updateEntities(deltaTime) {
-        // 更新所有实体
         for (const entity of this.entities) {
             if (entity.update) {
                 entity.update(deltaTime);
+            }
+        }
+
+        for (let i = this.entities.length - 1; i >= 0; i--) {
+            const entity = this.entities[i];
+            if (entity._markedForRemoval) {
+                this.removeEntity(entity);
             }
         }
     }
@@ -1071,10 +1086,10 @@ class Game {
     }
 
     addEntity(entity) {
+        entity._game = this;
         this.entities.push(entity);
         this.scene.addEntity(entity);
 
-        // 如果碰撞系统存在，注册实体并更新网格占用
         if (this.collisionSystem) {
             if (entity.type === 'building' || entity.type === 'resource' || entity.type === 'unit') {
                 this.collisionSystem.registerEntity(entity);
@@ -1082,11 +1097,14 @@ class Game {
             }
         }
 
-        // 将资源节点和建筑添加到空间索引
         if (this.spatialIndex) {
             if (entity.type === 'resource' || entity.type === 'building') {
                 this.spatialIndex.insert(entity);
             }
+        }
+
+        if (this.aiSystem && entity.type === 'unit' && entity.owner !== 'player') {
+            this.aiSystem.registerUnit(entity);
         }
     }
 
@@ -1096,11 +1114,83 @@ class Game {
             this.entities.splice(index, 1);
             this.scene.removeEntity(entity);
 
-            // 从空间索引中移除
             if (this.spatialIndex && (entity.type === 'resource' || entity.type === 'building')) {
                 this.spatialIndex.remove(entity);
             }
+
+            if (entity.type === 'unit') {
+                if (this.combatSystem) {
+                    this.combatSystem.unregisterCombatant(entity);
+                }
+                if (this.player && entity.owner === 'player') {
+                    this.player.removeUnit(entity);
+                }
+                if (this.collisionSystem) {
+                    this.collisionSystem.unregisterEntity(entity);
+                }
+            }
+
+            if (entity.type === 'building' && this.collisionSystem) {
+                this.collisionSystem.unregisterEntity(entity);
+            }
         }
+    }
+
+    spawnUnitFromBuilding(building, unitType) {
+        const unitConfig = this.getUnitConfig(unitType);
+        const halfW = (building.gridSizeX || 2) / 2 + 1;
+        const spawnX = building.position.x + halfW;
+        const spawnZ = building.position.z;
+
+        const unit = new Unit({
+            unitType: unitType,
+            name: `${building.owner}_${unitType}_${Date.now()}`,
+            x: spawnX,
+            z: spawnZ,
+            owner: building.owner,
+            health: unitConfig.health,
+            maxHealth: unitConfig.health,
+            speed: unitConfig.speed,
+            attackDamage: unitConfig.attackDamage,
+            attackRange: unitConfig.attackRange,
+            attackSpeed: unitConfig.attackSpeed,
+            armor: unitConfig.armor,
+            sightRange: unitConfig.sightRange,
+            pathfindingSystem: this.pathfinding,
+            formationSystem: this.formationSystem,
+            game: this
+        });
+
+        const mesh = unit.createMesh();
+        if (mesh) {
+            this.addEntity(unit);
+            if (this.player && building.owner === 'player') {
+                this.player.addUnit(unit);
+            }
+            if (this.combatSystem && unit.attackDamage > 0) {
+                this.combatSystem.registerCombatant(unit);
+            }
+        }
+
+        return unit;
+    }
+
+    getUnitConfig(unitType) {
+        const configs = {
+            villager:  { health: 25, speed: 5, attackDamage: 3,  attackRange: 1, attackSpeed: 1,   armor: 0, sightRange: 4 },
+            soldier:   { health: 40, speed: 4, attackDamage: 6,  attackRange: 1, attackSpeed: 1,   armor: 1, sightRange: 4 },
+            knight:    { health: 60, speed: 6, attackDamage: 10, attackRange: 1, attackSpeed: 0.8, armor: 2, sightRange: 4 },
+            archer:    { health: 30, speed: 4, attackDamage: 5,  attackRange: 5, attackSpeed: 1.2, armor: 0, sightRange: 6 },
+            scout:     { health: 35, speed: 8, attackDamage: 3,  attackRange: 1, attackSpeed: 1.5, armor: 0, sightRange: 6 }
+        };
+        return configs[unitType] || configs.soldier;
+    }
+
+    applyResearch(building, techType) {
+        if (this.player) {
+            this.player.completeResearch(techType);
+        }
+        console.log(`[Game] 科技研究完成: ${techType}`);
     }
 
     updateResourceDisplay() {
@@ -1334,6 +1424,18 @@ class Game {
     
     handleLeftClick(event) {
         if (!this.inputHandler || !this.selectionManager) return;
+
+        if (this.buildingPlacementSystem && this.buildingPlacementSystem.isPlacing) {
+            const worldPos = this.inputHandler.getWorldPosition();
+            const building = this.buildingPlacementSystem.placeBuilding(
+                worldPos,
+                this.player.resourceManager
+            );
+            if (building) {
+                this.addEntity(building);
+            }
+            return;
+        }
         
         // 使用统一的拾取方法获取实体
         const pickedEntity = this.pickAtMouse(event);

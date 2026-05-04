@@ -68,7 +68,10 @@ class Entity {
 
     die() {
         this.isAlive = false;
-        // 子类可以覆盖此方法实现死亡效果
+        this.isSelected = false;
+        if (this.mesh) {
+            this.mesh.userData.dead = true;
+        }
     }
 
     select() {

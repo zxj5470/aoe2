@@ -106,6 +106,7 @@ class HUD {
     this.minimap.render();
     this.infoPanel.updateDebugPanel(this.actionPanel.getBuildingPanelConfig());
     this.updateAgeDisplayCameraControl(deltaTime);
+    this.updateProductionProgressUI();
   }
 
   updateUnitInfoPanel() {
@@ -188,6 +189,39 @@ class HUD {
 
   getCurrentPreset() {
     return this.actionPanel.getCurrentPreset();
+  }
+
+  updateProductionProgressUI() {
+    if (!this.game.selectionManager) return;
+    const selected = this.game.selectionManager.getSelectedEntities();
+    if (!selected || selected.length !== 1) return;
+
+    const building = selected[0];
+    if (building.type !== 'building') return;
+
+    const container = this.actionPanel.container;
+    if (!container) return;
+
+    const buttons = container.querySelectorAll('.building-btn');
+
+    if (building.currentProduction) {
+      const progress = building.productionProgress || 0;
+      const item = building.currentProduction;
+      const name = item.unitType || item.techType || '';
+
+      if (buttons[0]) {
+        buttons[0].style.background =
+          `linear-gradient(to right, rgba(0,200,0,0.4) ${progress}%, transparent ${progress}%)`;
+        buttons[0].title = `生产中: ${name} (${Math.floor(progress)}%)`;
+      }
+    } else if (building.isUnderConstruction) {
+      const progress = building.constructionProgress || 0;
+      if (buttons[0]) {
+        buttons[0].style.background =
+          `linear-gradient(to right, rgba(200,200,0,0.4) ${progress}%, transparent ${progress}%)`;
+        buttons[0].title = `建造中 (${Math.floor(progress)}%)`;
+      }
+    }
   }
 }
 

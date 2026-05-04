@@ -279,7 +279,17 @@ class ActionPanel {
 
   trainUnit(unitType) {
     if (!this.currentSelectedBuilding) return;
-    
+
+    if (this.game.player && !this.game.player.canTrainUnit()) {
+      console.warn('[ActionPanel] 人口已满，无法训练');
+      return;
+    }
+
+    if (this.currentSelectedBuilding.isUnderConstruction) {
+      console.warn('[ActionPanel] 建筑仍在建造中');
+      return;
+    }
+
     if (this.currentSelectedBuilding.addToProductionQueue) {
       this.currentSelectedBuilding.addToProductionQueue({
         type: 'unit',

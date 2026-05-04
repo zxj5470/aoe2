@@ -775,12 +775,31 @@ class Building extends Entity {
     }
 
     onConstructionComplete() {
-        // 建造完成时的回调
         this.health = this.maxHealth;
+        this.isUnderConstruction = false;
+        
+        if (this.mesh) {
+            this.mesh.scale.y = 1;
+        }
+        if (this.symbolPlane) {
+            this.symbolPlane.material.opacity = 1;
+        }
+        if (this.healthBarGroup) {
+            this.healthBarGroup.visible = false;
+        }
+        
+        if (this.buildingType === 'house' && this._game && this._game.player) {
+            this._game.player.setMaxPopulation(this._game.player.population.max + 5);
+        }
     }
 
     onProductionComplete(productionItem) {
-        // 生产完成时的回调
+        if (productionItem.type === 'unit' && this._game) {
+            this._game.spawnUnitFromBuilding(this, productionItem.unitType);
+        } else if (productionItem.type === 'research' && this._game) {
+            this._game.applyResearch(this, productionItem.techType);
+        }
+        
         if (productionItem.onComplete) {
             productionItem.onComplete();
         }

@@ -20,6 +20,8 @@ class Player {
             max: config.maxPopulation || 20
         };
         
+        this.researchedTechs = new Set();
+        
         this.listeners = {
             ageChange: [],
             populationChange: [],
@@ -134,6 +136,35 @@ class Player {
 
     canTrainUnit(populationCost = 1) {
         return this.population.current + populationCost <= this.population.max;
+    }
+
+    hasResearched(techType) {
+        return this.researchedTechs.has(techType);
+    }
+
+    completeResearch(techType) {
+        if (this.researchedTechs.has(techType)) return;
+        this.researchedTechs.add(techType);
+        this.applyTechEffects(techType);
+    }
+
+    applyTechEffects(techType) {
+        switch (techType) {
+            case 'loom':
+                for (const unit of this.units) {
+                    if (unit.unitType === 'villager') {
+                        unit.maxHealth += 15;
+                        unit.health = Math.min(unit.health + 15, unit.maxHealth);
+                        unit.armor += 1;
+                    }
+                }
+                break;
+            case 'town_watch':
+                break;
+            default:
+                console.log(`[Player] 科技 ${techType} 效果已应用`);
+                break;
+        }
     }
 }
 
