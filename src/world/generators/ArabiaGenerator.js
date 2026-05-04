@@ -36,7 +36,7 @@ export function generateArabia(ctx, width, height) {
     });
 
     ctx.generateStandardResources(data, width, height, 'normal');
-    ctx.generateRandomHeight(data, 0.5, 2.0);
+    // ctx.generateRandomHeight(data, 0.5, 2.0);
     ctx.addPlayerStartingPositions(data, width, height, 4);
 
     return data;

@@ -260,6 +260,91 @@
             opacity: 0.9;
         }
         
+        /* 建筑指令面板样式 */
+        .building-commands-panel {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #8B4513;
+            border-radius: 4px;
+        }
+        
+        .building-commands-panel .panel-title {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #8B4513;
+            padding-bottom: 4px;
+            color: #FFD700;
+        }
+        
+        .building-commands-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .command-btn {
+            display: flex;
+            align-items: center;
+            padding: 6px 8px;
+            background: #5a3d2b;
+            color: #FFD700;
+            border: 1px solid #8B4513;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            text-align: left;
+        }
+        
+        .command-btn:hover {
+            background: #8B4513;
+            border-color: #FFD700;
+        }
+        
+        .command-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .command-btn-icon {
+            margin-right: 8px;
+            font-size: 14px;
+        }
+        
+        .command-btn-cost {
+            margin-left: auto;
+            font-size: 11px;
+            opacity: 0.8;
+        }
+        
+        .no-command {
+            color: #666;
+            font-size: 12px;
+            text-align: center;
+            padding: 10px 0;
+        }
+        
+        .command-section {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #4a3d2b;
+        }
+        
+        .command-section:first-child {
+            margin-top: 0;
+            padding-top: 0;
+            border-top: none;
+        }
+        
+        .command-section-title {
+            font-size: 11px;
+            color: #aaa;
+            margin-bottom: 4px;
+            font-style: italic;
+        }
+        
         .unit-info {
             display: flex;
             flex-direction: column;
@@ -458,6 +543,7 @@
             
             <div id="hud">
                 <div class="hud-panel hud-panel-left">
+                    <div class="panel-title">建筑</div>
                     <div class="building-buttons">
                         <button class="building-btn" data-building="house">
                             <span class="building-btn-icon">🏠</span>
@@ -519,6 +605,14 @@
                             <span class="building-btn-icon">⛪</span>
                             <span class="building-btn-text">教堂</span>
                         </button>
+                    </div>
+                    
+                    <!-- 建筑指令面板 -->
+                    <div id="building-commands-panel" class="building-commands-panel">
+                        <div class="panel-title">指令</div>
+                        <div id="building-commands-content" class="building-commands-content">
+                            <div class="no-command">选择建筑查看指令</div>
+                        </div>
                     </div>
                 </div>
 

@@ -124,6 +124,173 @@ class HUD {
         // 鼠标位置追踪
         this.mouseWorldPosition = null;
 
+        // 建筑指令面板元素
+        this.buildingCommandsPanel = document.getElementById('building-commands-panel');
+        this.buildingCommandsContent = document.getElementById('building-commands-content');
+        
+        // 建筑指令配置
+        this.buildingCommands = {
+            town_center: [
+                {
+                    id: 'produce-villager',
+                    icon: '👤',
+                    name: '生产村民',
+                    type: 'production',
+                    cost: { food: 50 },
+                    action: 'produce',
+                    target: 'villager'
+                },
+                {
+                    id: 'research-loom',
+                    icon: '🧵',
+                    name: '研发织布机',
+                    type: 'research',
+                    cost: { gold: 50 },
+                    action: 'research',
+                    target: 'loom'
+                },
+                {
+                    id: 'research-town-watch',
+                    icon: '👁️',
+                    name: '研发城镇瞭望',
+                    type: 'research',
+                    cost: { gold: 100 },
+                    action: 'research',
+                    target: 'town_watch'
+                }
+            ],
+            barracks: [
+                {
+                    id: 'train-militia',
+                    icon: '⚔️',
+                    name: '训练长剑士',
+                    type: 'production',
+                    cost: { food: 60, gold: 20 },
+                    action: 'train',
+                    target: 'militia'
+                },
+                {
+                    id: 'train-spearman',
+                    icon: '🗡️',
+                    name: '训练长枪兵',
+                    type: 'production',
+                    cost: { food: 35, gold: 25 },
+                    action: 'train',
+                    target: 'spearman'
+                },
+                {
+                    id: 'research-forging',
+                    icon: '🔥',
+                    name: '研发锻造',
+                    type: 'research',
+                    cost: { gold: 150 },
+                    action: 'research',
+                    target: 'forging'
+                }
+            ],
+            stable: [
+                {
+                    id: 'train-scout',
+                    icon: '🦌',
+                    name: '训练侦察骑兵',
+                    type: 'production',
+                    cost: { food: 80 },
+                    action: 'train',
+                    target: 'scout'
+                },
+                {
+                    id: 'train-cavalry',
+                    icon: '🐴',
+                    name: '训练骑士',
+                    type: 'production',
+                    cost: { food: 60, gold: 75 },
+                    action: 'train',
+                    target: 'cavalry'
+                },
+                {
+                    id: 'research-barding',
+                    icon: '🛡️',
+                    name: '研发护甲',
+                    type: 'research',
+                    cost: { gold: 200 },
+                    action: 'research',
+                    target: 'barding'
+                }
+            ],
+            archery_range: [
+                {
+                    id: 'train-archer',
+                    icon: '🏹',
+                    name: '训练弓箭手',
+                    type: 'production',
+                    cost: { food: 40, wood: 25 },
+                    action: 'train',
+                    target: 'archer'
+                },
+                {
+                    id: 'train-skirmisher',
+                    icon: '🎯',
+                    name: '训练散兵',
+                    type: 'production',
+                    cost: { food: 50, gold: 25 },
+                    action: 'train',
+                    target: 'skirmisher'
+                },
+                {
+                    id: 'research-fletching',
+                    icon: '🪶',
+                    name: '研发制箭术',
+                    type: 'research',
+                    cost: { gold: 100 },
+                    action: 'research',
+                    target: 'fletching'
+                }
+            ],
+            blacksmith: [
+                {
+                    id: 'research-iron-casting',
+                    icon: '⚒️',
+                    name: '研发铸铁术',
+                    type: 'research',
+                    cost: { gold: 150 },
+                    action: 'research',
+                    target: 'iron_casting'
+                },
+                {
+                    id: 'research-blast-furnace',
+                    icon: '🔥',
+                    name: '研发高炉',
+                    type: 'research',
+                    cost: { gold: 200 },
+                    action: 'research',
+                    target: 'blast_furnace'
+                }
+            ],
+            church: [
+                {
+                    id: 'research-heresy',
+                    icon: '📜',
+                    name: '研发异端审判',
+                    type: 'research',
+                    cost: { gold: 100 },
+                    action: 'research',
+                    target: 'heresy'
+                },
+                {
+                    id: 'train-missionary',
+                    icon: '⛪',
+                    name: '训练传教士',
+                    type: 'production',
+                    cost: { gold: 100 },
+                    action: 'train',
+                    target: 'missionary'
+                }
+            ]
+        };
+
+        // 当前选中的建筑
+        this.currentSelectedBuilding = null;
+
         this.init();
     }
 
@@ -168,6 +335,7 @@ class HUD {
             this.game.selectionManager.addListener((event, data) => {
                 if (event === 'select' || event === 'selectMultiple' || event === 'deselectAll') {
                     this.updateUnitInfoPanel();
+                    this.updateBuildingCommandsPanel();
                 }
             });
         }
@@ -457,6 +625,298 @@ class HUD {
         }
         
         this.unitInfoContent.innerHTML = html;
+    }
+
+    /**
+     * 更新建筑指令面板
+     */
+    updateBuildingCommandsPanel() {
+        if (!this.game.selectionManager || !this.buildingCommandsContent) return;
+        
+        const selectedEntities = this.game.selectionManager.getSelectedEntities();
+        
+        // 只处理单个建筑的选择
+        if (selectedEntities.length !== 1) {
+            this.clearBuildingCommands();
+            return;
+        }
+        
+        const entity = selectedEntities[0];
+        
+        // 检查是否是建筑
+        if (entity.type !== 'building') {
+            this.clearBuildingCommands();
+            return;
+        }
+        
+        // 获取建筑类型
+        const buildingType = entity.buildingType || entity.type;
+        
+        // 转换建筑类型名称（处理带连字符的名称）
+        const normalizedType = buildingType.replace(/-/g, '_');
+        
+        // 获取该建筑的指令配置
+        const commands = this.buildingCommands[normalizedType];
+        
+        if (!commands || commands.length === 0) {
+            this.clearBuildingCommands();
+            return;
+        }
+        
+        // 保存当前选中的建筑
+        this.currentSelectedBuilding = entity;
+        
+        // 渲染指令按钮
+        this.renderBuildingCommands(commands);
+    }
+
+    /**
+     * 渲染建筑指令
+     */
+    renderBuildingCommands(commands) {
+        if (!this.buildingCommandsContent) return;
+        
+        // 按类型分组
+        const productionCommands = commands.filter(cmd => cmd.type === 'production');
+        const researchCommands = commands.filter(cmd => cmd.type === 'research');
+        
+        let html = '';
+        
+        // 添加生产指令
+        if (productionCommands.length > 0) {
+            html += '<div class="command-section">';
+            html += '<div class="command-section-title">生产</div>';
+            productionCommands.forEach(cmd => {
+                html += this.createCommandButton(cmd);
+            });
+            html += '</div>';
+        }
+        
+        // 添加研发指令
+        if (researchCommands.length > 0) {
+            html += '<div class="command-section">';
+            html += '<div class="command-section-title">研发</div>';
+            researchCommands.forEach(cmd => {
+                html += this.createCommandButton(cmd);
+            });
+            html += '</div>';
+        }
+        
+        this.buildingCommandsContent.innerHTML = html;
+        
+        // 添加事件监听
+        this.attachCommandButtonListeners();
+    }
+
+    /**
+     * 创建指令按钮HTML
+     */
+    createCommandButton(command) {
+        const hasEnoughResources = this.hasEnoughResources(command.cost);
+        const costText = this.formatCost(command.cost);
+        
+        return `
+            <button 
+                class="command-btn ${hasEnoughResources ? '' : 'disabled'}" 
+                data-command-id="${command.id}"
+                ${!hasEnoughResources ? 'disabled' : ''}
+            >
+                <span class="command-btn-icon">${command.icon}</span>
+                <span class="command-btn-name">${command.name}</span>
+                <span class="command-btn-cost">${costText}</span>
+            </button>
+        `;
+    }
+
+    /**
+     * 格式化资源成本显示
+     */
+    formatCost(cost) {
+        if (!cost) return '';
+        
+        const resourceIcons = {
+            food: '🍞',
+            wood: '🪵',
+            gold: '🪙',
+            stone: '🪨'
+        };
+        
+        let parts = [];
+        for (const [resource, amount] of Object.entries(cost)) {
+            const icon = resourceIcons[resource] || '';
+            parts.push(`${icon}${amount}`);
+        }
+        
+        return parts.join(' ');
+    }
+
+    /**
+     * 检查是否有足够的资源
+     */
+    hasEnoughResources(cost) {
+        if (!cost || !this.game.resourceManager) return false;
+        
+        return this.game.resourceManager.hasEnoughResources(cost);
+    }
+
+    /**
+     * 清空建筑指令面板
+     */
+    clearBuildingCommands() {
+        if (!this.buildingCommandsContent) return;
+        
+        this.buildingCommandsContent.innerHTML = '<div class="no-command">选择建筑查看指令</div>';
+        this.currentSelectedBuilding = null;
+    }
+
+    /**
+     * 为指令按钮添加事件监听
+     */
+    attachCommandButtonListeners() {
+        const buttons = this.buildingCommandsContent.querySelectorAll('.command-btn');
+        
+        buttons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                
+                const commandId = e.target.dataset.commandId || e.target.closest('.command-btn').dataset.commandId;
+                if (!commandId) return;
+                
+                this.handleCommandClick(commandId);
+            });
+        });
+    }
+
+    /**
+     * 处理指令点击
+     */
+    handleCommandClick(commandId) {
+        if (!this.currentSelectedBuilding) return;
+        
+        const buildingType = this.currentSelectedBuilding.buildingType || this.currentSelectedBuilding.type;
+        const normalizedType = buildingType.replace(/-/g, '_');
+        const commands = this.buildingCommands[normalizedType];
+        
+        if (!commands) return;
+        
+        const command = commands.find(cmd => cmd.id === commandId);
+        
+        if (!command) return;
+        
+        // 检查资源
+        if (!this.hasEnoughResources(command.cost)) {
+            console.log('[HUD] 资源不足，无法执行指令:', command.name);
+            return;
+        }
+        
+        // 执行指令
+        this.executeCommand(command);
+    }
+
+    /**
+     * 执行建筑指令
+     */
+    executeCommand(command) {
+        if (!this.currentSelectedBuilding) return;
+        
+        console.log('[HUD] 执行建筑指令:', command.action, command.target);
+        
+        // 扣除资源
+        if (command.cost && this.game.resourceManager) {
+            this.game.resourceManager.removeResources(command.cost);
+        }
+        
+        // 根据指令类型执行不同的操作
+        switch (command.action) {
+            case 'produce':
+            case 'train':
+                // 训练单位
+                this.trainUnit(command.target);
+                break;
+            case 'research':
+                // 研发科技
+                this.researchTechnology(command.target);
+                break;
+            default:
+                console.warn('[HUD] 未知指令类型:', command.action);
+        }
+        
+        // 更新资源显示
+        this.updateResourceDisplay();
+        
+        // 更新指令按钮状态（资源可能已变化）
+        this.updateBuildingCommandsPanel();
+    }
+
+    /**
+     * 训练单位
+     */
+    trainUnit(unitType) {
+        if (!this.currentSelectedBuilding) return;
+        
+        console.log('[HUD] 训练单位:', unitType, 'at', this.currentSelectedBuilding.name);
+        
+        // 这里可以添加实际的单位训练逻辑
+        // 例如：添加到建筑的生产队列
+        if (this.currentSelectedBuilding.addToProductionQueue) {
+            this.currentSelectedBuilding.addToProductionQueue({
+                type: 'unit',
+                unitType: unitType,
+                time: this.getUnitTrainingTime(unitType)
+            });
+        }
+    }
+
+    /**
+     * 研发科技
+     */
+    researchTechnology(techType) {
+        if (!this.currentSelectedBuilding) return;
+        
+        console.log('[HUD] 研发科技:', techType, 'at', this.currentSelectedBuilding.name);
+        
+        // 这里可以添加实际的科技研发逻辑
+        if (this.currentSelectedBuilding.addToProductionQueue) {
+            this.currentSelectedBuilding.addToProductionQueue({
+                type: 'research',
+                techType: techType,
+                time: this.getResearchTime(techType)
+            });
+        }
+    }
+
+    /**
+     * 获取单位训练时间
+     */
+    getUnitTrainingTime(unitType) {
+        const times = {
+            villager: 20,
+            militia: 25,
+            spearman: 22,
+            scout: 30,
+            cavalry: 35,
+            archer: 25,
+            skirmisher: 28,
+            missionary: 40
+        };
+        return times[unitType] || 30;
+    }
+
+    /**
+     * 获取科技研发时间
+     */
+    getResearchTime(techType) {
+        const times = {
+            loom: 30,
+            town_watch: 45,
+            forging: 40,
+            barding: 50,
+            fletching: 35,
+            iron_casting: 60,
+            blast_furnace: 80,
+            heresy: 40
+        };
+        return times[techType] || 45;
     }
 
     getOwnerDisplayName(owner) {
