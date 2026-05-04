@@ -1037,7 +1037,7 @@ class Game {
 
         // 更新标题栏相机控制
         if (this.hud) {
-            this.hud.updateAgeDisplayCameraControl(deltaTime);
+            this.hud.update(deltaTime);
         }
 
         // 每秒更新一次单位信息面板（显示携带资源量）
