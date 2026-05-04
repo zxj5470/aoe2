@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { CELL_SIZE, getPlayerColor, getPlayerName } from '../config.js';
-
+/**
+ * 游戏界面（HUD）类
+ * 负责游戏界面的显示和更新
+ * 【标题栏】
+ * 
+ */
 class HUD {
     constructor(game) {
         this.game = game;
@@ -23,6 +28,7 @@ class HUD {
         this.minimapContext = this.minimapCanvas ? this.minimapCanvas.getContext('2d') : null;
         
         this.unitInfoContent = document.getElementById('unit-info-content');
+        /** 指令面板：建筑、生产按钮【15个】【3行5列】元素集合 */
         this.buildingButtons = document.querySelectorAll('.building-btn');
         
         this.population = {
@@ -91,6 +97,23 @@ class HUD {
                 { id: 'castle', icon: '🏰', name: '城堡', type: 'defense' },
                 { id: 'next', icon: '→', name: '下一页', type: 'nav' },
                 { id: 'close', icon: '×', name: '关闭', type: 'nav' }
+            ],
+            town_center_production: [
+                { id: 'produce-villager', icon: '👤', name: '村民', type: 'production', cost: { food: 50 }, action: 'produce', target: 'villager' },
+                { id: '', icon: '', name: '', type: 'empty' },
+                { id: '', icon: '', name: '', type: 'empty' },
+                { id: '', icon: '', name: '', type: 'empty' },
+                { id: '', icon: '', name: '', type: 'empty' },
+                { id: 'research-loom', icon: '🧵', name: '织布机', type: 'research', cost: { gold: 50 }, action: 'research', target: 'loom' },
+                { id: 'research-town-watch', icon: '👁️', name: '城镇瞭望', type: 'research', cost: { gold: 100 }, action: 'research', target: 'town_watch' },
+                { id: '', icon: '', name: '', type: 'empty' },
+                { id: '', icon: '', name: '', type: 'empty' },
+                { id: '', icon: '', name: '', type: 'empty' },
+                { id: '', icon: '', name: '', type: 'empty' },
+                { id: '', icon: '', name: '', type: 'empty' },
+                { id: '', icon: '', name: '', type: 'empty' },
+                { id: '', icon: '', name: '', type: 'empty' },
+                { id: 'close-production', icon: '×', name: '关闭', type: 'nav' }
             ]
         };
         
@@ -291,6 +314,9 @@ class HUD {
         // 当前选中的建筑
         this.currentSelectedBuilding = null;
 
+        // 选择监听器标志（防止重复绑定）
+        this.selectionListenerBound = false;
+
         this.init();
     }
 
@@ -330,16 +356,6 @@ class HUD {
     }
 
     setupEventListeners() {
-        // 监听选择变化
-        if (this.game.selectionManager) {
-            this.game.selectionManager.addListener((event, data) => {
-                if (event === 'select' || event === 'selectMultiple' || event === 'deselectAll') {
-                    this.updateUnitInfoPanel();
-                    this.updateBuildingCommandsPanel();
-                }
-            });
-        }
-
         // 监听资源变化
         if (this.game.resourceManager) {
             this.game.resourceManager.addListener((type, amount) => {
@@ -361,6 +377,59 @@ class HUD {
         this.setupAgeDisplayCameraControl();
 
         // 不在这里监听F12键，由Game.js统一处理
+    }
+
+    setupSelectionListener() {
+        if (this.selectionListenerBound) return;
+        if (!this.game.selectionManager) return;
+
+        this.game.selectionManager.addListener((event, data) => {
+            if (event === 'select' || event === 'selectMultiple' || event === 'deselectAll') {
+                this.updateUnitInfoPanel();
+                this.updateBuildingCommandsPanel();
+                this.updateBuildingPanelForSelection();
+            }
+        });
+        this.selectionListenerBound = true;
+    }
+
+    updateBuildingPanelForSelection() {
+        if (!this.game.selectionManager) return;
+
+        const selectedEntities = this.game.selectionManager.getSelectedEntities();
+
+        if (selectedEntities.length === 0) {
+            this.restoreDefaultBuildingPanel();
+            return;
+        }
+
+        if (selectedEntities.length === 1) {
+            const entity = selectedEntities[0];
+            if (entity.type === 'building') {
+                const buildingType = entity.buildingType || entity.type;
+                const normalizedType = buildingType.replace(/-/g, '_');
+                const productionPresetName = `${normalizedType}_production`;
+
+                if (this.buildingPanelPresets[productionPresetName]) {
+                    this.currentSelectedBuilding = entity;
+                    this.switchToPreset(productionPresetName);
+                } else {
+                    this.restoreDefaultBuildingPanel();
+                }
+            } else {
+                this.restoreDefaultBuildingPanel();
+            }
+        } else {
+            this.restoreDefaultBuildingPanel();
+        }
+    }
+
+    restoreDefaultBuildingPanel() {
+        if (this.currentPreset !== 'default' && !this.currentPreset.includes('_production')) {
+            return;
+        }
+        this.currentSelectedBuilding = null;
+        this.switchToPreset('default');
     }
 
     /**
@@ -492,22 +561,31 @@ class HUD {
     }
 
     handleBuildingClick(buildingType, button) {
-        // 处理导航按钮
         if (buildingType === 'next') {
             this.nextPreset();
             return;
         }
         
-        if (buildingType === 'close') {
+        if (buildingType === 'close' || buildingType === 'close-production') {
+            if (this.game.selectionManager) {
+                this.game.selectionManager.deselectAll();
+            }
             this.switchToPreset('default');
             return;
         }
+
+        const currentButtonConfig = this.buildingPanelConfig.buttons.find(
+            btn => btn.id === buildingType
+        );
+
+        if (currentButtonConfig && (currentButtonConfig.type === 'production' || currentButtonConfig.type === 'research')) {
+            this.handleProductionCommand(currentButtonConfig);
+            return;
+        }
         
-        // 切换建筑放置模式
         if (this.game.buildingPlacementSystem) {
             this.game.buildingPlacementSystem.togglePlacement(buildingType);
             
-            // 更新按钮状态
             this.buildingButtons.forEach(btn => {
                 btn.classList.remove('active');
             });
@@ -516,6 +594,36 @@ class HUD {
                 button.classList.add('active');
             }
         }
+    }
+
+    handleProductionCommand(command) {
+        if (!this.currentSelectedBuilding) {
+            console.warn('[HUD] 没有选中的建筑');
+            return;
+        }
+
+        if (!this.hasEnoughResources(command.cost)) {
+            console.warn('[HUD] 资源不足');
+            return;
+        }
+
+        if (command.cost) {
+            this.game.resourceManager.spendResources(command.cost);
+        }
+
+        switch (command.action) {
+            case 'produce':
+            case 'train':
+                this.trainUnit(command.target);
+                break;
+            case 'research':
+                this.researchTechnology(command.target);
+                break;
+            default:
+                console.warn('[HUD] 未知指令类型:', command.action);
+        }
+        
+        this.updateResourceDisplay();
     }
 
     updateResourceDisplay() {

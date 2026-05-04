@@ -968,6 +968,11 @@ class Game {
 
         // UI系统
         this.hud = new HUD(this);
+
+        // 在 HUD 创建后设置选择监听器（需要在 selectionManager 创建后调用）
+        if (this.hud && this.hud.setupSelectionListener) {
+            this.hud.setupSelectionListener();
+        }
     }
 
     setupEventListeners() {
