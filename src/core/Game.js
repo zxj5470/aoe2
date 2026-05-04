@@ -6,7 +6,6 @@ import MapGenerator from '../world/MapGenerator.js';
 import MapSelectionPanel from '../ui/MapSelectionPanel.js';
 import InputHandler from '../input/InputHandler.js';
 import SelectionManager from '../input/SelectionManager.js';
-import ResourceManager from '../entities/ResourceManager.js';
 import Player from '../entities/Player.js';
 import Unit from '../entities/Unit.js';
 import Building from '../entities/Building.js';
@@ -43,7 +42,6 @@ class Game {
         // 系统组件
         this.inputHandler = null;
         this.selectionManager = null;
-        this.resourceManager = null;
         this.player = null;
         this.movementSystem = null;
         this.pathfinding = null;
@@ -910,14 +908,7 @@ class Game {
         // 选择系统（需要编队系统支持）
         this.selectionManager = new SelectionManager(this.formationSystem);
         
-        // 资源管理系统
-        this.resourceManager = new ResourceManager();
-        this.resourceManager.addListener((type, amount) => {
-            this.resources[type] = amount;
-            this.updateResourceDisplay();
-        });
-        
-        // 玩家系统
+        // 玩家系统（包含资源管理器）
         this.player = new Player({
             id: 'player',
             name: '玩家',
@@ -928,6 +919,16 @@ class Game {
             stone: 50,
             maxPopulation: 20
         });
+        
+        this.player.resourceManager.addListener((type, amount) => {
+            this.resources[type] = amount;
+            this.updateResourceDisplay();
+        });
+        
+        // 同步初始资源到显示
+        const initialResources = this.player.resourceManager.getAllResources();
+        Object.assign(this.resources, initialResources);
+        this.updateResourceDisplay();
         
         // 绑定玩家事件监听器
         this.bindPlayerEvents();
@@ -1063,6 +1064,10 @@ class Game {
                 entity.update(deltaTime);
             }
         }
+    }
+
+    get resourceManager() {
+        return this.player?.resourceManager;
     }
 
     addEntity(entity) {

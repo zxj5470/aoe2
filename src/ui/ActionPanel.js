@@ -11,6 +11,18 @@ class ActionPanel {
       buttons: []
     };
     
+    this.ageUpgradeCosts = {
+      1: { food: 500, gold: 250 },
+      2: { food: 800, gold: 400 },
+      3: { food: 1000, gold: 800 }
+    };
+    
+    this.ageNames = {
+      1: '封建时代',
+      2: '城堡时代',
+      3: '帝王时代'
+    };
+    
     this.buildingPanelPresets = {
       default: [
         { id: 'house', icon: '🏠', name: '房屋', type: 'residential' },
@@ -45,28 +57,38 @@ class ActionPanel {
         { id: 'castle', icon: '🏰', name: '城堡', type: 'defense' },
         { id: 'next', icon: '→', name: '下一页', type: 'nav' },
         { id: 'close', icon: '×', name: '关闭', type: 'nav' }
-      ],
-      town_center_production: [
-        { id: 'produce-villager', icon: '👤', name: '村民', type: 'production', cost: { food: 50 }, action: 'produce', target: 'villager' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: 'research-loom', icon: '🧵', name: '织布机', type: 'research', cost: { gold: 50 }, action: 'research', target: 'loom' },
-        { id: 'research-town-watch', icon: '👁️', name: '城镇瞭望', type: 'research', cost: { gold: 100 }, action: 'research', target: 'town_watch' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: 'close-production', icon: '×', name: '关闭', type: 'nav' }
       ]
     };
     
     this.currentPreset = 'default';
     this.currentSelectedBuilding = null;
+  }
+
+  getTownCenterProductionPreset() {
+    const ageLevel = this.game.player ? this.game.player.getAgeLevel() : 1;
+    const canUpgrade = ageLevel < 4;
+    const upgradeCost = canUpgrade ? this.ageUpgradeCosts[ageLevel] : null;
+    const nextAgeName = canUpgrade ? this.ageNames[ageLevel] : null;
+    
+    const buttons = [
+      { id: 'produce-villager', icon: '👤', name: '村民', type: 'production', cost: { food: 50 }, action: 'produce', target: 'villager' },
+      { id: '', icon: '', name: '', type: 'empty' },
+      { id: '', icon: '', name: '', type: 'empty' },
+      { id: '', icon: '', name: '', type: 'empty' },
+      { id: '', icon: '', name: '', type: 'empty' },
+      { id: 'research-loom', icon: '🧵', name: '织布机', type: 'research', cost: { gold: 50 }, action: 'research', target: 'loom' },
+      { id: 'research-town-watch', icon: '👁️', name: '城镇瞭望', type: 'research', cost: { gold: 100 }, action: 'research', target: 'town_watch' },
+      { id: '', icon: '', name: '', type: 'empty' },
+      { id: '', icon: '', name: '', type: 'empty' },
+      { id: '', icon: '', name: '', type: 'empty' },
+      { id: '', icon: '', name: '', type: 'empty' },
+      { id: '', icon: '', name: '', type: 'empty' },
+      { id: canUpgrade ? 'age-up' : '', icon: canUpgrade ? '⬆️' : '', name: canUpgrade ? nextAgeName : '', type: canUpgrade ? 'age_upgrade' : 'empty', cost: upgradeCost, action: canUpgrade ? 'age_up' : '', target: canUpgrade ? 'next_age' : '' },
+      { id: '', icon: '', name: '', type: 'empty' },
+      { id: 'close-production', icon: '×', name: '关闭', type: 'nav' }
+    ];
+    
+    return buttons;
   }
 
   init() {
@@ -169,6 +191,11 @@ class ActionPanel {
       btn => btn.id === buildingType
     );
 
+    if (currentButtonConfig && currentButtonConfig.type === 'age_upgrade') {
+      this.handleAgeUpgrade(currentButtonConfig);
+      return;
+    }
+
     if (currentButtonConfig && (currentButtonConfig.type === 'production' || currentButtonConfig.type === 'research')) {
       this.handleProductionCommand(currentButtonConfig);
       return;
@@ -185,6 +212,36 @@ class ActionPanel {
         button.classList.add('active');
       }
     }
+  }
+
+  handleAgeUpgrade(command) {
+    if (!this.game.player) {
+      console.warn('[ActionPanel] 玩家不存在');
+      return;
+    }
+
+    const currentAge = this.game.player.getAgeLevel();
+    if (currentAge >= 4) {
+      console.warn('[ActionPanel] 已是最高时代');
+      return;
+    }
+
+    if (!this.hasEnoughResources(command.cost)) {
+      console.warn('[ActionPanel] 资源不足，无法升级时代');
+      return;
+    }
+
+    this.game.resourceManager.spendResources(command.cost);
+    
+    const newAge = currentAge + 1;
+    this.game.player.setAgeLevel(newAge);
+    
+    if (this.game.hud) {
+      this.game.hud.updateAge(this.game.player.getAgeName());
+      this.game.hud.showNotification(`升级到 ${this.game.player.getAgeName()}！`);
+    }
+
+    this.switchToPreset('town_center_production');
   }
 
   handleProductionCommand(command) {
@@ -285,7 +342,10 @@ class ActionPanel {
         const normalizedType = buildingType.replace(/-/g, '_');
         const productionPresetName = `${normalizedType}_production`;
 
-        if (this.buildingPanelPresets[productionPresetName]) {
+        const hasPreset = this.buildingPanelPresets[productionPresetName] || 
+                          productionPresetName === 'town_center_production';
+        
+        if (hasPreset) {
           this.currentSelectedBuilding = entity;
           this.switchToPreset(productionPresetName);
         } else {
@@ -308,16 +368,21 @@ class ActionPanel {
   }
 
   switchToPreset(presetName) {
-    if (!this.buildingPanelPresets[presetName]) {
+    let preset;
+    
+    if (presetName === 'town_center_production') {
+      preset = this.getTownCenterProductionPreset();
+    } else if (typeof this.buildingPanelPresets[presetName] === 'function') {
+      preset = this.buildingPanelPresets[presetName]();
+    } else if (this.buildingPanelPresets[presetName]) {
+      preset = this.buildingPanelPresets[presetName];
+    } else {
       console.error(`Preset "${presetName}" not found`);
       return;
     }
     
-    const preset = this.buildingPanelPresets[presetName];
     this.currentPreset = presetName;
-    
     this.buildingPanelConfig.buttons = preset.map(button => ({ ...button }));
-    
     this.initBuildingButtons();
   }
 
