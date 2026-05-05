@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 class Pathfinding {
     constructor(grid) {
         this.grid = grid;
@@ -7,12 +9,11 @@ class Pathfinding {
         this.gScore = new Map();
         this.fScore = new Map();
         
-        // 路径缓存系统
         this.pathCache = new Map();
         this.cacheHits = 0;
         this.cacheMisses = 0;
-        this.maxCacheSize = 1000; // 最大缓存数量
-        this.cacheTTL = 10000; // 缓存生存时间（毫秒）
+        this.maxCacheSize = 1000;
+        this.cacheTTL = 10000;
     }
 
     findPath(startX, startZ, endX, endZ, options = {}) {
@@ -25,7 +26,6 @@ class Pathfinding {
             useCache = true
         } = options;
 
-        // 尝试从缓存获取路径
         if (useCache) {
             const cachedPath = this.getCachedPath(startX, startZ, endX, endZ, options);
             if (cachedPath) {
@@ -46,7 +46,6 @@ class Pathfinding {
         }
 
         if (!startCell.walkable || startCell.occupied) {
-            // 尝试找到附近的可行走位置
             const nearbyWalkable = this.findNearbyWalkable(startCell, 3);
             if (nearbyWalkable) {
                 startCell = nearbyWalkable;
@@ -56,7 +55,6 @@ class Pathfinding {
         }
 
         if (!endCell.walkable || endCell.occupied) {
-            // 尝试找到目标附近的可行走位置
             const nearbyWalkable = this.findNearbyWalkable(endCell, 3);
             if (nearbyWalkable) {
                 endCell = nearbyWalkable;
@@ -67,7 +65,6 @@ class Pathfinding {
 
         const result = this.findAStarPath(startCell, endCell, allowDiagonals, maxIterations);
 
-        // 缓存成功的路径
         if (result.success && useCache) {
             this.cachePath(startX, startZ, endX, endZ, result, options);
         }
@@ -87,21 +84,17 @@ class Pathfinding {
         while (this.openSet.length > 0 && iterations < maxIterations) {
             iterations++;
 
-            // 找到fScore最小的节点
             let current = this.getLowestFScore();
 
-            // 到达目标
             if (current === endCell) {
                 const path = this.reconstructPath(current);
                 return { path, success: true, iterations };
             }
 
-            // 从openSet中移除current
             const index = this.openSet.indexOf(current);
             this.openSet.splice(index, 1);
             this.closedSet.add(current);
 
-            // 检查所有邻居
             const neighbors = this.grid.getNeighbors(current.x, current.y, allowDiagonals);
 
             for (const neighbor of neighbors) {
@@ -109,7 +102,6 @@ class Pathfinding {
                     continue;
                 }
 
-                // 避免被占用的格子（除非是目标）
                 if (neighbor.occupied && neighbor !== endCell) {
                     continue;
                 }
@@ -128,7 +120,6 @@ class Pathfinding {
             }
         }
 
-        // 没有找到路径
         return { path: [], success: false, iterations };
     }
 
@@ -161,7 +152,6 @@ class Pathfinding {
     }
 
     heuristic(a, b) {
-        // 欧几里得距离
         const dx = a.x - b.x;
         const dy = a.y - b.y;
         return Math.sqrt(dx * dx + dy * dy);
@@ -172,7 +162,7 @@ class Pathfinding {
         const dy = Math.abs(a.y - b.y);
 
         if (dx === 1 && dy === 1) {
-            return 1.414; // 对角线距离
+            return 1.414;
         }
 
         return 1;
@@ -204,7 +194,6 @@ class Pathfinding {
             return this.findPath(startX, startZ, targetX, targetZ);
         }
 
-        // 在目标附近寻找可行走的位置
         for (let distance = 1; distance <= maxDistance; distance++) {
             const cells = this.getCellsAtDistance(targetX, targetZ, distance);
 
@@ -265,7 +254,6 @@ class Pathfinding {
         for (let i = 1; i < path.length - 1; i++) {
             const next = path[i + 1];
 
-            // 检查是否可以直接跳到next
             if (this.hasLineOfSight(current, next)) {
                 continue;
             }
@@ -279,7 +267,6 @@ class Pathfinding {
     }
 
     hasLineOfSight(from, to) {
-        // 简单的视线检查（Bresenham算法）
         const x0 = from.x;
         const y0 = from.y;
         const x1 = to.x;
@@ -316,17 +303,11 @@ class Pathfinding {
         }
     }
 
-    /**
-     * 生成缓存键
-     */
     generateCacheKey(startX, startZ, endX, endZ, options = {}) {
         const key = `${Math.floor(startX)},${Math.floor(startZ)}-${Math.floor(endX)},${Math.floor(endZ)}-${options.allowDiagonals ? 'diag' : 'nodiag'}`;
         return key;
     }
 
-    /**
-     * 从缓存获取路径
-     */
     getCachedPath(startX, startZ, endX, endZ, options = {}) {
         const key = this.generateCacheKey(startX, startZ, endX, endZ, options);
         const cached = this.pathCache.get(key);
@@ -336,7 +317,6 @@ class Pathfinding {
             return null;
         }
 
-        // 检查缓存是否过期
         if (Date.now() - cached.timestamp > this.cacheTTL) {
             this.pathCache.delete(key);
             this.cacheMisses++;
@@ -347,13 +327,9 @@ class Pathfinding {
         return { ...cached.data, fromCache: true };
     }
 
-    /**
-     * 缓存路径
-     */
     cachePath(startX, startZ, endX, endZ, pathData, options = {}) {
         const key = this.generateCacheKey(startX, startZ, endX, endZ, options);
 
-        // 如果缓存已满，删除最旧的条目
         if (this.pathCache.size >= this.maxCacheSize) {
             const oldestKey = this.pathCache.keys().next().value;
             this.pathCache.delete(oldestKey);
@@ -365,18 +341,12 @@ class Pathfinding {
         });
     }
 
-    /**
-     * 清除路径缓存
-     */
     clearPathCache() {
         this.pathCache.clear();
         this.cacheHits = 0;
         this.cacheMisses = 0;
     }
 
-    /**
-     * 获取缓存统计信息
-     */
     getCacheStats() {
         return {
             size: this.pathCache.size,
@@ -389,9 +359,6 @@ class Pathfinding {
         };
     }
 
-    /**
-     * 使包含指定单元格的缓存路径失效
-     */
     invalidateCacheForCell(cellX, cellY) {
         const keysToDelete = [];
 
@@ -400,7 +367,6 @@ class Pathfinding {
             const [sx, sy] = start.split(',').map(Number);
             const [ex, ey] = end.split('-').map(Number);
 
-            // 检查路径是否经过这个单元格
             const path = value.data.path;
             for (const cell of path) {
                 if (cell.x === cellX && cell.y === cellY) {
@@ -417,9 +383,6 @@ class Pathfinding {
         return keysToDelete.length;
     }
 
-    /**
-     * 动态更新路径（当路径上的单元格状态改变时）
-     */
     updateDynamicPath(currentPath, currentIndex, unit, avoidCells = []) {
         if (!currentPath || currentPath.length === 0) {
             return currentPath;
@@ -429,12 +392,10 @@ class Pathfinding {
         const startCell = currentPath[currentIndex] || currentPath[0];
         const targetCell = currentPath[currentPath.length - 1];
 
-        // 检查剩余路径是否仍然有效
         let pathValid = true;
         for (let i = currentIndex; i < currentPath.length; i++) {
             const cell = currentPath[i];
             
-            // 检查单元格是否被占用或不可行走
             if (!cell.walkable || cell.occupied || avoidCells.includes(cell)) {
                 pathValid = false;
                 break;
@@ -442,11 +403,9 @@ class Pathfinding {
         }
 
         if (pathValid) {
-            // 路径仍然有效，无需重新计算
             return currentPath;
         }
 
-        // 路径无效，需要重新计算
         const startPos = unit.getPosition();
         const endX = targetCell.x * this.grid.cellSize + this.grid.cellSize / 2;
         const endZ = targetCell.y * this.grid.cellSize + this.grid.cellSize / 2;
@@ -454,17 +413,12 @@ class Pathfinding {
         const result = this.findPath(startPos.x, startPos.z, endX, endZ);
 
         if (result.success) {
-            // 平滑新路径
             return this.smoothPath(result.path);
         }
 
-        // 无法找到新路径，返回部分有效路径
         return currentPath.slice(0, currentIndex + 1);
     }
 
-    /**
-     * 预测路径冲突（用于多单位协调）
-     */
     predictPathConflicts(path1, path2, timeWindow = 1000) {
         const conflicts = [];
 
@@ -472,7 +426,6 @@ class Pathfinding {
             return conflicts;
         }
 
-        // 简化的冲突检测：检查两个路径是否在相同时间经过相同位置
         for (let i = 0; i < path1.length; i++) {
             for (let j = 0; j < path2.length; j++) {
                 if (path1[i].x === path2[j].x && path1[i].y === path2[j].y) {
@@ -488,9 +441,6 @@ class Pathfinding {
         return conflicts;
     }
 
-    /**
-     * 优化路径以减少转向
-     */
     optimizePathForMovement(path) {
         if (path.length <= 2) {
             return path;
@@ -503,7 +453,6 @@ class Pathfinding {
             const current = path[i];
             const next = path[i + 1];
 
-            // 检查是否可以跳过当前点
             if (this.hasLineOfSight(prev, next)) {
                 continue;
             }
@@ -515,9 +464,6 @@ class Pathfinding {
         return optimizedPath;
     }
 
-    /**
-     * 获取路径的总距离
-     */
     getPathDistance(path) {
         if (!path || path.length < 2) {
             return 0;
@@ -532,12 +478,75 @@ class Pathfinding {
         return totalDistance;
     }
 
-    /**
-     * 估算路径的旅行时间
-     */
     estimateTravelTime(path, speed = 5) {
         const distance = this.getPathDistance(path);
-        return distance / speed; // 返回秒数
+        return distance / speed;
+    }
+
+    moveUnit(unit, targetPosition, deltaTime) {
+        const path = this.findPath(
+            unit.position.x,
+            unit.position.z,
+            targetPosition.x,
+            targetPosition.z
+        );
+        
+        if (path.length > 0) {
+            this.followPath(unit, path, deltaTime);
+            return true;
+        }
+        
+        return false;
+    }
+
+    followPath(unit, path, deltaTime) {
+        if (path.length === 0) {
+            return false;
+        }
+        
+        const targetCell = path[0];
+        const targetX = targetCell.x * this.grid.cellSize + this.grid.cellSize / 2;
+        const targetZ = targetCell.y * this.grid.cellSize + this.grid.cellSize / 2;
+        
+        const direction = new THREE.Vector3(targetX - unit.position.x, 0, targetZ - unit.position.z);
+        const distance = direction.length();
+        
+        if (distance < 0.1) {
+            path.shift();
+            return this.followPath(unit, path, deltaTime);
+        }
+        
+        direction.normalize();
+        const moveDistance = unit.speed * deltaTime;
+        
+        if (distance <= moveDistance) {
+            unit.setPosition(targetX, unit.position.y, targetZ);
+            path.shift();
+        } else {
+            const newPosition = unit.position.clone().add(direction.multiplyScalar(moveDistance));
+            unit.setPosition(newPosition.x, newPosition.y, newPosition.z);
+        }
+        
+        unit.setRotation(Math.atan2(direction.x, direction.z));
+        
+        return true;
+    }
+
+    getClosestWalkablePosition(x, z, maxDistance = 10) {
+        for (let distance = 1; distance <= maxDistance; distance++) {
+            const cells = this.getCellsAtDistance(x, z, distance);
+            
+            for (const cell of cells) {
+                if (cell.walkable && !cell.occupied) {
+                    return {
+                        x: cell.x * this.grid.cellSize + this.grid.cellSize / 2,
+                        z: cell.y * this.grid.cellSize + this.grid.cellSize / 2
+                    };
+                }
+            }
+        }
+        
+        return null;
     }
 }
 

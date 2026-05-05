@@ -122,13 +122,60 @@ class Entity {
 
     destroy() {
         if (this.mesh) {
-            this.mesh.geometry.dispose();
-            if (Array.isArray(this.mesh.material)) {
-                this.mesh.material.forEach(material => material.dispose());
-            } else {
-                this.mesh.material.dispose();
+            // 递归清理所有子对象
+            this.mesh.traverse((child) => {
+                if (child.isMesh) {
+                    // 清理几何体
+                    if (child.geometry) {
+                        child.geometry.dispose();
+                    }
+                    
+                    // 清理材质
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(material => {
+                                this.disposeMaterial(material);
+                            });
+                        } else {
+                            this.disposeMaterial(child.material);
+                        }
+                    }
+                }
+            });
+            
+            // 从父对象中移除
+            if (this.mesh.parent) {
+                this.mesh.parent.remove(this.mesh);
             }
+            
+            this.mesh = null;
         }
+        
+        // 清理其他资源
+        this.position = null;
+        this.owner = null;
+    }
+
+    disposeMaterial(material) {
+        if (!material) return;
+        
+        // 清理纹理
+        if (material.map) material.map.dispose();
+        if (material.lightMap) material.lightMap.dispose();
+        if (material.bumpMap) material.bumpMap.dispose();
+        if (material.normalMap) material.normalMap.dispose();
+        if (material.specularMap) material.specularMap.dispose();
+        if (material.envMap) material.envMap.dispose();
+        if (material.alphaMap) material.alphaMap.dispose();
+        if (material.aoMap) material.aoMap.dispose();
+        if (material.displacementMap) material.displacementMap.dispose();
+        if (material.emissiveMap) material.emissiveMap.dispose();
+        if (material.gradientMap) material.gradientMap.dispose();
+        if (material.metalnessMap) material.metalnessMap.dispose();
+        if (material.roughnessMap) material.roughnessMap.dispose();
+        
+        // 清理材质本身
+        material.dispose();
     }
 }
 

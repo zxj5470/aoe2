@@ -113,5 +113,94 @@ export const UI_CONFIG = {
     }
 };
 
+// 单位配置
+export const UNIT_CONFIG = {
+    // 资源采集配置
+    gatherInterval: 2,           // 采集间隔（秒）
+    returnTime: 20,              // 返回城镇中心时间（秒）
+    carryCapacity: 10,           // 携带资源容量
+    
+    // 战斗配置
+    attackCooldown: 1,           // 攻击冷却时间（秒）
+    
+    // 移动配置
+    defaultSpeed: 5,             // 默认移动速度
+    arrivalDistance: 0.5,         // 到达目标距离阈值
+    
+    // 动画配置
+    animationSpeed: 5,           // 动画播放速度
+    deathDuration: 1.5,          // 死亡动画持续时间
+    
+    // 外观配置
+    appearance: {
+        villager: {
+            bodyColor: 0x4169E1,
+            bodyHeight: 1.2,
+            bodyWidth: 0.4,
+            headSize: 0.25,
+            weaponType: 'none',
+            scale: 1.0
+        },
+        soldier: {
+            bodyColor: 0x1E90FF,
+            bodyHeight: 1.4,
+            bodyWidth: 0.4,
+            headSize: 0.25,
+            weaponType: 'sword',
+            scale: 1.0
+        },
+        knight: {
+            bodyColor: 0x00008B,
+            bodyHeight: 1.6,
+            bodyWidth: 0.8,
+            headSize: 0.3,
+            weaponType: 'lance',
+            scale: 1.1
+        },
+        archer: {
+            bodyColor: 0x228B22,
+            bodyHeight: 1.3,
+            bodyWidth: 0.4,
+            headSize: 0.25,
+            weaponType: 'bow',
+            scale: 0.95
+        },
+        scout: {
+            bodyColor: 0x8B4513,
+            bodyHeight: 1.1,
+            bodyWidth: 0.4,
+            headSize: 0.22,
+            weaponType: 'none',
+            scale: 0.9
+        }
+    }
+};
+
+// 建筑配置
+export const BUILDING_CONFIG = {
+    // 建造配置
+    constructionSpeed: 10,       // 建造速度（每秒进度）
+    requiredBuilders: 1,         // 需要建造者数量
+    
+    // 生产配置
+    productionSpeed: 100,        // 生产速度（每秒进度百分比）
+    
+    // 人口配置
+    housePopulationBonus: 5,     // 房屋人口加成
+};
+
+// 资源节点配置
+export const RESOURCE_CONFIG = {
+    // 资源量配置
+    defaultWoodAmount: 150,      // 默认木材量
+    defaultStoneAmount: 200,     // 默认石材量
+    defaultGoldAmount: 300,      // 默认黄金量
+    defaultFoodAmount: 100,      // 默认食物量
+    
+    // 重生配置
+    respawnTime: 60,             // 重生时间（秒）
+    canRespawn: true,            // 是否可以重生
+};
+
 // 导出常用配置的快捷访问
 export const CELL_SIZE = MAP_CONFIG.cellSize;
