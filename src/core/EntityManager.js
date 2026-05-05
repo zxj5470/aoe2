@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import Unit from '../entities/Unit.js';
 import Building from '../entities/Building.js';
 import ResourceNode from '../entities/ResourceNode.js';
+import { HUMAN_OWNER, ENEMY_OWNER } from '../config.js';
 
 class EntityManager {
     constructor(game) {
@@ -27,7 +28,7 @@ class EntityManager {
             }
         }
 
-        if (this.game.aiSystem && entity.type === 'unit' && entity.owner !== 'player') {
+        if (this.game.aiSystem && entity.type === 'unit' && entity.isEnemy()) {
             this.game.aiSystem.registerUnit(entity);
         }
     }
@@ -310,7 +311,7 @@ class EntityManager {
         for (const config of unitConfigs) {
             const unit = new Unit({
                 ...config,
-                owner: 'player',
+                owner: HUMAN_OWNER,
                 health: 50,
                 maxHealth: 50,
                 speed: 5,
@@ -334,9 +335,9 @@ class EntityManager {
         }
 
         const enemyConfigs = [
-            { unitType: 'soldier', name: '敌人士兵1', x: alignToGrid(-10), z: alignToGrid(10), owner: 'enemy' },
-            { unitType: 'knight', name: '敌方骑士1', x: alignToGrid(-10), z: alignToGrid(15), owner: 'enemy' },
-            { unitType: 'archer', name: '敌方弓箭手1', x: alignToGrid(-15), z: alignToGrid(10), owner: 'enemy' }
+            { unitType: 'soldier', name: '敌人士兵1', x: alignToGrid(-10), z: alignToGrid(10), owner: ENEMY_OWNER },
+            { unitType: 'knight', name: '敌方骑士1', x: alignToGrid(-10), z: alignToGrid(15), owner: ENEMY_OWNER },
+            { unitType: 'archer', name: '敌方弓箭手1', x: alignToGrid(-15), z: alignToGrid(10), owner: ENEMY_OWNER }
         ];
 
         for (const config of enemyConfigs) {
@@ -392,7 +393,7 @@ class EntityManager {
         for (const config of buildingConfigs) {
             const building = new Building({
                 ...config,
-                owner: 'player',
+                owner: HUMAN_OWNER,
                 health: 200,
                 maxHealth: 200,
                 width: this.game.getBuildingWidth(config.buildingType),
@@ -407,9 +408,9 @@ class EntityManager {
         }
 
         const enemyBuildingConfigs = [
-            { buildingType: 'barracks', name: '敌军兵营', x: alignToGrid(-15, getSize('barracks')), z: alignToGrid(8, getSize('barracks')), owner: 'enemy' },
-            { buildingType: 'watch_tower', name: '敌军瞭望塔', x: alignToGrid(-18, getSize('watch_tower')), z: alignToGrid(12, getSize('watch_tower')), owner: 'enemy' },
-            { buildingType: 'house', name: '敌军房屋', x: alignToGrid(-12, getSize('house')), z: alignToGrid(15, getSize('house')), owner: 'enemy' }
+            { buildingType: 'barracks', name: '敌军兵营', x: alignToGrid(-15, getSize('barracks')), z: alignToGrid(8, getSize('barracks')), owner: ENEMY_OWNER },
+            { buildingType: 'watch_tower', name: '敌军瞭望塔', x: alignToGrid(-18, getSize('watch_tower')), z: alignToGrid(12, getSize('watch_tower')), owner: ENEMY_OWNER },
+            { buildingType: 'house', name: '敌军房屋', x: alignToGrid(-12, getSize('house')), z: alignToGrid(15, getSize('house')), owner: ENEMY_OWNER }
         ];
 
         for (const config of enemyBuildingConfigs) {
@@ -486,7 +487,7 @@ class EntityManager {
             name: '城镇中心',
             x: alignToGrid(0, 4),
             z: alignToGrid(0, 4),
-            owner: 'player',
+            owner: HUMAN_OWNER,
             health: 1000,
             maxHealth: 1000,
             width: 4,

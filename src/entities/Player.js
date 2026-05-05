@@ -1,8 +1,9 @@
 import ResourceManager from './ResourceManager.js';
+import { HUMAN_OWNER } from '../config.js';
 
 class Player {
     constructor(config = {}) {
-        this.id = config.id || 'player';
+        this.id = config.id || HUMAN_OWNER;
         this.name = config.name || 'Player';
         
         this.ageLevel = config.ageLevel || 1;

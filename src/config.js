@@ -34,6 +34,13 @@ export const OWNER_TO_PLAYER_ID = {
     neutral: 0
 };
 
+// 人类玩家的owner字符串（从映射反查得到，作为默认owner值）
+export const HUMAN_OWNER = Object.entries(OWNER_TO_PLAYER_ID).find(([, pid]) => pid === HUMAN_PLAYER_ID)?.[0] || 'player';
+
+// 敌方玩家的owner字符串（映射中第一个非人类非中立的玩家）
+const NEUTRAL_PLAYER_ID = 0;
+export const ENEMY_OWNER = Object.entries(OWNER_TO_PLAYER_ID).find(([key, pid]) => pid !== HUMAN_PLAYER_ID && pid !== NEUTRAL_PLAYER_ID && key !== 'player')?.[0] || 'enemy';
+
 // 判断 owner 是否为人类玩家
 export function isHumanPlayer(owner) {
     if (!owner) return false;

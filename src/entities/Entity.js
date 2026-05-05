@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { isHumanPlayer, isEnemyPlayer } from '../config.js';
+import { isHumanPlayer, isEnemyPlayer, HUMAN_OWNER } from '../config.js';
 
 class Entity {
     constructor(config) {
@@ -17,7 +17,7 @@ class Entity {
         this.health = config.health || 100;
         this.maxHealth = config.maxHealth || 100;
         this.isSelected = false;
-        this.owner = config.owner || 'player';
+        this.owner = config.owner || HUMAN_OWNER;
         this.isAlive = true;
     }
 

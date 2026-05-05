@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { OWNER_TO_PLAYER_ID } from '../config.js';
 
 class CombatSystem {
     constructor() {
@@ -176,8 +177,10 @@ class CombatSystem {
         for (const combatant of this.combatants) {
             if (combatant === attacker || !combatant.isAlive) continue;
             
-            // 检查是否是敌对单位
-            if (combatant.owner === attacker.owner) continue;
+            // 检查是否是同阵营（通过玩家ID映射比较，而非直接比较owner字符串）
+            const attackerPlayerId = OWNER_TO_PLAYER_ID[attacker.owner];
+            const targetPlayerId = OWNER_TO_PLAYER_ID[combatant.owner];
+            if (attackerPlayerId === targetPlayerId) continue;
             
             const distance = attacker.position.distanceTo(combatant.position);
             

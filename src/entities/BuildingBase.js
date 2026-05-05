@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import Entity from './Entity.js';
 import RomanNumeralCanvas from './RomanNumeralCanvas.js';
-import { CELL_SIZE, MAP_CONFIG, getPlayerColor } from '../config.js';
+import { CELL_SIZE, MAP_CONFIG, getPlayerColor, HUMAN_OWNER } from '../config.js';
 
 class BuildingBase extends Entity {
     constructor(config) {
@@ -13,7 +13,7 @@ class BuildingBase extends Entity {
             z: config.z || 0,
             health: config.health || 200,
             maxHealth: config.maxHealth || 200,
-            owner: config.owner || 'player'
+            owner: config.owner || HUMAN_OWNER
         });
 
         this.buildingType = config.buildingType || 'house';

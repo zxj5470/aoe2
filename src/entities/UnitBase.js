@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import Entity from './Entity.js';
-import { CELL_SIZE, MAP_CONFIG, getPlayerColor, UNIT_CONFIG } from '../config.js';
+import { CELL_SIZE, MAP_CONFIG, getPlayerColor, UNIT_CONFIG, HUMAN_OWNER } from '../config.js';
 
 class UnitBase extends Entity {
     constructor(config) {
@@ -12,7 +12,7 @@ class UnitBase extends Entity {
             z: config.z || 0,
             health: config.health || 50,
             maxHealth: config.maxHealth || 50,
-            owner: config.owner || 'player'
+            owner: config.owner || HUMAN_OWNER
         });
 
         this.unitType = config.unitType || 'villager';

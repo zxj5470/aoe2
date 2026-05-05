@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import Building from '../entities/Building.js';
-import { CELL_SIZE } from '../config.js';
+import { CELL_SIZE, HUMAN_OWNER } from '../config.js';
 
 class BuildingPlacementSystem {
     constructor(map, scene) {
@@ -241,7 +241,7 @@ class BuildingPlacementSystem {
             height: config.height,
             health: config.health,
             maxHealth: config.health,
-            owner: 'player',
+            owner: HUMAN_OWNER,
             isUnderConstruction: true,
             constructionProgress: 0
         });
