@@ -203,6 +203,12 @@ class HUD {
     if (!container) return;
 
     const buttons = container.querySelectorAll('.building-btn');
+    if (!buttons.length) return;
+
+    for (const button of buttons) {
+      button.style.background = '';
+      button.title = '';
+    }
 
     if (building.currentProduction) {
       const progress = building.productionProgress || 0;

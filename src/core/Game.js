@@ -1136,6 +1136,34 @@ class Game {
         }
     }
 
+    assignBuilderToBuilding(building) {
+        const villagers = this.entities.filter(
+            e => e.isAlive && e.type === 'unit' && e.unitType === 'villager'
+                && e.owner === 'player' && !e.isBuilding && !e._markedForRemoval
+        );
+
+        if (villagers.length === 0) return null;
+
+        let closest = null;
+        let closestDist = Infinity;
+
+        for (const v of villagers) {
+            const dx = v.position.x - building.position.x;
+            const dz = v.position.z - building.position.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closest = v;
+            }
+        }
+
+        if (closest) {
+            closest.sendToBuild(building);
+        }
+
+        return closest;
+    }
+
     spawnUnitFromBuilding(building, unitType) {
         const unitConfig = this.getUnitConfig(unitType);
         const halfW = (building.gridSizeX || 2) / 2 + 1;
@@ -1433,6 +1461,7 @@ class Game {
             );
             if (building) {
                 this.addEntity(building);
+                this.assignBuilderToBuilding(building);
             }
             return;
         }
@@ -1534,6 +1563,15 @@ class Game {
                 
                 this.selectionManager.issueCommand('gather', entity, townCenter);
                 return;
+            }
+        }
+
+        for (const entity of nearbyEntities) {
+            if (entity.type === 'building' && entity.isUnderConstruction && entity.isAlive) {
+                if (this.selectionManager.selectionType === 'unit') {
+                    this.selectionManager.issueCommand('build', entity);
+                    return;
+                }
             }
         }
 

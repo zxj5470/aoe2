@@ -24,6 +24,7 @@ class ActionPanel {
     };
     
     this.buildingPanelPresets = {
+      empty: [],
       default: [
         { id: 'house', icon: '🏠', name: '房屋', type: 'residential' },
         { id: '', icon: '', name: '', type: 'empty' },
@@ -92,7 +93,7 @@ class ActionPanel {
   }
 
   init() {
-    this.switchToPreset('default');
+    this.switchToPreset('empty');
     this.updateBuildingPanelConfig({ rows: 3, cols: 5, totalButtons: 15 });
     this.setupButtonListeners();
   }
@@ -183,7 +184,7 @@ class ActionPanel {
       if (this.game.selectionManager) {
         this.game.selectionManager.deselectAll();
       }
-      this.switchToPreset('default');
+      this.showEmptyPanel();
       return;
     }
 
@@ -341,13 +342,23 @@ class ActionPanel {
 
   updateForSelection(selectedEntities) {
     if (!selectedEntities || selectedEntities.length === 0) {
-      this.restoreDefault();
+      this.showEmptyPanel();
+      return;
+    }
+
+    const allVillagers = selectedEntities.every(
+      e => e.type === 'unit' && e.unitType === 'villager' && e.owner === 'player'
+    );
+    if (allVillagers) {
+      this.currentSelectedBuilding = null;
+      this.switchToPreset('default');
       return;
     }
 
     if (selectedEntities.length === 1) {
       const entity = selectedEntities[0];
-      if (entity.type === 'building') {
+
+      if (entity.type === 'building' && entity.owner === 'player') {
         const buildingType = entity.buildingType || entity.type;
         const normalizedType = buildingType.replace(/-/g, '_');
         const productionPresetName = `${normalizedType}_production`;
@@ -358,23 +369,21 @@ class ActionPanel {
         if (hasPreset) {
           this.currentSelectedBuilding = entity;
           this.switchToPreset(productionPresetName);
-        } else {
-          this.restoreDefault();
+          return;
         }
-      } else {
-        this.restoreDefault();
       }
-    } else {
-      this.restoreDefault();
     }
+
+    this.showEmptyPanel();
+  }
+
+  showEmptyPanel() {
+    this.currentSelectedBuilding = null;
+    this.switchToPreset('empty');
   }
 
   restoreDefault() {
-    if (this.currentPreset !== 'default' && !this.currentPreset.includes('_production')) {
-      return;
-    }
-    this.currentSelectedBuilding = null;
-    this.switchToPreset('default');
+    this.showEmptyPanel();
   }
 
   switchToPreset(presetName) {

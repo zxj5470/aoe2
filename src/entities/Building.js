@@ -22,6 +22,8 @@ class Building extends Entity {
         this.height = config.height || 2;
         this.isUnderConstruction = config.isUnderConstruction || false;
         this.constructionProgress = config.constructionProgress || 0;
+        this.builderVillagers = [];
+        this.requiredBuilders = 1;
         this.productionQueue = [];
         this.currentProduction = null;
         this.productionProgress = 0;
@@ -726,33 +728,33 @@ class Building extends Entity {
     }
 
     updateConstruction(deltaTime) {
-        if (this.isUnderConstruction && this.constructionProgress < 100) {
-            this.constructionProgress += deltaTime * 10; // 建造速度
-            
-            if (this.constructionProgress >= 100) {
-                this.constructionProgress = 100;
-                this.isUnderConstruction = false;
-                this.onConstructionComplete();
+        if (!this.isUnderConstruction || this.constructionProgress >= 100) return;
+
+        this.builderVillagers = this.builderVillagers.filter(v => v && v.isAlive && !v._markedForRemoval);
+        const activeBuilders = this.builderVillagers.length;
+
+        if (activeBuilders > 0) {
+            this.constructionProgress += deltaTime * 10 * activeBuilders;
+        }
+
+        if (this.constructionProgress >= 100) {
+            this.constructionProgress = 100;
+            this.isUnderConstruction = false;
+            this.onConstructionComplete();
+        }
+
+        if (this.mesh) {
+            const progress = this.constructionProgress / 100;
+            this.mesh.scale.y = progress;
+
+            if (this.symbolPlane) {
+                this.symbolPlane.material.opacity = progress;
             }
-            
-            // 建造动画：建筑从地面升起
-            if (this.mesh) {
-                const progress = this.constructionProgress / 100;
-                
-                // 整体缩放动画
-                this.mesh.scale.y = progress;
-                
-                // 符号透明度渐变
-                if (this.symbolPlane) {
-                    this.symbolPlane.material.opacity = progress;
-                }
-                
-                // 更新生命值条显示建造进度
-                if (this.healthBar) {
-                    this.healthBarGroup.visible = true;
-                    this.healthBar.scale.x = progress;
-                    this.healthBar.material.color.setHex(0x00FF00);
-                }
+
+            if (this.healthBar) {
+                this.healthBarGroup.visible = true;
+                this.healthBar.scale.x = progress;
+                this.healthBar.material.color.setHex(0x00FF00);
             }
         }
     }
@@ -777,7 +779,15 @@ class Building extends Entity {
     onConstructionComplete() {
         this.health = this.maxHealth;
         this.isUnderConstruction = false;
-        
+
+        for (const villager of this.builderVillagers) {
+            if (villager && villager.isAlive) {
+                villager.buildingTarget = null;
+                villager.isBuilding = false;
+            }
+        }
+        this.builderVillagers = [];
+
         if (this.mesh) {
             this.mesh.scale.y = 1;
         }
@@ -787,10 +797,28 @@ class Building extends Entity {
         if (this.healthBarGroup) {
             this.healthBarGroup.visible = false;
         }
-        
+
         if (this.buildingType === 'house' && this._game && this._game.player) {
             this._game.player.setMaxPopulation(this._game.player.population.max + 5);
         }
+    }
+
+    addBuilder(villager) {
+        if (!this.builderVillagers.includes(villager)) {
+            this.builderVillagers.push(villager);
+        }
+    }
+
+    removeBuilder(villager) {
+        const index = this.builderVillagers.indexOf(villager);
+        if (index > -1) {
+            this.builderVillagers.splice(index, 1);
+        }
+    }
+
+    needsBuilder() {
+        return this.isUnderConstruction && this.constructionProgress < 100
+            && this.builderVillagers.length < this.requiredBuilders;
     }
 
     onProductionComplete(productionItem) {

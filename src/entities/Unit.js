@@ -54,6 +54,11 @@ class Unit extends Entity {
         this.isReturning = false; // 是否正在返回城镇中心
         this.dropOffPoint = null; // 投放点（城镇中心）
 
+        // 建造相关
+        this.isBuilding = false;
+        this.buildingTarget = null;
+        this.buildArrivalDistance = 1.5;
+
         // 根据单位类型设置外观配置
         this.appearanceConfig = this.getAppearanceConfig();
         
@@ -462,9 +467,55 @@ class Unit extends Entity {
         this.updateCombat(deltaTime);
         this.updateAnimation(deltaTime);
         this.updateHealthBar();
-        
-        // 更新资源采集逻辑
+
+        this.updateBuilding(deltaTime);
         this.updateResourceGathering(deltaTime);
+    }
+
+    sendToBuild(building) {
+        if (this.unitType !== 'villager') return;
+        this.stopGathering();
+        this.isAttacking = false;
+        this.targetEntity = null;
+        this.actionQueue = [];
+
+        this.clearBuildingState();
+
+        const halfW = (building.gridSizeX || 2) / 2 + 1;
+        const halfD = (building.gridSizeZ || 2) / 2 + 1;
+        const bArrivalDist = Math.max(halfW, halfD, 2);
+
+        this.moveTo(building.position, { preserveBuilding: true });
+        this.isBuilding = true;
+        this.buildingTarget = building;
+        this.buildArrivalDistance = bArrivalDist;
+        building.addBuilder(this);
+    }
+
+    updateBuilding(deltaTime) {
+        if (!this.isBuilding || !this.buildingTarget) return;
+
+        if (!this.buildingTarget.isAlive || !this.buildingTarget.isUnderConstruction) {
+            this.buildingTarget.removeBuilder(this);
+            this.isBuilding = false;
+            this.buildingTarget = null;
+            this.isMoving = false;
+            this.path = [];
+            this.targetPosition = null;
+            this.setAnimationState('idle');
+            return;
+        }
+
+        const dx = this.position.x - this.buildingTarget.position.x;
+        const dz = this.position.z - this.buildingTarget.position.z;
+        const distance = Math.sqrt(dx * dx + dz * dz);
+
+        if (distance <= this.buildArrivalDistance) {
+            this.isMoving = false;
+            this.targetPosition = null;
+            this.path = [];
+            this.setAnimationState('gathering');
+        }
     }
 
     /**
@@ -757,14 +808,19 @@ class Unit extends Entity {
                     this.gatherResource(currentAction.target, currentAction.dropOffPoint);
                     this.actionQueue.shift();
                     break;
+                case 'build':
+                    this.sendToBuild(currentAction.target);
+                    this.actionQueue.shift();
+                    break;
             }
         }
     }
 
     updateMovement(deltaTime) {
-        // console.log(`[updateMovement] isMoving: ${this.isMoving}, path.length: ${this.path.length}, currentPathIndex: ${this.currentPathIndex}, targetPosition: ${this.targetPosition}`);
         if (!this.isMoving) {
-            this.setAnimationState('idle');
+            if (!this.isBuilding) {
+                this.setAnimationState('idle');
+            }
             return;
         }
         
@@ -820,7 +876,9 @@ class Unit extends Entity {
                 this.isMoving = false;
                 this.path = [];
                 this.currentAction = 'idle';
-                this.setAnimationState('idle');
+                if (!this.isBuilding) {
+                    this.setAnimationState('idle');
+                }
                 
                 // 清除路径可视化
                 if (this.game && this.game.scene) {
@@ -943,8 +1001,19 @@ class Unit extends Entity {
         }
     }
 
-    moveTo(targetPosition) {
+    clearBuildingState() {
+        if (this.isBuilding && this.buildingTarget) {
+            this.buildingTarget.removeBuilder(this);
+        }
+        this.isBuilding = false;
+        this.buildingTarget = null;
+    }
+
+    moveTo(targetPosition, options = {}) {
         console.log(`[Unit.moveTo] 被调用! targetPosition: (${targetPosition.x}, ${targetPosition.y}, ${targetPosition.z})`);
+        if (!options.preserveBuilding) {
+            this.clearBuildingState();
+        }
         
         // 限制目标位置在地图边界内
         const mapWidth = this.pathfindingSystem ? this.pathfindingSystem.grid.width * this.pathfindingSystem.grid.cellSize : MAP_CONFIG.width * MAP_CONFIG.cellSize;
@@ -1057,6 +1126,7 @@ class Unit extends Entity {
     }
 
     stop() {
+        this.clearBuildingState();
         this.isMoving = false;
         this.isAttacking = false;
         this.targetPosition = null;
