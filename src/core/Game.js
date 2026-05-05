@@ -109,6 +109,23 @@ class Game {
         this.resourceGatheringSystem = this.systemManager.getResourceGatheringSystem();
         this.collisionSystem = this.systemManager.getCollisionSystem();
 
+        // 【重要修复】在 CollisionSystem 初始化之后生成实体
+        // 这样可以确保所有资源节点都能正确注册到碰撞系统
+        if (this.mapDataForEntitySpawn) {
+            const resourceCount = this.mapDataForEntitySpawn.resources?.length || 0;
+            console.log(`[Game] CollisionSystem 初始化完成，开始生成 ${resourceCount} 个资源节点`);
+
+            this.entityManager.spawnResourcesFromMapData(this.mapDataForEntitySpawn);
+
+            if (this.selectedMapType === 'arabia' && this.mapDataForEntitySpawn.townCenters) {
+                this.entityManager.spawnTownCenters(this.mapDataForEntitySpawn);
+            }
+
+            console.log(`[Game] 实体生成完成，CollisionSystem 中的资源节点数量: ${this.collisionSystem.getResourceNodes().length}`);
+
+            this.mapDataForEntitySpawn = null;
+        }
+
         this.selectionManager = new SelectionManager(this.formationSystem);
 
         this.uiManager.init();
@@ -197,7 +214,7 @@ class Game {
 
     initMapWithType(mapType) {
         const mapData = this.mapGenerator.generateMap(mapType);
-        
+
         if (mapType === 'arabia' && mapData.townCenters) {
             for (const tc of mapData.townCenters) {
                 this.mapGenerator.generateDefaultGoldClusters(mapData, tc.x, tc.y, 20);
@@ -206,11 +223,11 @@ class Game {
             const tcPos = this.mapGenerator.getDefaultTownCenterPosition(mapData);
             this.mapGenerator.generateDefaultGoldClusters(mapData, tcPos.x, tcPos.y, 20);
         }
-        
+
         this.map = new GameMap(mapData.width, mapData.height, 1);
         this.map.setMapGenerator(this.mapGenerator);
         this.map.setMapData(mapData);
-        
+
         const mapMesh = this.map.init();
         this.scene.addEntity({ getMesh: () => mapMesh });
 
@@ -219,11 +236,9 @@ class Game {
             this.scene.addEntity({ getMesh: () => decoration });
         }
 
-        this.entityManager.spawnResourcesFromMapData(mapData);
-
-        if (mapType === 'arabia' && mapData.townCenters) {
-            this.entityManager.spawnTownCenters(mapData);
-        }
+        // 【重要修改】将实体生成移到方法外部，在 CollisionSystem 初始化之后调用
+        // 这样可以确保所有资源节点都能正确注册到碰撞系统
+        this.mapDataForEntitySpawn = mapData;
 
         console.log(`已生成地图: ${mapType} (${mapData.width}x${mapData.height})`);
     }
@@ -684,6 +699,129 @@ class Game {
     toggleCollisionVisuals() {
         this.entityManager.toggleCollisionVisuals();
     }
+
+    /**
+     * 调试接口：打印指定区域内的网格状态
+     * @param {number} x - 中心世界坐标X
+     * @param {number} z - 中心世界坐标Z
+     * @param {number} radius - 半径（格子数）
+     */
+    debugPrintGridArea(x, z, radius = 10) {
+        if (!this.map || !this.map.grid) {
+            console.error('地图未初始化');
+            return;
+        }
+        this.map.grid.debugPrintArea(x, z, radius);
+    }
+
+    /**
+     * 调试接口：打印指定位置的格子状态
+     * @param {number} x - 世界坐标X
+     * @param {number} z - 世界坐标Z
+     */
+    debugPrintCell(x, z) {
+        if (!this.map || !this.map.grid) {
+            console.error('地图未初始化');
+            return;
+        }
+        this.map.grid.debugPrintCell(x, z);
+    }
+
+    /**
+     * 调试接口：打印所有资源节点的位置和占用信息
+     */
+    debugPrintResources() {
+        if (!this.collisionSystem) {
+            console.error('碰撞系统未初始化');
+            return;
+        }
+
+        const resources = this.collisionSystem.getResourceNodes();
+        console.log(`\n========== 资源节点调试信息 ==========`);
+        console.log(`资源节点总数: ${resources.length}`);
+
+        const byType = {};
+        resources.forEach(r => {
+            if (!byType[r.resourceType]) {
+                byType[r.resourceType] = [];
+            }
+            byType[r.resourceType].push(r);
+        });
+
+        console.log(`\n按类型分组:`);
+        for (const [type, list] of Object.entries(byType)) {
+            console.log(`  ${type}: ${list.length} 个`);
+        }
+
+        console.log(`\n所有资源节点详细信息:`);
+        resources.forEach(r => {
+            const cells = r.getOccupiedGridCells ? r.getOccupiedGridCells(this.map.grid.cellSize) : [];
+            console.log(`\n  名称: ${r.name}`);
+            console.log(`    类型: ${r.resourceType}`);
+            console.log(`    位置: (${r.position.x.toFixed(1)}, ${r.position.z.toFixed(1)})`);
+            console.log(`    占用格子数: ${cells.length}`);
+            console.log(`    占用格子: ${cells.map(c => `(${c.x}, ${c.z})`).join(', ')}`);
+        });
+
+        console.log(`=======================================\n`);
+    }
+}
+
+// 全局调试函数
+if (typeof window !== 'undefined') {
+    window.gameDebug = {
+        /**
+         * 打印指定区域内的网格状态
+         * @param {number} x - 中心世界坐标X
+         * @param {number} z - 中心世界坐标Z
+         * @param {number} radius - 半径（格子数）
+         */
+        printGridArea: (x, z, radius) => {
+            if (window.game) {
+                window.game.debugPrintGridArea(x, z, radius);
+            }
+        },
+
+        /**
+         * 打印指定位置的格子状态
+         * @param {number} x - 世界坐标X
+         * @param {number} z - 世界坐标Z
+         */
+        printCell: (x, z) => {
+            if (window.game) {
+                window.game.debugPrintCell(x, z);
+            }
+        },
+
+        /**
+         * 打印所有资源节点的信息
+         */
+        printResources: () => {
+            if (window.game) {
+                window.game.debugPrintResources();
+            }
+        },
+
+        /**
+         * 获取游戏实例
+         */
+        getGame: () => window.game,
+
+        /**
+         * 获取网格实例
+         */
+        getGrid: () => window.game?.map?.grid,
+
+        /**
+         * 获取碰撞系统实例
+         */
+        getCollisionSystem: () => window.game?.collisionSystem,
+
+        /**
+         * 获取寻路系统实例
+         */
+        getPathfinding: () => window.game?.pathfinding
+    };
 }
 
 export default Game;

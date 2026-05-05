@@ -268,10 +268,14 @@ class MapGenerator {
 
         const count = counts[density] || counts.normal;
 
+        console.log(`[MapGenerator] 开始生成标准资源，密度: ${density}，目标: wood=${count.wood}, stone=${count.stone}, gold=${count.gold}, food=${count.food}`);
+
         this.generateForestClusters(data, 'wood', count.wood, width, height);
         this.generateWildResourceClusters(data, 'gold', count.gold, width, height);
         this.generateWildResourceClusters(data, 'stone', count.stone, width, height);
         this.generateWildResourceClusters(data, 'food', count.food, width, height);
+
+        console.log(`[MapGenerator] 标准资源生成完成，总资源数: ${data.resources?.length || 0}`);
     }
 
     generateWildResourceClusters(data, type, count, width, height) {
@@ -335,16 +339,29 @@ class MapGenerator {
         for (const [dx, dy] of shape) {
             const x = startX + dx;
             const y = startY + dy;
+
+            // 检查边界
             if (x < margin || x >= data.width - margin ||
                 y < margin || y >= data.height - margin) {
                 return null;
             }
-            if (!data.walkable[x] || !data.walkable[x][y]) {
+
+            // 检查 walkable 数组是否存在
+            if (!data.walkable || !data.walkable[x]) {
+                console.warn(`[MapGenerator] walkable 数组不存在或无效: data.walkable=${!!data.walkable}, data.walkable[${x}]=${!!(data.walkable?.[x])}`);
                 return null;
             }
+
+            // 检查格子是否可行走
+            if (!data.walkable[x][y]) {
+                return null;
+            }
+
+            // 检查是否已有资源
             if (data.resources && data.resources.some(r => r.x === x && r.y === y)) {
                 return null;
             }
+
             cells.push({ x, y });
         }
         return cells;
@@ -358,6 +375,10 @@ class MapGenerator {
 
         const clusterSize = 24;
         const clusterCount = Math.max(10, Math.floor(count / clusterSize));
+
+        let successCount = 0;
+        let failCount = 0;
+        let totalPlacedCells = 0;
 
         for (let i = 0; i < clusterCount; i++) {
             const tc = tcPositions[Math.floor(Math.random() * tcPositions.length)];
@@ -378,8 +399,14 @@ class MapGenerator {
                         amount: this.getResourceAmount(type)
                     });
                 }
+                successCount++;
+                totalPlacedCells += cells.length;
+            } else {
+                failCount++;
             }
         }
+
+        console.log(`[MapGenerator] 森林 (${type}) 生成完成: ${successCount} 群成功, ${failCount} 群失败, ${totalPlacedCells} 个格子`);
     }
 
     generateForestShape(size) {
@@ -398,21 +425,48 @@ class MapGenerator {
     tryPlaceForest(data, startX, startY, shape) {
         const margin = 2;
         const cells = [];
+
+        // 检查 walkable 数组
+        if (!data.walkable) {
+            console.warn(`[MapGenerator] tryPlaceForest: data.walkable 不存在`);
+            return null;
+        }
+
+        if (!data.resources) {
+            console.warn(`[MapGenerator] tryPlaceForest: data.resources 不存在`);
+            return null;
+        }
+
         for (const [dx, dy] of shape) {
             const x = startX + dx;
             const y = startY + dy;
+
+            // 检查边界
             if (x < margin || x >= data.width - margin ||
                 y < margin || y >= data.height - margin) {
                 return null;
             }
-            if (!data.walkable[x] || !data.walkable[x][y]) {
+
+            // 检查 walkable 数组
+            if (!data.walkable[x]) {
+                console.warn(`[MapGenerator] tryPlaceForest: data.walkable[${x}] 不存在`);
                 return null;
             }
-            if (data.resources && data.resources.some(r => r.x === x && r.y === y)) {
+
+            // 检查格子是否可行走
+            if (!data.walkable[x][y]) {
                 return null;
             }
+
+            // 检查是否已有资源
+            const existingResource = data.resources.find(r => r.x === x && r.y === y);
+            if (existingResource) {
+                return null;
+            }
+
             cells.push({ x, y });
         }
+
         return cells;
     }
 

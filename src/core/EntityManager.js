@@ -31,6 +31,11 @@ class EntityManager {
         if (this.game.aiSystem && entity.type === 'unit' && entity.isEnemy()) {
             this.game.aiSystem.registerUnit(entity);
         }
+
+        // 建筑/资源新增时，使受影响的缓存路径失效
+        if (entity.type === 'building' || entity.type === 'resource') {
+            this.invalidatePathCacheForEntity(entity);
+        }
     }
 
     removeEntity(entity) {
@@ -43,6 +48,11 @@ class EntityManager {
                 this.game.spatialIndex.remove(entity);
             }
 
+            // 统一处理所有实体类型的碰撞系统注销
+            if (this.game.collisionSystem) {
+                this.game.collisionSystem.unregisterEntity(entity);
+            }
+
             if (entity.type === 'unit') {
                 if (this.game.combatSystem) {
                     this.game.combatSystem.unregisterCombatant(entity);
@@ -50,14 +60,30 @@ class EntityManager {
                 if (this.game.player && entity.isPlayerOwned()) {
                     this.game.player.removeUnit(entity);
                 }
-                if (this.game.collisionSystem) {
-                    this.game.collisionSystem.unregisterEntity(entity);
-                }
             }
 
-            if (entity.type === 'building' && this.game.collisionSystem) {
-                this.game.collisionSystem.unregisterEntity(entity);
+            // 建筑/资源移除时，刷新网格占用并使缓存路径失效
+            if (entity.type === 'building' || entity.type === 'resource') {
+                this.invalidatePathCacheForEntity(entity);
+                if (this.game.collisionSystem) {
+                    this.game.collisionSystem.updateGridOccupancy();
+                }
             }
+        }
+    }
+
+    /**
+     * 使受实体占用格子影响的缓存路径失效
+     */
+    invalidatePathCacheForEntity(entity) {
+        if (!this.game.pathfinding) return;
+
+        const cells = entity.getOccupiedGridCells
+            ? entity.getOccupiedGridCells(this.game.pathfinding.grid.cellSize)
+            : [];
+
+        for (const cell of cells) {
+            this.game.pathfinding.invalidateCacheForCell(cell.x, cell.z);
         }
     }
 

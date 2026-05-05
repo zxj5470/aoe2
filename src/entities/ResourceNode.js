@@ -884,26 +884,6 @@ class ResourceNode extends Entity {
             this.selectionRing.rotation.y = -this.mesh.rotation.y + this.meshInitialRotation;
         }
     }
-    
-    /**
-     * 获取碰撞盒（用于空间索引，严格对应 1x1 网格）
-     */
-    getCollisionBox() {
-        // 所有的自然资源要素都是 1x1 网格，半宽固定为 0.5
-        const halfSize = 0.5;
-        return {
-            min: new THREE.Vector3(
-                this.position.x - halfSize,
-                this.position.y,
-                this.position.z - halfSize
-            ),
-            max: new THREE.Vector3(
-                this.position.x + halfSize,
-                this.position.y + 2,
-                this.position.z + halfSize
-            )
-        };
-    }
 }
 
 export default ResourceNode;

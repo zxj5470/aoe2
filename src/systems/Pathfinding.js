@@ -17,8 +17,6 @@ class Pathfinding {
     }
 
     findPath(startX, startZ, endX, endZ, options = {}) {
-        console.log(`[Pathfinding] findPath 被调用: (${startX.toFixed(1)}, ${startZ.toFixed(1)}) → (${endX.toFixed(1)}, ${endZ.toFixed(1)})`);
-        
         const {
             allowDiagonals = true,
             avoidEnemies = false,
@@ -29,17 +27,12 @@ class Pathfinding {
         if (useCache) {
             const cachedPath = this.getCachedPath(startX, startZ, endX, endZ, options);
             if (cachedPath) {
-                console.log(`[Pathfinding] 使用缓存路径`);
                 return cachedPath;
             }
         }
 
         let startCell = this.grid.getCellAtPosition(startX, startZ);
         let endCell = this.grid.getCellAtPosition(endX, endZ);
-        
-        console.log(`[Pathfinding] 转换后的单元格: 起点 (${startCell?.x}, ${startCell?.y}) → 终点 (${endCell?.x}, ${endCell?.y})`);
-        if (startCell) console.log(`[Pathfinding] 起点单元格: walkable=${startCell.walkable}, occupied=${startCell.occupied}`);
-        if (endCell) console.log(`[Pathfinding] 终点单元格: walkable=${endCell.walkable}, occupied=${endCell.occupied}`);
 
         if (!startCell || !endCell) {
             return { path: [], success: false };
@@ -218,8 +211,10 @@ class Pathfinding {
 
     getCellsAtDistance(x, z, distance) {
         const cells = [];
-        const cellX = Math.floor(x / this.grid.cellSize);
-        const cellY = Math.floor(z / this.grid.cellSize);
+
+        // 世界坐标转换到网格索引，需要考虑地图偏移（地图中心在原点）
+        const cellX = Math.floor(x / this.grid.cellSize + this.grid.width / 2);
+        const cellY = Math.floor(z / this.grid.cellSize + this.grid.height / 2);
 
         for (let dx = -distance; dx <= distance; dx++) {
             for (let dy = -distance; dy <= distance; dy++) {
@@ -503,22 +498,23 @@ class Pathfinding {
         if (path.length === 0) {
             return false;
         }
-        
+
         const targetCell = path[0];
-        const targetX = targetCell.x * this.grid.cellSize + this.grid.cellSize / 2;
-        const targetZ = targetCell.y * this.grid.cellSize + this.grid.cellSize / 2;
-        
+        // 网格索引转换到世界坐标，需要考虑地图偏移（地图中心在原点）
+        const targetX = targetCell.x * this.grid.cellSize + this.grid.cellSize / 2 - this.grid.width * this.grid.cellSize / 2;
+        const targetZ = targetCell.y * this.grid.cellSize + this.grid.cellSize / 2 - this.grid.height * this.grid.cellSize / 2;
+
         const direction = new THREE.Vector3(targetX - unit.position.x, 0, targetZ - unit.position.z);
         const distance = direction.length();
-        
+
         if (distance < 0.1) {
             path.shift();
             return this.followPath(unit, path, deltaTime);
         }
-        
+
         direction.normalize();
         const moveDistance = unit.speed * deltaTime;
-        
+
         if (distance <= moveDistance) {
             unit.setPosition(targetX, unit.position.y, targetZ);
             path.shift();
@@ -526,9 +522,9 @@ class Pathfinding {
             const newPosition = unit.position.clone().add(direction.multiplyScalar(moveDistance));
             unit.setPosition(newPosition.x, newPosition.y, newPosition.z);
         }
-        
+
         unit.setRotation(Math.atan2(direction.x, direction.z));
-        
+
         return true;
     }
 

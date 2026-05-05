@@ -48,6 +48,15 @@ class InputHandler {
     onKeyDown(event) {
         this.keys[event.key] = true;
         this.keys[event.code] = true;
+
+        // 调试快捷键：按 'D' 键切换调试信息显示
+        if (event.key === 'd' || event.key === 'D') {
+            const debugInfo = document.getElementById('debug-info');
+            if (debugInfo) {
+                debugInfo.style.display = debugInfo.style.display === 'none' ? 'block' : 'none';
+                console.log('调试信息显示状态:', debugInfo.style.display);
+            }
+        }
     }
 
     onKeyUp(event) {

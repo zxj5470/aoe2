@@ -43,11 +43,7 @@ class Grid {
         // 世界坐标 (-100~100) 转换到网格索引 (0~199)
         const x = Math.floor(worldX / this.cellSize + this.width / 2);
         const y = Math.floor(worldZ / this.cellSize + this.height / 2);
-        console.log(`[Grid] 世界坐标 (${worldX.toFixed(1)}, ${worldZ.toFixed(1)}) → 网格索引 (${x}, ${y})`);
         const cell = this.getCell(x, y);
-        if (cell) {
-            console.log(`[Grid] 对应单元格 (${cell.x}, ${cell.y}): walkable=${cell.walkable}, occupied=${cell.occupied}`);
-        }
         return cell;
     }
 
@@ -104,6 +100,136 @@ class Grid {
             height: this.height,
             cellSize: this.cellSize
         };
+    }
+
+    /**
+     * 调试接口：打印指定区域的网格状态
+     * @param {number} centerX - 中心世界坐标X
+     * @param {number} centerZ - 中心世界坐标Z
+     * @param {number} radius - 半径（格子数）
+     */
+    debugPrintArea(centerX, centerZ, radius = 10) {
+        const centerCellX = Math.floor(centerX / this.cellSize + this.width / 2);
+        const centerCellY = Math.floor(centerZ / this.cellSize + this.height / 2);
+
+        console.log(`\n========== 网格状态调试 ==========`);
+        console.log(`中心坐标: (${centerX.toFixed(1)}, ${centerZ.toFixed(1)})`);
+        console.log(`中心格子: (${centerCellX}, ${centerCellY})`);
+        console.log(`半径: ${radius} 格子`);
+
+        let occupiedCount = 0;
+        let resourceCount = 0;
+        let buildingCount = 0;
+        let unitCount = 0;
+
+        // 打印地图（ASCII 艺术风格）
+        console.log(`\n地图图例:`);
+        console.log(`  . = 空闲格子`);
+        console.log(`  # = 被占用的格子`);
+        console.log(`  R = 资源格子 (wood/food/gold/stone)`);
+        console.log(`  B = 建筑格子`);
+        console.log(`  U = 单位格子`);
+        console.log(`  X = 中心位置\n`);
+
+        for (let dy = -radius; dy <= radius; dy++) {
+            let line = '';
+            for (let dx = -radius; dx <= radius; dx++) {
+                const cx = centerCellX + dx;
+                const cy = centerCellY + dy;
+                const cell = this.getCell(cx, cy);
+
+                if (!cell) {
+                    line += ' ';
+                } else if (dx === 0 && dy === 0) {
+                    line += 'X'; // 中心位置
+                } else if (cell.occupied && cell.entity) {
+                    if (cell.entity.type === 'resource') {
+                        line += 'R';
+                        resourceCount++;
+                    } else if (cell.entity.type === 'building') {
+                        line += 'B';
+                        buildingCount++;
+                    } else if (cell.entity.type === 'unit') {
+                        line += 'U';
+                        unitCount++;
+                    } else {
+                        line += '#';
+                    }
+                    occupiedCount++;
+                } else if (!cell.walkable) {
+                    line += '■'; // 不可行走的格子（水域等）
+                } else {
+                    line += '.';
+                }
+            }
+            console.log(line);
+        }
+
+        console.log(`\n统计信息:`);
+        console.log(`  占用格子总数: ${occupiedCount}`);
+        console.log(`  资源格子: ${resourceCount}`);
+        console.log(`  建筑格子: ${buildingCount}`);
+        console.log(`  单位格子: ${unitCount}`);
+        console.log(`=================================\n`);
+
+        // 打印详细信息
+        console.log(`\n占用格子详细信息:`);
+        for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+                const cx = centerCellX + dx;
+                const cy = centerCellY + dy;
+                const cell = this.getCell(cx, cy);
+
+                if (cell && cell.occupied && cell.entity) {
+                    const worldX = cx * this.cellSize + this.cellSize / 2 - this.width * this.cellSize / 2;
+                    const worldZ = cy * this.cellSize + this.cellSize / 2 - this.height * this.cellSize / 2;
+                    console.log(`  格子 (${cx}, ${cy}) @ (${worldX.toFixed(1)}, ${worldZ.toFixed(1)}):`);
+                    console.log(`    类型: ${cell.entity.type}`);
+                    console.log(`    名称: ${cell.entity.name}`);
+                    if (cell.entity.resourceType) {
+                        console.log(`    资源类型: ${cell.entity.resourceType}`);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * 调试接口：打印指定位置的格子状态
+     * @param {number} worldX - 世界坐标X
+     * @param {number} worldZ - 世界坐标Z
+     */
+    debugPrintCell(worldX, worldZ) {
+        const cell = this.getCellAtPosition(worldX, worldZ);
+        if (!cell) {
+            console.log(`位置 (${worldX.toFixed(1)}, ${worldZ.toFixed(1)}) 超出地图范围`);
+            return;
+        }
+
+        const gridX = Math.floor(worldX / this.cellSize + this.width / 2);
+        const gridY = Math.floor(worldZ / this.cellSize + this.height / 2);
+
+        console.log(`\n========== 格子状态 ==========`);
+        console.log(`世界坐标: (${worldX.toFixed(1)}, ${worldZ.toFixed(1)})`);
+        console.log(`格子索引: (${gridX}, ${gridY})`);
+        console.log(`地形类型: ${cell.type}`);
+        console.log(`可行走: ${cell.walkable}`);
+        console.log(`被占用: ${cell.occupied}`);
+
+        if (cell.entity) {
+            console.log(`占用实体:`);
+            console.log(`  类型: ${cell.entity.type}`);
+            console.log(`  名称: ${cell.entity.name}`);
+            if (cell.entity.resourceType) {
+                console.log(`  资源类型: ${cell.entity.resourceType}`);
+            }
+            if (cell.entity.buildingType) {
+                console.log(`  建筑类型: ${cell.entity.buildingType}`);
+            }
+        } else {
+            console.log(`占用实体: null`);
+        }
+        console.log(`=============================\n`);
     }
 }
 

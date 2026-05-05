@@ -259,9 +259,9 @@ class CollisionSystem {
 
         // 标记建筑占用的网格
         for (const building of this.buildings) {
-            const cells = building.getOccupiedGridCells ? 
+            const cells = building.getOccupiedGridCells ?
                 building.getOccupiedGridCells(this.grid.cellSize) : [];
-            
+
             for (const cell of cells) {
                 const gridCell = this.grid.getCell(cell.x, cell.z);
                 if (gridCell) {
@@ -273,9 +273,9 @@ class CollisionSystem {
 
         // 标记资源节点占用的网格
         for (const resource of this.resourceNodes) {
-            const cells = resource.getOccupiedGridCells ? 
+            const cells = resource.getOccupiedGridCells ?
                 resource.getOccupiedGridCells(this.grid.cellSize) : [];
-            
+
             for (const cell of cells) {
                 const gridCell = this.grid.getCell(cell.x, cell.z);
                 if (gridCell) {

@@ -4,6 +4,8 @@ import { CELL_SIZE, MAP_CONFIG } from '../config.js';
 class UnitMovement {
     constructor(unit) {
         this.unit = unit;
+        this._lastRepathTime = 0;
+        this._repathCooldown = 1.0; // 每秒检查一次路径阻塞
     }
 
     moveTo(targetPosition, options = {}) {
@@ -68,12 +70,53 @@ class UnitMovement {
             }
             return;
         }
-        
+
         this.unit.setAnimationState('walking');
-        
+
         let targetPos = this.unit.targetPosition;
-        
+
         if (this.unit.path.length > 0 && this.unit.currentPathIndex < this.unit.path.length) {
+            // 动态避障：只检查下一个即将进入的格子是否被阻塞
+            const nextCell = this.unit.path[this.unit.currentPathIndex];
+            const lastCell = this.unit.path[this.unit.path.length - 1];
+
+            // 只有下一个格子被阻塞且不是终点时才重新寻路
+            if (nextCell.occupied && nextCell !== lastCell) {
+                const now = Date.now() / 1000;
+                if (now - this._lastRepathTime >= this._repathCooldown) {
+                    this._lastRepathTime = now;
+                    console.log(`[Unit] 下一个格子被阻塞，重新寻路`);
+
+                    const repathResult = this.unit.pathfindingSystem.findPath(
+                        this.unit.position.x,
+                        this.unit.position.z,
+                        this.unit.targetPosition.x,
+                        this.unit.targetPosition.z,
+                        { useCache: false }
+                    );
+
+                    if (repathResult.success) {
+                        this.unit.path = this.unit.pathfindingSystem.smoothPath(repathResult.path);
+                        this.unit.currentPathIndex = 0;
+
+                        if (this.unit.game && this.unit.game.scene && this.unit.pathfindingSystem && this.unit.pathfindingSystem.grid) {
+                            this.unit.game.scene.visualizePath(this.unit.id, this.unit.path, this.unit.pathfindingSystem.grid);
+                        }
+                    } else {
+                        console.log('[Unit] 重新寻路失败，停止移动');
+                        this.unit.isMoving = false;
+                        this.unit.path = [];
+                        this.unit.currentAction = 'idle';
+                        this.unit.setAnimationState('idle');
+
+                        if (this.unit.game && this.unit.game.scene) {
+                            this.unit.game.scene.clearPathVisualizer(this.unit.id);
+                        }
+                        return;
+                    }
+                }
+            }
+
             const currentCell = this.unit.path[this.unit.currentPathIndex];
             const gs = this.unit.pathfindingSystem.grid;
             const cellSize = gs.cellSize;

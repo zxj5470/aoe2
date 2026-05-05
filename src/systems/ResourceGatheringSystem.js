@@ -108,16 +108,52 @@ class ResourceGatheringSystem {
 
         gatherer.currentResource = resourceNode;
         gatherer.carryType = resourceType;
-        
+
         // 记录资源点位置（用于返回城镇中心后再回来）
         gatherer.lastResourcePosition = {
             node: resourceNode,
             position: resourceNode.position.clone()
         };
-        
-        gatherer.moveTo(resourceNode.position);
+
+        // 移动到资源附近的可行走格子，而非资源中心（避免穿过被占用的资源格子）
+        const targetPosition = this.findNearestWalkableToResource(gatherer, resourceNode.position, 2.5);
+        gatherer.moveTo(targetPosition);
 
         return true;
+    }
+
+    /**
+     * 查找资源附近最近的可行走格子
+     * @param {Unit} gatherer - 采集单位
+     * @param {Vector3} resourceCenter - 资源中心位置
+     * @param {number} maxDistance - 最大搜索距离（格子数）
+     * @returns {Vector3} 最近的可行走格子位置
+     */
+    findNearestWalkableToResource(gatherer, resourceCenter, maxDistance = 5) {
+        if (!gatherer.game || !gatherer.game.pathfindingSystem) {
+            return resourceCenter;
+        }
+
+        const pathfinding = gatherer.game.pathfindingSystem;
+        const grid = pathfinding.grid;
+
+        // 从资源中心向外扩展搜索最近的可行走格子
+        for (let distance = 1; distance <= maxDistance; distance++) {
+            const cells = pathfinding.getCellsAtDistance(resourceCenter.x, resourceCenter.z, distance);
+
+            for (const cell of cells) {
+                if (cell.walkable && !cell.occupied) {
+                    // 找到可行走的格子，转换回世界坐标
+                    const worldX = cell.x * grid.cellSize + grid.cellSize / 2 - grid.width * grid.cellSize / 2;
+                    const worldZ = cell.y * grid.cellSize + grid.cellSize / 2 - grid.height * grid.cellSize / 2;
+
+                    return new THREE.Vector3(worldX, 0, worldZ);
+                }
+            }
+        }
+
+        // 如果附近没有可行走格子，返回资源中心（允许穿过，避免卡死）
+        return resourceCenter;
     }
 
     continueGathering(gatherer, deltaTime) {
@@ -305,9 +341,9 @@ class ResourceGatheringSystem {
         // 从资源收集系统中移除
         this.unregisterResourceNode(resourceNode);
 
-        // 从游戏实体中移除
-        if (this.map && this.map.removeDecoration) {
-            this.map.removeDecoration(resourceNode);
+        // 通过 EntityManager 正确移除实体（会更新网格占用和路径缓存）
+        if (resourceNode._game && resourceNode._game.entityManager) {
+            resourceNode._game.entityManager.removeEntity(resourceNode);
         }
 
         // 销毁3D模型
