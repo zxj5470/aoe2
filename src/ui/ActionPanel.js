@@ -347,7 +347,7 @@ class ActionPanel {
     }
 
     const allVillagers = selectedEntities.every(
-      e => e.type === 'unit' && e.unitType === 'villager' && e.owner === 'player'
+      e => e.type === 'unit' && e.unitType === 'villager' && e.isPlayerOwned()
     );
     if (allVillagers) {
       this.currentSelectedBuilding = null;
@@ -358,7 +358,7 @@ class ActionPanel {
     if (selectedEntities.length === 1) {
       const entity = selectedEntities[0];
 
-      if (entity.type === 'building' && entity.owner === 'player') {
+      if (entity.type === 'building' && entity.isPlayerOwned()) {
         const buildingType = entity.buildingType || entity.type;
         const normalizedType = buildingType.replace(/-/g, '_');
         const productionPresetName = `${normalizedType}_production`;

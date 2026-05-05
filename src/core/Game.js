@@ -564,7 +564,7 @@ class Game {
             const screenY = (-screenPosition.y + 1) / 2 * window.innerHeight;
             
             if (screenX >= minX && screenX <= maxX && screenY >= minY && screenY <= maxY) {
-                if (entity.owner === 'player') {
+                if (entity.isPlayerOwned()) {
                     selectedEntities.push(entity);
                 }
             }

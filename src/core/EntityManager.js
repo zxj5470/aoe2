@@ -46,7 +46,7 @@ class EntityManager {
                 if (this.game.combatSystem) {
                     this.game.combatSystem.unregisterCombatant(entity);
                 }
-                if (this.game.player && entity.owner === 'player') {
+                if (this.game.player && entity.isPlayerOwned()) {
                     this.game.player.removeUnit(entity);
                 }
                 if (this.game.collisionSystem) {
@@ -512,7 +512,7 @@ class EntityManager {
         if (!this.game.resourceGatheringSystem) return;
 
         for (const entity of this.entities) {
-            if (entity.unitType === 'villager' && entity.owner === 'player') {
+            if (entity.unitType === 'villager' && entity.isPlayerOwned()) {
                 this.game.resourceGatheringSystem.registerGatherer(entity);
             }
         }
@@ -535,7 +535,7 @@ class EntityManager {
     assignBuilderToBuilding(building) {
         const villagers = this.entities.filter(
             e => e.isAlive && e.type === 'unit' && e.unitType === 'villager'
-                && e.owner === 'player' && !e.isBuilding && !e._markedForRemoval
+                && e.isPlayerOwned() && !e.isBuilding && !e._markedForRemoval
         );
 
         if (villagers.length === 0) return null;
@@ -588,7 +588,7 @@ class EntityManager {
         const mesh = unit.createMesh();
         if (mesh) {
             this.addEntity(unit);
-            if (this.game.player && building.owner === 'player') {
+            if (this.game.player && building.isPlayerOwned()) {
                 this.game.player.addUnit(unit);
             }
             if (this.game.combatSystem && unit.attackDamage > 0) {

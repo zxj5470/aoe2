@@ -16,6 +16,9 @@ export const PLAYER_COLORS = {
     8: { hex: '#FF80FF', rgb: [255, 128, 255], name: '粉色' }
 };
 
+// 人类玩家ID（owner字符串通过 OWNER_TO_PLAYER_ID 映射到此ID即为人类玩家）
+export const HUMAN_PLAYER_ID = 1;
+
 // 玩家ID映射（owner字符串 -> 玩家ID）
 export const OWNER_TO_PLAYER_ID = {
     player: 1,
@@ -30,6 +33,19 @@ export const OWNER_TO_PLAYER_ID = {
     pink: 8,
     neutral: 0
 };
+
+// 判断 owner 是否为人类玩家
+export function isHumanPlayer(owner) {
+    if (!owner) return false;
+    return OWNER_TO_PLAYER_ID[owner] === HUMAN_PLAYER_ID;
+}
+
+// 判断 owner 是否为敌方
+export function isEnemyPlayer(owner) {
+    if (!owner || owner === 'neutral') return false;
+    const pid = OWNER_TO_PLAYER_ID[owner];
+    return pid !== undefined && pid !== HUMAN_PLAYER_ID && pid !== 0;
+}
 
 // 获取玩家颜色的工具函数
 export function getPlayerColor(owner) {

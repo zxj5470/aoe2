@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { isHumanPlayer, isEnemyPlayer } from '../config.js';
 
 class Entity {
     constructor(config) {
@@ -113,11 +114,11 @@ class Entity {
     }
 
     isPlayerOwned() {
-        return this.owner === 'player';
+        return isHumanPlayer(this.owner);
     }
 
     isEnemy() {
-        return this.owner === 'enemy';
+        return isEnemyPlayer(this.owner);
     }
 
     destroy() {
