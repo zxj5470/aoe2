@@ -201,8 +201,23 @@ class ActionPanel {
       this.handleProductionCommand(currentButtonConfig);
       return;
     }
-    
+
+    // 检查是否有选中的村民（建造建筑需要村民）
     if (this.game.buildingPlacementSystem) {
+      // 获取选中的村民数量
+      const selectedVillagers = this.game.selectionManager ?
+        this.game.selectionManager.selectedEntities.filter(
+          e => e.isAlive && e.type === 'unit' && e.unitType === 'villager' && e.isPlayerOwned()
+        ) : [];
+
+      if (selectedVillagers.length === 0) {
+        console.warn('[ActionPanel] 需要先选择村民才能建造建筑');
+        if (this.game.hud) {
+          this.game.hud.showNotification('请先选择村民进行建造', 2000);
+        }
+        return;
+      }
+
       this.game.buildingPlacementSystem.togglePlacement(buildingType);
       
       this.buildingButtons.forEach(btn => {

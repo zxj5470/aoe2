@@ -32,6 +32,13 @@ class BuildingBase extends Entity {
         this.healthBar = null;
         this.healthBarGroup = null;
 
+        // 血条悬停状态
+        this.isMouseOver = false;
+        this.healthBarHideTimer = 0;
+        this.healthBarHideDelay = 1.0; // 1秒后开始隐藏
+        this.healthBarFadeTimer = 0;
+        this.healthBarFadeDuration = 0.5; // 0.5秒完成渐隐
+
         this.gridSizeX = config.gridSizeX || this.getDefaultGridSizeX();
         this.gridSizeZ = config.gridSizeZ || this.getDefaultGridSizeZ();
 
@@ -357,11 +364,12 @@ class BuildingBase extends Entity {
     
     createHealthBar() {
         const healthBarGroup = new THREE.Group();
-        healthBarGroup.position.y = 0.3;
+        // 血条位置在建筑顶部上方
+        healthBarGroup.position.y = this.height + 0.5;
         healthBarGroup.name = 'healthBarGroup';
-        
+
         const bgGeometry = new THREE.PlaneGeometry(Math.max(this.width, this.depth) * 0.8, 0.15);
-        const bgMaterial = new THREE.MeshBasicMaterial({ 
+        const bgMaterial = new THREE.MeshBasicMaterial({
             color: 0x000000,
             side: THREE.DoubleSide,
             transparent: true,
@@ -371,19 +379,21 @@ class BuildingBase extends Entity {
         background.position.z = 0.01;
         background.name = 'healthBarBackground';
         healthBarGroup.add(background);
-        
+
         const healthGeometry = new THREE.PlaneGeometry(Math.max(this.width, this.depth) * 0.8, 0.1);
-        const healthMaterial = new THREE.MeshBasicMaterial({ 
+        const healthMaterial = new THREE.MeshBasicMaterial({
             color: 0x00FF00,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 1
         });
         this.healthBar = new THREE.Mesh(healthGeometry, healthMaterial);
         this.healthBar.position.z = 0.02;
         this.healthBar.name = 'healthBar';
         healthBarGroup.add(this.healthBar);
-        
+
         const borderGeometry = new THREE.PlaneGeometry(Math.max(this.width, this.depth) * 0.85, 0.17);
-        const borderMaterial = new THREE.MeshBasicMaterial({ 
+        const borderMaterial = new THREE.MeshBasicMaterial({
             color: 0xFFFFFF,
             side: THREE.DoubleSide,
             transparent: true,
@@ -393,20 +403,23 @@ class BuildingBase extends Entity {
         border.position.z = 0.005;
         border.name = 'healthBarBorder';
         healthBarGroup.add(border);
-        
+
         this.mesh.add(healthBarGroup);
         this.healthBarGroup = healthBarGroup;
-        
+
+        // 血条默认不显示，只有鼠标悬停时才显示
+        healthBarGroup.visible = false;
+
         this.updateHealthBar();
     }
     
     updateHealthBar() {
         if (!this.healthBar) return;
-        
+
         const healthPercentage = this.getHealthPercentage();
-        
+
         this.healthBar.scale.x = healthPercentage;
-        
+
         if (healthPercentage > 0.6) {
             this.healthBar.material.color.setHex(0x00FF00);
         } else if (healthPercentage > 0.3) {
@@ -414,13 +427,88 @@ class BuildingBase extends Entity {
         } else {
             this.healthBar.material.color.setHex(0xFF0000);
         }
-        
+
         const originalWidth = this.healthBar.geometry.parameters.width;
         const newWidth = originalWidth * healthPercentage;
         this.healthBar.position.x = -(originalWidth - newWidth) / 2;
-        
+
+        // 建造中或血量不满时，血条始终可见（不考虑渐隐）
+        if (this.isUnderConstruction || healthPercentage < 1.0) {
+            if (this.healthBarGroup) {
+                this.healthBarGroup.visible = true;
+                this.healthBarGroup.traverse((child) => {
+                    if (child.isMesh && child.material) {
+                        child.material.opacity = child.material.userData?.baseOpacity || child.material.opacity;
+                    }
+                });
+            }
+            return;
+        }
+
+        // 正常状态下，鼠标移开后1秒开始渐隐
+    }
+
+    onHover() {
+        this.isMouseOver = true;
+        this.healthBarHideTimer = 0;
+        this.healthBarFadeTimer = 0;
+
         if (this.healthBarGroup) {
-            this.healthBarGroup.visible = healthPercentage < 1.0;
+            this.healthBarGroup.visible = true;
+            this.healthBarGroup.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    if (!child.material.userData) {
+                        child.material.userData = { baseOpacity: child.material.opacity };
+                    }
+                    child.material.opacity = child.material.userData.baseOpacity;
+                }
+            });
+        }
+    }
+
+    onHoverOut() {
+        this.isMouseOver = false;
+        // 不立即隐藏，等待1秒后开始渐隐
+    }
+
+    updateHealthBarAnimation(deltaTime) {
+        if (!this.healthBarGroup) return;
+
+        // 建造中或血量不满时，不执行渐隐逻辑
+        if (this.isUnderConstruction || this.health < this.maxHealth) {
+            return;
+        }
+
+        // 如果鼠标悬停，不执行渐隐
+        if (this.isMouseOver) {
+            this.healthBarHideTimer = 0;
+            this.healthBarFadeTimer = 0;
+            return;
+        }
+
+        // 鼠标移出后，等待1秒再开始渐隐
+        if (this.healthBarHideTimer < this.healthBarHideDelay) {
+            this.healthBarHideTimer += deltaTime;
+            return;
+        }
+
+        // 开始渐隐
+        if (this.healthBarFadeTimer < this.healthBarFadeDuration) {
+            this.healthBarFadeTimer += deltaTime;
+            const fadeProgress = this.healthBarFadeTimer / this.healthBarFadeDuration;
+
+            this.healthBarGroup.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    if (!child.material.userData) {
+                        child.material.userData = { baseOpacity: child.material.opacity };
+                    }
+                    const baseOpacity = child.material.userData.baseOpacity;
+                    child.material.opacity = baseOpacity * (1 - fadeProgress);
+                }
+            });
+        } else {
+            // 渐隐完成，隐藏血条
+            this.healthBarGroup.visible = false;
         }
     }
 

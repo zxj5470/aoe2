@@ -33,7 +33,7 @@ class InfoPanel {
 
   updateUnitInfo(selectedEntities) {
     if (!this.unitInfoContent) return;
-    
+
     if (!selectedEntities || selectedEntities.length === 0) {
       this.unitInfoContent.innerHTML = `
         <div style="color: #888; text-align: center; padding: 40px 0;">
@@ -42,9 +42,9 @@ class InfoPanel {
       `;
       return;
     }
-    
+
     let html = '';
-    
+
     if (selectedEntities.length === 1) {
       const entity = selectedEntities[0];
       const ownerName = getPlayerName(entity.owner);
@@ -64,6 +64,35 @@ class InfoPanel {
         </div>
       `;
 
+      // 显示血量（单位或建筑）
+      if (entity.health !== undefined && entity.maxHealth !== undefined) {
+        const healthPercent = Math.round((entity.health / entity.maxHealth) * 100);
+        let healthColor = '#00FF00';
+        if (healthPercent <= 30) {
+          healthColor = '#FF0000';
+        } else if (healthPercent <= 60) {
+          healthColor = '#FFFF00';
+        }
+        html += `
+          <div class="info-row" style="margin-top: 8px;">
+            <span>生命值:</span>
+            <span style="color: ${healthColor};">${entity.health}/${entity.maxHealth}</span>
+          </div>
+          <div class="info-row">
+            <span>百分比:</span>
+            <span style="color: ${healthColor};">${healthPercent}%</span>
+          </div>
+        `;
+      } else if (entity.amount !== undefined) {
+        // 资源节点
+        html += `
+          <div class="info-row" style="margin-top: 8px;">
+            <span>资源量:</span>
+            <span>${entity.amount}</span>
+          </div>
+        `;
+      }
+
       if (entity.type === 'unit') {
         html += `
           <div class="info-row" style="margin-top: 8px;">
@@ -79,7 +108,7 @@ class InfoPanel {
             <span>${entity.speed || 0}</span>
           </div>
         `;
-        
+
         if (entity.unitType === 'villager' && entity.carryAmount > 0) {
           html += `
             <div class="info-row" style="margin-top: 8px; color: #FFD700;">
@@ -97,21 +126,74 @@ class InfoPanel {
         `;
       }
     } else {
+      // 多个单位选择
       html = `<div class="info-row"><span>已选择:</span><span>${selectedEntities.length} 个单位</span></div>`;
-      
+
+      // 计算总血量和平均血量
+      const totalHealth = selectedEntities.reduce((sum, e) => {
+        if (e.health !== undefined && e.maxHealth !== undefined) {
+          return sum + e.health;
+        }
+        return sum;
+      }, 0);
+
+      const totalMaxHealth = selectedEntities.reduce((sum, e) => {
+        if (e.maxHealth !== undefined) {
+          return sum + e.maxHealth;
+        }
+        return sum;
+      }, 0);
+
+      if (totalMaxHealth > 0) {
+        const avgHealthPercent = Math.round((totalHealth / totalMaxHealth) * 100);
+        let healthColor = '#00FF00';
+        if (avgHealthPercent <= 30) {
+          healthColor = '#FF0000';
+        } else if (avgHealthPercent <= 60) {
+          healthColor = '#FFFF00';
+        }
+        html += `
+          <div class="info-row" style="margin-top: 8px;">
+            <span>总生命值:</span>
+            <span style="color: ${healthColor};">${totalHealth}/${totalMaxHealth}</span>
+          </div>
+          <div class="info-row">
+            <span>平均状态:</span>
+            <span style="color: ${healthColor};">${avgHealthPercent}%</span>
+          </div>
+        `;
+      }
+
+      // 统计每种类型的数量和血量范围
       const types = {};
       for (const entity of selectedEntities) {
         const type = entity.unitType || entity.buildingType || entity.type;
-        types[type] = (types[type] || 0) + 1;
+        if (!types[type]) {
+          types[type] = { count: 0, healths: [], maxHealths: [] };
+        }
+        types[type].count++;
+        if (entity.health !== undefined) {
+          types[type].healths.push(entity.health);
+        }
+        if (entity.maxHealth !== undefined) {
+          types[type].maxHealths.push(entity.maxHealth);
+        }
       }
-      
+
       html += '<div style="margin-top: 10px;">';
       for (const type in types) {
-        html += `<div class="info-row"><span>${type}:</span><span>${types[type]}</span></div>`;
+        const info = types[type];
+        let healthInfo = '';
+        if (info.healths.length > 0 && info.maxHealths.length > 0) {
+          const minHealth = Math.min(...info.healths);
+          const maxHealth = Math.max(...info.healths);
+          healthInfo = ` (${minHealth}-${maxHealth})`;
+        }
+        html += `<div class="info-row"><span>${type}${healthInfo}:</span><span>${info.count}</span></div>`;
       }
       html += '</div>';
     }
-    
+
     this.unitInfoContent.innerHTML = html;
   }
 

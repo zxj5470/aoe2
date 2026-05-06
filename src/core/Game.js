@@ -17,6 +17,7 @@ import CombatSystem from '../systems/CombatSystem.js';
 import ResourceGatheringSystem from '../systems/ResourceGatheringSystem.js';
 import CollisionSystem from '../systems/CollisionSystem.js';
 import AISystem from '../systems/AISystem.js';
+import { HUMAN_OWNER } from '../config.js';
 import SpatialIndex from './SpatialIndex.js';
 import HUD from '../ui/HUD.js';
 import { CELL_SIZE, MAP_CONFIG } from '../config.js';
@@ -255,6 +256,17 @@ class Game {
     }
 
     initEntities() {
+        // 初始化玩家
+        this.player = new Player({
+            id: HUMAN_OWNER,
+            name: '玩家',
+            gold: 0,
+            wood: 200,    // 初始给一些资源用于测试
+            food: 200,
+            stone: 100,
+            maxPopulation: 20
+        });
+
         if (this.selectedMapType === 'arabia') {
             this.entityManager.initArabiaEntities();
         } else {
@@ -443,13 +455,26 @@ class Game {
             );
             if (building) {
                 this.addEntity(building);
-                this.entityManager.assignBuilderToBuilding(building);
+
+                // 让选中的村民去建造（而不是自动分配）
+                const selectedVillagers = this.selectionManager.selectedEntities.filter(
+                    e => e.isAlive && e.type === 'unit' && e.unitType === 'villager' && e.isPlayerOwned()
+                );
+
+                if (selectedVillagers.length > 0) {
+                    console.log(`[建造] ${selectedVillagers.length} 个村民将建造 ${building.buildingType}`);
+                    for (const villager of selectedVillagers) {
+                        villager.sendToBuild(building);
+                    }
+                } else {
+                    console.warn('[建造] 没有选中的村民，建筑将停留在建造状态');
+                }
             }
             return;
         }
-        
+
         const pickedEntity = this.pickAtMouse(event);
-        
+
         if (pickedEntity) {
             this.handleEntitySelection(pickedEntity, event.shiftKey);
             return;

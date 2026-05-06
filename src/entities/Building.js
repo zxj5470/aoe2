@@ -18,10 +18,13 @@ class Building extends BuildingBase {
 
     update(deltaTime) {
         if (!this.isAlive) return;
-        
+
         this.construction.updateConstruction(deltaTime);
         this.production.updateProduction(deltaTime);
-        
+
+        // 更新血条渐隐动画
+        this.updateHealthBarAnimation(deltaTime);
+
         if (this.isSelected) {
             this.updateSelectionVisual(deltaTime);
         }

@@ -35,6 +35,9 @@ class Unit extends UnitBase {
         this.animation.updateAnimation(deltaTime);
         this.updateHealthBar();
 
+        // 更新血条渐隐动画
+        this.updateHealthBarAnimation(deltaTime);
+
         this.gathering.updateBuilding(deltaTime);
         this.gathering.updateResourceGathering(deltaTime);
     }

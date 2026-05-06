@@ -168,9 +168,36 @@ class EventManager {
 
     onMouseMove(event) {
         this.game.camera.handleMouseMove(event);
-        
+
         if (this.game.inputHandler) {
             this.game.inputHandler.onMouseMove(event);
+        }
+
+        // 更新建筑放置预览
+        if (this.game.buildingPlacementSystem && this.game.buildingPlacementSystem.isPlacing) {
+            const worldPos = this.game.inputHandler.getWorldPosition();
+            this.game.buildingPlacementSystem.updatePreview(worldPos);
+        }
+
+        // 检测鼠标悬停在单位或建筑上，触发血条显示/隐藏
+        this.updateEntityHoverState(event);
+    }
+
+    updateEntityHoverState(event) {
+        if (!this.game.entityManager) return;
+
+        const entities = this.game.entityManager.getEntities();
+        const hoveredEntity = this.game.pickAtMouse(event);
+
+        // 重置所有实体（单位或建筑）的悬停状态
+        for (const entity of entities) {
+            if ((entity.type === 'building' || entity.type === 'unit') && entity.onHoverOut) {
+                if (entity === hoveredEntity) {
+                    entity.onHover();
+                } else {
+                    entity.onHoverOut();
+                }
+            }
         }
     }
     
