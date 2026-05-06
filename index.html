@@ -683,7 +683,16 @@
             <div id="selection-box"></div>
         </div>
     </div>
-    
+
+    <!-- 调试接口说明 -->
+    <div id="debug-info" style="position: fixed; bottom: 10px; right: 10px; background: rgba(0, 0, 0, 0.8); color: #fff; padding: 10px; font-size: 12px; border-radius: 5px; pointer-events: auto; display: none;">
+        <strong>调试接口 (按 F12 打开控制台使用):</strong><br>
+        gameDebug.printGridArea(x, z, radius) - 打印指定区域网格<br>
+        gameDebug.printCell(x, z) - 打印指定格子状态<br>
+        gameDebug.printResources() - 打印所有资源节点<br>
+        <em>示例: gameDebug.printGridArea(-10, 10, 5)</em>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
 </body>
 </html>
