@@ -363,6 +363,8 @@ class BuildingBase extends Entity {
     }
     
     createHealthBar() {
+        console.log('[BuildingBase.createHealthBar] 创建血条:', this.name, 'height:', this.height, 'width:', this.width, 'depth:', this.depth);
+        
         const healthBarGroup = new THREE.Group();
         // 血条位置在建筑顶部上方
         healthBarGroup.position.y = this.height + 0.5;
@@ -373,7 +375,8 @@ class BuildingBase extends Entity {
             color: 0x000000,
             side: THREE.DoubleSide,
             transparent: true,
-            opacity: 0.7
+            opacity: 0.7,
+            depthWrite: false
         });
         const background = new THREE.Mesh(bgGeometry, bgMaterial);
         background.position.z = 0.01;
@@ -385,7 +388,8 @@ class BuildingBase extends Entity {
             color: 0x00FF00,
             side: THREE.DoubleSide,
             transparent: true,
-            opacity: 1
+            opacity: 1,
+            depthWrite: false
         });
         this.healthBar = new THREE.Mesh(healthGeometry, healthMaterial);
         this.healthBar.position.z = 0.02;
@@ -397,7 +401,8 @@ class BuildingBase extends Entity {
             color: 0xFFFFFF,
             side: THREE.DoubleSide,
             transparent: true,
-            opacity: 0.5
+            opacity: 0.5,
+            depthWrite: false
         });
         const border = new THREE.Mesh(borderGeometry, borderMaterial);
         border.position.z = 0.005;
@@ -407,9 +412,10 @@ class BuildingBase extends Entity {
         this.mesh.add(healthBarGroup);
         this.healthBarGroup = healthBarGroup;
 
-        // 血条默认不显示，只有鼠标悬停时才显示
-        healthBarGroup.visible = false;
+        // 血条默认可见
+        healthBarGroup.visible = true;
 
+        console.log('[BuildingBase.createHealthBar] 血条创建完成, visible:', healthBarGroup.visible);
         this.updateHealthBar();
     }
     
@@ -449,6 +455,8 @@ class BuildingBase extends Entity {
     }
 
     onHover() {
+        console.log('[BuildingBase.onHover] 建筑悬停:', this.name, 'healthBarGroup:', !!this.healthBarGroup, 'visible:', this.healthBarGroup?.visible);
+        
         this.isMouseOver = true;
         this.healthBarHideTimer = 0;
         this.healthBarFadeTimer = 0;
@@ -457,10 +465,14 @@ class BuildingBase extends Entity {
             this.healthBarGroup.visible = true;
             this.healthBarGroup.traverse((child) => {
                 if (child.isMesh && child.material) {
+                    // 只在第一次悬停时保存 baseOpacity
                     if (!child.material.userData) {
                         child.material.userData = { baseOpacity: child.material.opacity };
+                        console.log('[BuildingBase.onHover] 保存 baseOpacity:', child.name, child.material.opacity);
                     }
+                    // 恢复透明度
                     child.material.opacity = child.material.userData.baseOpacity;
+                    console.log('[BuildingBase.onHover] 恢复透明度:', child.name, child.material.opacity);
                 }
             });
         }
@@ -476,13 +488,13 @@ class BuildingBase extends Entity {
 
         // 建造中或血量不满时，不执行渐隐逻辑
         if (this.isUnderConstruction || this.health < this.maxHealth) {
+            console.log('[BuildingBase.updateHealthBarAnimation] 跳过渐隐: isUnderConstruction=', this.isUnderConstruction, 'health=', this.health, 'maxHealth=', this.maxHealth);
             return;
         }
 
         // 如果鼠标悬停，不执行渐隐
         if (this.isMouseOver) {
-            this.healthBarHideTimer = 0;
-            this.healthBarFadeTimer = 0;
+            console.log('[BuildingBase.updateHealthBarAnimation] 鼠标悬停，跳过渐隐');
             return;
         }
 
@@ -508,6 +520,7 @@ class BuildingBase extends Entity {
             });
         } else {
             // 渐隐完成，隐藏血条
+            console.log('[BuildingBase.updateHealthBarAnimation] 渐隐完成，隐藏血条');
             this.healthBarGroup.visible = false;
         }
     }

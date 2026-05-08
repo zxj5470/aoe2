@@ -292,7 +292,8 @@ class UnitBase extends Entity {
             color: 0x000000,
             side: THREE.DoubleSide,
             transparent: true,
-            opacity: 0.7
+            opacity: 0.7,
+            depthWrite: false
         });
         const background = new THREE.Mesh(bgGeometry, bgMaterial);
         background.position.z = 0.01;
@@ -304,7 +305,8 @@ class UnitBase extends Entity {
             color: 0x00FF00,
             side: THREE.DoubleSide,
             transparent: true,
-            opacity: 1
+            opacity: 1,
+            depthWrite: false
         });
         this.healthBar = new THREE.Mesh(healthGeometry, healthMaterial);
         this.healthBar.position.z = 0.02;
@@ -316,7 +318,8 @@ class UnitBase extends Entity {
             color: 0xFFFFFF,
             side: THREE.DoubleSide,
             transparent: true,
-            opacity: 0.5
+            opacity: 0.5,
+            depthWrite: false
         });
         const border = new THREE.Mesh(borderGeometry, borderMaterial);
         border.position.z = 0.005;
@@ -326,8 +329,8 @@ class UnitBase extends Entity {
         this.mesh.add(healthBarGroup);
         this.healthBarGroup = healthBarGroup;
 
-        // 血条默认不显示，只有鼠标悬停时才显示
-        healthBarGroup.visible = false;
+        // 血条默认可见
+        healthBarGroup.visible = true;
 
         this.updateHealthBar();
     }

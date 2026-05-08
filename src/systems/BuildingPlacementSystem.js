@@ -24,6 +24,33 @@ class BuildingPlacementSystem {
                 health: 500,
                 description: 'Provides population space'
             },
+            farm: {
+                name: 'Farm',
+                width: 3,
+                depth: 3,
+                height: 0.5,
+                cost: { wood: 60 },
+                health: 200,
+                description: 'Produces food'
+            },
+            'lumber-camp': {
+                name: 'Lumber Camp',
+                width: 2,
+                depth: 2,
+                height: 1.5,
+                cost: { wood: 100 },
+                health: 300,
+                description: 'Stores wood'
+            },
+            'mining-camp': {
+                name: 'Mining Camp',
+                width: 2,
+                depth: 2,
+                height: 1.5,
+                cost: { wood: 100 },
+                health: 300,
+                description: 'Stores stone and gold'
+            },
             barracks: {
                 name: 'Barracks',
                 width: 3,
@@ -69,7 +96,7 @@ class BuildingPlacementSystem {
                 health: 600,
                 description: 'Trade and resource exchange'
             },
-            tower: {
+            'watch-tower': {
                 name: 'Watch Tower',
                 width: 2,
                 depth: 2,

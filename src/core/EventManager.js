@@ -189,10 +189,18 @@ class EventManager {
         const entities = this.game.entityManager.getEntities();
         const hoveredEntity = this.game.pickAtMouse(event);
 
+        // 调试：记录悬停的实体
+        if (hoveredEntity) {
+            console.log('[悬停检测] 悬停实体:', hoveredEntity.name, hoveredEntity.type);
+        }
+
         // 重置所有实体（单位或建筑）的悬停状态
         for (const entity of entities) {
             if ((entity.type === 'building' || entity.type === 'unit') && entity.onHoverOut) {
                 if (entity === hoveredEntity) {
+                    if (!entity.isMouseOver) {
+                        console.log('[悬停检测] 触发 onHover:', entity.name);
+                    }
                     entity.onHover();
                 } else {
                     entity.onHoverOut();

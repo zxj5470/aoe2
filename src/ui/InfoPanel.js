@@ -49,25 +49,17 @@ class InfoPanel {
       const entity = selectedEntities[0];
       const ownerName = getPlayerName(entity.owner);
 
+      // 第一行：实体名 + 玩家名（玩家名带颜色）
       html = `
-        <div class="info-row">
-          <span>名称:</span>
-          <span>${entity.name}</span>
-        </div>
-        <div class="info-row">
-          <span>类型:</span>
-          <span>${entity.type}</span>
-        </div>
-        <div class="info-row">
-          <span>所属:</span>
-          <span style="color: ${getPlayerColor(entity.owner)}">${ownerName}</span>
+        <div class="info-row" style="justify-content: flex-start;">
+          <span>${entity.name} <span style="color: ${getPlayerColor(entity.owner)}">(${ownerName})</span></span>
         </div>
       `;
 
       // 显示血量（单位或建筑）
       if (entity.health !== undefined && entity.maxHealth !== undefined) {
-        const healthPercent = Math.round((entity.health / entity.maxHealth) * 100);
         let healthColor = '#00FF00';
+        const healthPercent = (entity.health / entity.maxHealth) * 100;
         if (healthPercent <= 30) {
           healthColor = '#FF0000';
         } else if (healthPercent <= 60) {
@@ -77,10 +69,6 @@ class InfoPanel {
           <div class="info-row" style="margin-top: 8px;">
             <span>生命值:</span>
             <span style="color: ${healthColor};">${entity.health}/${entity.maxHealth}</span>
-          </div>
-          <div class="info-row">
-            <span>百分比:</span>
-            <span style="color: ${healthColor};">${healthPercent}%</span>
           </div>
         `;
       } else if (entity.amount !== undefined) {
@@ -129,7 +117,7 @@ class InfoPanel {
       // 多个单位选择
       html = `<div class="info-row"><span>已选择:</span><span>${selectedEntities.length} 个单位</span></div>`;
 
-      // 计算总血量和平均血量
+      // 计算总血量
       const totalHealth = selectedEntities.reduce((sum, e) => {
         if (e.health !== undefined && e.maxHealth !== undefined) {
           return sum + e.health;
@@ -145,8 +133,8 @@ class InfoPanel {
       }, 0);
 
       if (totalMaxHealth > 0) {
-        const avgHealthPercent = Math.round((totalHealth / totalMaxHealth) * 100);
         let healthColor = '#00FF00';
+        const avgHealthPercent = (totalHealth / totalMaxHealth) * 100;
         if (avgHealthPercent <= 30) {
           healthColor = '#FF0000';
         } else if (avgHealthPercent <= 60) {
@@ -156,10 +144,6 @@ class InfoPanel {
           <div class="info-row" style="margin-top: 8px;">
             <span>总生命值:</span>
             <span style="color: ${healthColor};">${totalHealth}/${totalMaxHealth}</span>
-          </div>
-          <div class="info-row">
-            <span>平均状态:</span>
-            <span style="color: ${healthColor};">${avgHealthPercent}%</span>
           </div>
         `;
       }

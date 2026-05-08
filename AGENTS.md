@@ -5,6 +5,7 @@
 ## 前端代码犯过的蠢事
 1. 如果用户没有特别要求，不应该在代码调用过程中使用 import 语句。
 2. 开发过程不需要集成验证例如执行 npm run build和npm run dev，已经有一个dev环境启动了。
+3. **建筑物 id 命名不一致**：在 `EntityManager.js` 中使用下划线命名（如 `archery_range`、`watch_tower`），而在 `ActionPanel.js` 中使用连字符命名（如 `archery-range`、`watch-tower`）。这可能导致匹配失败。需要在引用时进行规范化处理，或统一命名规范。
 
 ## 常用命令
 

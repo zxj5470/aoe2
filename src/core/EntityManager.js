@@ -408,7 +408,7 @@ class EntityManager {
             { buildingType: 'house', name: '房屋3', x: alignToGrid(8, getSize('house')), z: alignToGrid(-4, getSize('house')) },
             { buildingType: 'barracks', name: '兵营', x: alignToGrid(12, getSize('barracks')), z: alignToGrid(8, getSize('barracks')) },
             { buildingType: 'stable', name: '马厩', x: alignToGrid(15, getSize('stable')), z: alignToGrid(12, getSize('stable')) },
-            { buildingType: 'archery_range', name: '射箭场', x: alignToGrid(18, getSize('archery_range')), z: alignToGrid(8, getSize('archery_range')) },
+            { buildingType: 'archery_range', name: '靶场', x: alignToGrid(18, getSize('archery_range')), z: alignToGrid(8, getSize('archery_range')) },
             { buildingType: 'watch_tower', name: '瞭望塔', x: alignToGrid(20, getSize('watch_tower')), z: alignToGrid(5, getSize('watch_tower')) },
             { buildingType: 'market', name: '市场', x: alignToGrid(12, getSize('market')), z: alignToGrid(-8, getSize('market')) },
             { buildingType: 'blacksmith', name: '铁匠铺', x: alignToGrid(15, getSize('blacksmith')), z: alignToGrid(-12, getSize('blacksmith')) },

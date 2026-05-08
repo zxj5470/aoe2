@@ -33,7 +33,7 @@ class ActionPanel {
         { id: 'mining-camp', icon: '⛏️', name: '采矿场', type: 'economy' },
         { id: 'watch-tower', icon: '🗼', name: '瞭望塔', type: 'defense' },
         { id: 'stable', icon: '🐴', name: '马厩', type: 'military' },
-        { id: 'archery-range', icon: '🏹', name: '射箭场', type: 'military' },
+        { id: 'archery-range', icon: '🏹', name: '靶场', type: 'military' },
         { id: 'castle', icon: '🏰', name: '城堡', type: 'defense' },
         { id: 'wall', icon: '🧱', name: '城墙', type: 'defense' },
         { id: 'gate', icon: '🚪', name: '城门', type: 'defense' },
