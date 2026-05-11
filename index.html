@@ -105,7 +105,82 @@
             border: 2px solid #8B4513;
             border-radius: 5px;
         }
-        
+
+        #production-queue-bar {
+            position: absolute;
+            top: 32px;
+            left: 0;
+            min-width: 100px;
+            height: 44px;
+            background: rgba(0, 0, 0, 0.75);
+            border-bottom: 2px solid #8B4513;
+            border-right: 2px solid #8B4513;
+            z-index: 100;
+            display: none;
+            pointer-events: none;
+        }
+
+        #production-queue-bar.visible {
+            display: block;
+        }
+
+        .production-items {
+            display: flex;
+            align-items: center;
+            height: 100%;
+            padding: 0 8px;
+            gap: 6px;
+        }
+
+        .production-item {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: rgba(139, 69, 19, 0.4);
+            border: 1px solid #8B4513;
+            border-radius: 3px;
+            color: #FFD700;
+            font-size: 12px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .production-item .prod-icon {
+            font-size: 16px;
+        }
+
+        .production-item .prod-progress-bar {
+            width: 50px;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #666;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .production-item .prod-progress-fill {
+            height: 100%;
+            background: #00CC00;
+            transition: width 0.1s linear;
+        }
+
+        .production-item .prod-queue-count {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #CC0000;
+            color: #FFF;
+            font-size: 10px;
+            min-width: 14px;
+            height: 14px;
+            line-height: 14px;
+            text-align: center;
+            border-radius: 7px;
+            padding: 0 2px;
+        }
+
         #hud {
             position: absolute;
             bottom: 0;
@@ -536,7 +611,11 @@
                     <span id="current-age">黑暗时代</span>
                 </div>
             </div>
-            
+
+            <div id="production-queue-bar">
+                <div class="production-items"></div>
+            </div>
+
             <div id="hud">
                 <div class="hud-panel hud-panel-left">
                     <div class="panel-title">建筑</div>

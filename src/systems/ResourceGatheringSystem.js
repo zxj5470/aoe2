@@ -117,7 +117,7 @@ class ResourceGatheringSystem {
 
         // 移动到资源附近的可行走格子，而非资源中心（避免穿过被占用的资源格子）
         const targetPosition = this.findNearestWalkableToResource(gatherer, resourceNode.position, 2.5);
-        gatherer.moveTo(targetPosition);
+        gatherer.moveTo(targetPosition, { preserveGathering: true });
 
         return true;
     }
@@ -197,8 +197,8 @@ class ResourceGatheringSystem {
                 }
             }
         } else {
-            // 移动到资源点
-            gatherer.moveTo(resourceNode.position);
+            // 移动到资源点（保留采集状态，不触发 stopGathering）
+            gatherer.moveTo(resourceNode.position, { preserveGathering: true });
         }
     }
 
@@ -265,7 +265,7 @@ class ResourceGatheringSystem {
                         lastResource.userData && 
                         lastResource.userData.resourceAmount > 0) {
                         // 返回资源点
-                        gatherer.moveTo(lastPosition);
+                        gatherer.moveTo(lastPosition, { preserveGathering: true });
                     } else {
                         // 资源点已耗尽或无效，清除记录并寻找新资源
                         gatherer.lastResourcePosition = null;
@@ -283,7 +283,7 @@ class ResourceGatheringSystem {
                     }
                 } else if (gatherer.currentResource && gatherer.currentResource.userData.resourceAmount > 0) {
                     // 如果没有lastResourcePosition但有currentResource，使用currentResource
-                    gatherer.moveTo(gatherer.currentResource.position);
+                    gatherer.moveTo(gatherer.currentResource.position, { preserveGathering: true });
                 } else {
                     // 没有任何资源记录，清除状态
                     gatherer.currentResource = null;
@@ -291,7 +291,7 @@ class ResourceGatheringSystem {
                 }
             } else {
                 // 移动到投放点
-                gatherer.moveTo(dropOffPoint.position);
+                gatherer.moveTo(dropOffPoint.position, { preserveGathering: true });
             }
         }
     }

@@ -95,7 +95,7 @@ class UnitGathering {
         this.unit.currentAction = 'returning';
         
         const townCenterPos = this.unit.dropOffPoint.position;
-        this.unit.moveTo(new THREE.Vector3(townCenterPos.x, 0, townCenterPos.z));
+        this.unit.moveTo(new THREE.Vector3(townCenterPos.x, 0, townCenterPos.z), { preserveGathering: true });
     }
 
     stopGathering() {
@@ -158,7 +158,7 @@ class UnitGathering {
         
         console.log(`[村民采集] 开始采集 ${this.unit.carryType}，投放点: ${this.unit.dropOffPoint ? '已设置' : '未设置'}`);
 
-        this.unit.moveTo(resourceEntity.position);
+        this.unit.moveTo(resourceEntity.position, { preserveGathering: true });
 
         this.unit.setAnimationState('gathering');
     }

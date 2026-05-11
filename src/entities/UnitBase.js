@@ -527,16 +527,17 @@ class UnitBase extends Entity {
 
     stop() {
         this.clearBuildingState();
+        this.stopGathering();
         this.isMoving = false;
         this.isAttacking = false;
         this.targetPosition = null;
         this.targetEntity = null;
         this.actionQueue = [];
         this.currentAction = 'idle';
-        
+
         this.setAnimationState('idle');
         this.path = [];
-        
+
         if (this.game && this.game.scene) {
             this.game.scene.clearPathVisualizer(this.id);
         }

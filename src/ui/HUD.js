@@ -192,42 +192,62 @@ class HUD {
   }
 
   updateProductionProgressUI() {
-    if (!this.game.selectionManager) return;
-    const selected = this.game.selectionManager.getSelectedEntities();
-    if (!selected || selected.length !== 1) return;
+    const bar = document.getElementById('production-queue-bar');
+    const container = bar ? bar.querySelector('.production-items') : null;
+    if (!bar || !container) return;
 
-    const building = selected[0];
-    if (building.type !== 'building') return;
+    // 收集所有玩家建筑的生产信息
+    const productions = [];
+    const entities = this.game.entityManager ? this.game.entityManager.getEntities() : [];
 
-    const container = this.actionPanel.container;
-    if (!container) return;
+    for (const entity of entities) {
+      if (entity.type !== 'building' || !entity.isPlayerOwned() || !entity.isAlive) continue;
+      if (!entity.currentProduction && entity.productionQueue.length === 0) continue;
 
-    const buttons = container.querySelectorAll('.building-btn');
-    if (!buttons.length) return;
-
-    for (const button of buttons) {
-      button.style.background = '';
-      button.title = '';
+      productions.push({
+        building: entity,
+        current: entity.currentProduction,
+        progress: entity.productionProgress || 0,
+        queueCount: entity.productionQueue.length
+      });
     }
 
-    if (building.currentProduction) {
-      const progress = building.productionProgress || 0;
-      const item = building.currentProduction;
-      const name = item.unitType || item.techType || '';
-
-      if (buttons[0]) {
-        buttons[0].style.background =
-          `linear-gradient(to right, rgba(0,200,0,0.4) ${progress}%, transparent ${progress}%)`;
-        buttons[0].title = `生产中: ${name} (${Math.floor(progress)}%)`;
-      }
-    } else if (building.isUnderConstruction) {
-      const progress = building.constructionProgress || 0;
-      if (buttons[0]) {
-        buttons[0].style.background =
-          `linear-gradient(to right, rgba(200,200,0,0.4) ${progress}%, transparent ${progress}%)`;
-        buttons[0].title = `建造中 (${Math.floor(progress)}%)`;
-      }
+    if (productions.length === 0) {
+      bar.classList.remove('visible');
+      return;
     }
+
+    bar.classList.add('visible');
+
+    // 构建生产项 HTML
+    let html = '';
+    const unitIcons = { villager: '👤', soldier: '⚔️', knight: '🐴', archer: '🏹', scout: '🏇' };
+    const techIcons = { loom: '🧵', town_watch: '👁️', forging: '🔨', barding: '🛡️', fletching: '🏹' };
+    const unitNames = { villager: '村民', soldier: '士兵', knight: '骑士', archer: '弓手', scout: '侦察' };
+
+    for (const prod of productions) {
+      const item = prod.current;
+      if (!item) continue;
+
+      const icon = item.type === 'unit'
+        ? (unitIcons[item.unitType] || '📦')
+        : (techIcons[item.techType] || '📜');
+      const name = item.type === 'unit'
+        ? (unitNames[item.unitType] || item.unitType)
+        : (item.techType || '');
+      const progress = Math.min(prod.progress, 100);
+
+      html += `<div class="production-item">`;
+      html += `<span class="prod-icon">${icon}</span>`;
+      html += `<span>${name}</span>`;
+      html += `<div class="prod-progress-bar"><div class="prod-progress-fill" style="width:${progress}%"></div></div>`;
+      if (prod.queueCount > 0) {
+        html += `<span class="prod-queue-count">${prod.queueCount + 1}</span>`;
+      }
+      html += `</div>`;
+    }
+
+    container.innerHTML = html;
   }
 }
 

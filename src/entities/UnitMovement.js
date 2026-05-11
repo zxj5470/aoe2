@@ -13,6 +13,11 @@ class UnitMovement {
         if (!options.preserveBuilding) {
             this.unit.clearBuildingState();
         }
+
+        // 玩家主动移动时，停止采集（保留已携带的资源）
+        if (!options.preserveGathering && this.unit.currentResource) {
+            this.unit.stopGathering();
+        }
         
         const mapWidth = this.unit.pathfindingSystem ? this.unit.pathfindingSystem.grid.width * this.unit.pathfindingSystem.grid.cellSize : MAP_CONFIG.width * MAP_CONFIG.cellSize;
         const mapHeight = this.unit.pathfindingSystem ? this.unit.pathfindingSystem.grid.height * this.unit.pathfindingSystem.grid.cellSize : MAP_CONFIG.height * MAP_CONFIG.cellSize;

@@ -621,6 +621,9 @@ class EntityManager {
             if (this.game.combatSystem && unit.attackDamage > 0) {
                 this.game.combatSystem.registerCombatant(unit);
             }
+            if (this.game.resourceGatheringSystem && unit.unitType === 'villager') {
+                this.game.resourceGatheringSystem.registerGatherer(unit);
+            }
         }
 
         return unit;
