@@ -519,6 +519,16 @@ class Game {
     }
     
     handleRightClick(event) {
+        // 建筑放置模式下右键取消放置
+        if (this.buildingPlacementSystem && this.buildingPlacementSystem.isPlacing) {
+            this.buildingPlacementSystem.cancelPlacement();
+            // 取消 ActionPanel 按钮的激活状态
+            if (this.hud && this.hud.actionPanel) {
+                this.hud.actionPanel.clearActiveBuildingButton();
+            }
+            return;
+        }
+
         if (!this.selectionManager || !this.inputHandler || !this.spatialIndex) {
             console.log('[handleRightClick] early return: selectionManager=', !!this.selectionManager, 'inputHandler=', !!this.inputHandler, 'spatialIndex=', !!this.spatialIndex);
             return;

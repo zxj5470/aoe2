@@ -52,6 +52,17 @@ class EventManager {
 
     onKeyDown(event) {
         this.game.camera.handleKeyDown(event);
+
+        // Escape 键取消建筑放置
+        if (event.key === 'Escape') {
+            if (this.game.buildingPlacementSystem && this.game.buildingPlacementSystem.isPlacing) {
+                this.game.buildingPlacementSystem.cancelPlacement();
+                if (this.game.hud && this.game.hud.actionPanel) {
+                    this.game.hud.actionPanel.clearActiveBuildingButton();
+                }
+                return;
+            }
+        }
         
         if (event.key === 'F12' || event.keyCode === 123) {
             event.preventDefault();
@@ -216,7 +227,6 @@ class EventManager {
     onContextMenu(event) {
         event.preventDefault();
         this.game.camera.handleContextMenu(event);
-        this.game.handleRightClick(event);
     }
 
     bindPlayerEvents() {

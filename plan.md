@@ -1,5 +1,9 @@
 # 帝国时代2 Web版开发计划
 
+> **已废弃**: 本文档内容严重过时，开发计划已迁移至 [roadmap.md](roadmap.md)，当前阶段实施计划见 [docs/plans/](docs/plans/)。
+
+~~# 帝国时代2 Web版开发计划~~
+
 ## 技术栈
 
 - **渲染引擎**: Three.js

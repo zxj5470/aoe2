@@ -60,6 +60,12 @@ class BuildingConstruction {
         if (this.building.buildingType === 'house' && this.building._game && this.building._game.player) {
             this.building._game.player.setMaxPopulation(this.building._game.player.population.max + 5);
         }
+
+        if (this.building.buildingType === 'town_center' && this.building._game && this.building._game.resourceGatheringSystem) {
+            this.building._game.resourceGatheringSystem.addDropOffPoint(this.building, ['wood', 'food', 'gold', 'stone']);
+        }
+
+        console.log(`[建造] ${this.building.name} 建造完成`);
     }
 
     addBuilder(villager) {

@@ -420,6 +420,12 @@ class ActionPanel {
     this.initBuildingButtons();
   }
 
+  clearActiveBuildingButton() {
+    this.buildingButtons.forEach(btn => {
+      btn.classList.remove('active');
+    });
+  }
+
   nextPreset() {
     const presetNames = Object.keys(this.buildingPanelPresets);
     const currentIndex = presetNames.indexOf(this.currentPreset);
