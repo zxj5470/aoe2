@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import Entity from './Entity.js';
 import RomanNumeralCanvas from './RomanNumeralCanvas.js';
 import { CELL_SIZE, MAP_CONFIG, getPlayerColor, HUMAN_OWNER, normalizeBuildingType } from '../config.js';
+import { BUILDING_EMOJIS } from '../emojis.js';
 
 class BuildingBase extends Entity {
     constructor(config) {
@@ -97,91 +98,91 @@ class BuildingBase extends Entity {
             house: {
                 width: 2,
                 depth: 2,
-                symbol: '🏠',
+                symbol: BUILDING_EMOJIS.house,
                 color: 0x4169E1,
                 bgColor: 0x8B4513
             },
             farm: {
                 width: 3,
                 depth: 3,
-                symbol: '馃尵',
+                symbol: BUILDING_EMOJIS.farm,
                 color: 0x9ACD32,
                 bgColor: 0x8B4513
             },
             lumber_camp: {
                 width: 2,
                 depth: 2,
-                symbol: '馃獡',
+                symbol: BUILDING_EMOJIS.lumber_camp,
                 color: 0x8B4513,
                 bgColor: 0x654321
             },
             mining_camp: {
                 width: 2,
                 depth: 2,
-                symbol: '鉀忥笍',
+                symbol: BUILDING_EMOJIS.mining_camp,
                 color: 0x708090,
                 bgColor: 0x5C5C5C
             },
             barracks: {
                 width: 3,
                 depth: 3,
-                symbol: '⚔️',
+                symbol: BUILDING_EMOJIS.barracks,
                 color: 0x1E90FF,
                 bgColor: 0x8B4513
             },
             stable: {
                 width: 3,
                 depth: 3,
-                symbol: '🐴',
+                symbol: BUILDING_EMOJIS.stable,
                 color: 0x228B22,
                 bgColor: 0x8B4513
             },
             archery_range: {
                 width: 3,
                 depth: 3,
-                symbol: '🏹',
+                symbol: BUILDING_EMOJIS.archery_range,
                 color: 0x32CD32,
                 bgColor: 0x8B4513
             },
             castle: {
                 width: 5,
                 depth: 5,
-                symbol: '🏰',
+                symbol: BUILDING_EMOJIS.castle,
                 color: 0x00008B,
                 bgColor: 0x696969
             },
             market: {
                 width: 3,
                 depth: 3,
-                symbol: '💰',
+                symbol: BUILDING_EMOJIS.market,
                 color: 0xDAA520,
                 bgColor: 0x8B4513
             },
             church: {
                 width: 3,
                 depth: 4,
-                symbol: '⛪',
+                symbol: BUILDING_EMOJIS.church,
                 color: 0xFFFAF0,
                 bgColor: 0x8B4513
             },
             blacksmith: {
                 width: 3,
                 depth: 3,
-                symbol: '🔨',
+                symbol: BUILDING_EMOJIS.blacksmith,
                 color: 0x708090,
                 bgColor: 0x8B4513
             },
             watch_tower: {
                 width: 2,
                 depth: 2,
-                symbol: '🗼',
+                symbol: BUILDING_EMOJIS.watch_tower,
                 color: 0x4682B4,
                 bgColor: 0x696969
             },
             town_center: {
                 width: 4,
                 depth: 4,
-                symbol: '🏛️',
+                symbol: BUILDING_EMOJIS.town_center,
                 color: 0xF5DEB3,
                 bgColor: 0x8B4513
             }
