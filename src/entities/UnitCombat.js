@@ -16,8 +16,6 @@ class UnitCombat {
 
     performAttack() {
         if (this.unit.targetEntity && this.unit.targetEntity.isAlive) {
-            this.unit.targetEntity.takeDamage(this.unit.attackDamage);
-            
             const direction = new THREE.Vector3()
                 .subVectors(this.unit.targetEntity.position, this.unit.position)
                 .normalize();
@@ -26,21 +24,22 @@ class UnitCombat {
     }
 
     updateCombat(deltaTime) {
-        if (this.unit.isAttacking && this.unit.targetEntity && this.unit.targetEntity.isAlive) {
-            const distance = this.unit.position.distanceTo(this.unit.targetEntity.position);
-            
-            if (distance <= this.unit.attackRange) {
-                this.unit.setAnimationState('attacking');
-                
-                const currentTime = Date.now() / 1000;
-                
-                if (currentTime - this.unit.lastAttackTime >= this.unit.attackCooldown) {
-                    this.performAttack();
-                    this.unit.lastAttackTime = currentTime;
-                }
-            } else {
-                this.unit.moveTo(this.unit.targetEntity.position);
-            }
+        if (!this.unit.isAttacking) return;
+
+        if (!this.unit.targetEntity || !this.unit.targetEntity.isAlive) {
+            this.unit.isAttacking = false;
+            this.unit.targetEntity = null;
+            this.unit.currentAction = 'idle';
+            return;
+        }
+
+        const distance = this.unit.position.distanceTo(this.unit.targetEntity.position);
+
+        if (distance <= this.unit.attackRange) {
+            this.unit.setAnimationState('attacking');
+            this.performAttack();
+        } else {
+            this.unit.moveTo(this.unit.targetEntity.position, { preserveAttack: true });
         }
     }
 }

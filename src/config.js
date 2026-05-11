@@ -41,6 +41,34 @@ export const HUMAN_OWNER = Object.entries(OWNER_TO_PLAYER_ID).find(([, pid]) => 
 const NEUTRAL_PLAYER_ID = 0;
 export const ENEMY_OWNER = Object.entries(OWNER_TO_PLAYER_ID).find(([key, pid]) => pid !== HUMAN_PLAYER_ID && pid !== NEUTRAL_PLAYER_ID && key !== 'player')?.[0] || 'enemy';
 
+export const BUILDING_TYPE_ALIASES = {
+    house: 'house',
+    farm: 'farm',
+    'lumber-camp': 'lumber_camp',
+    lumber_camp: 'lumber_camp',
+    'mining-camp': 'mining_camp',
+    mining_camp: 'mining_camp',
+    barracks: 'barracks',
+    archery: 'archery_range',
+    'archery-range': 'archery_range',
+    archery_range: 'archery_range',
+    stable: 'stable',
+    blacksmith: 'blacksmith',
+    market: 'market',
+    church: 'church',
+    'watch-tower': 'watch_tower',
+    watch_tower: 'watch_tower',
+    castle: 'castle',
+    'town-center': 'town_center',
+    town_center: 'town_center'
+};
+
+export function normalizeBuildingType(buildingType) {
+    if (!buildingType) return buildingType;
+
+    return BUILDING_TYPE_ALIASES[buildingType] || BUILDING_TYPE_ALIASES[buildingType.replace(/-/g, '_')] || buildingType.replace(/-/g, '_');
+}
+
 // 判断 owner 是否为人类玩家
 export function isHumanPlayer(owner) {
     if (!owner) return false;

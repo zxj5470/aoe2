@@ -32,6 +32,10 @@ class EntityManager {
             this.game.aiSystem.registerUnit(entity);
         }
 
+        if (this.game.combatSystem && entity.type === 'unit' && entity.attackDamage > 0) {
+            this.game.combatSystem.registerCombatant(entity);
+        }
+
         // 建筑/资源新增时，使受影响的缓存路径失效
         if (entity.type === 'building' || entity.type === 'resource') {
             this.invalidatePathCacheForEntity(entity);
@@ -617,9 +621,6 @@ class EntityManager {
             this.addEntity(unit);
             if (this.game.player && building.isPlayerOwned()) {
                 this.game.player.addUnit(unit);
-            }
-            if (this.game.combatSystem && unit.attackDamage > 0) {
-                this.game.combatSystem.registerCombatant(unit);
             }
             if (this.game.resourceGatheringSystem && unit.unitType === 'villager') {
                 this.game.resourceGatheringSystem.registerGatherer(unit);

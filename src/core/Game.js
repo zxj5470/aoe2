@@ -17,7 +17,7 @@ import CombatSystem from '../systems/CombatSystem.js';
 import ResourceGatheringSystem from '../systems/ResourceGatheringSystem.js';
 import CollisionSystem from '../systems/CollisionSystem.js';
 import AISystem from '../systems/AISystem.js';
-import { HUMAN_OWNER } from '../config.js';
+import { HUMAN_OWNER, normalizeBuildingType } from '../config.js';
 import SpatialIndex from './SpatialIndex.js';
 import HUD from '../ui/HUD.js';
 import { CELL_SIZE, MAP_CONFIG } from '../config.js';
@@ -282,9 +282,17 @@ class Game {
         this.updateResourceDisplay();
     }
 
+    normalizeBuildingType(buildingType) {
+        return normalizeBuildingType(buildingType);
+    }
+
     getBuildingWidth(buildingType) {
+        const normalizedType = normalizeBuildingType(buildingType);
         const widths = {
             house: 2,
+            farm: 3,
+            lumber_camp: 2,
+            mining_camp: 2,
             barracks: 3,
             stable: 3,
             archery_range: 3,
@@ -294,12 +302,16 @@ class Game {
             blacksmith: 3,
             watch_tower: 2
         };
-        return widths[buildingType] || 2;
+        return widths[normalizedType] || 2;
     }
     
     getBuildingDepth(buildingType) {
+        const normalizedType = normalizeBuildingType(buildingType);
         const depths = {
             house: 2,
+            farm: 3,
+            lumber_camp: 2,
+            mining_camp: 2,
             barracks: 3,
             stable: 3,
             archery_range: 3,
@@ -309,12 +321,16 @@ class Game {
             blacksmith: 3,
             watch_tower: 2
         };
-        return depths[buildingType] || 2;
+        return depths[normalizedType] || 2;
     }
     
     getBuildingHeight(buildingType) {
+        const normalizedType = normalizeBuildingType(buildingType);
         const heights = {
             house: 2,
+            farm: 0.5,
+            lumber_camp: 1.5,
+            mining_camp: 1.5,
             barracks: 2.5,
             stable: 2.2,
             archery_range: 2,
@@ -324,7 +340,7 @@ class Game {
             blacksmith: 2,
             watch_tower: 3
         };
-        return heights[buildingType] || 2;
+        return heights[normalizedType] || 2;
     }
 
     initIndependentSystems() {

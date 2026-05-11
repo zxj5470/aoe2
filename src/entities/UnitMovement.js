@@ -33,9 +33,11 @@ class UnitMovement {
         
         this.unit.targetPosition = targetPosition.clone();
         this.unit.isMoving = true;
-        this.unit.currentAction = 'moving';
-        this.unit.isAttacking = false;
-        this.unit.targetEntity = null;
+        this.unit.currentAction = options.preserveAttack ? 'attacking' : 'moving';
+        if (!options.preserveAttack) {
+            this.unit.isAttacking = false;
+            this.unit.targetEntity = null;
+        }
         
         if (this.unit.pathfindingSystem) {
             console.log(`[Unit] 开始寻路: 起点 (${this.unit.position.x.toFixed(1)}, ${this.unit.position.z.toFixed(1)}) → 终点 (${targetPosition.x.toFixed(1)}, ${targetPosition.z.toFixed(1)})`);

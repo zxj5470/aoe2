@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import Building from '../entities/Building.js';
-import { CELL_SIZE, HUMAN_OWNER } from '../config.js';
+import { CELL_SIZE, HUMAN_OWNER, normalizeBuildingType } from '../config.js';
 
 class BuildingPlacementSystem {
     constructor(map, scene) {
@@ -33,7 +33,7 @@ class BuildingPlacementSystem {
                 health: 200,
                 description: 'Produces food'
             },
-            'lumber-camp': {
+            lumber_camp: {
                 name: 'Lumber Camp',
                 width: 2,
                 depth: 2,
@@ -42,7 +42,7 @@ class BuildingPlacementSystem {
                 health: 300,
                 description: 'Stores wood'
             },
-            'mining-camp': {
+            mining_camp: {
                 name: 'Mining Camp',
                 width: 2,
                 depth: 2,
@@ -60,7 +60,7 @@ class BuildingPlacementSystem {
                 health: 800,
                 description: 'Trains military units'
             },
-            archery: {
+            archery_range: {
                 name: 'Archery Range',
                 width: 3,
                 depth: 3,
@@ -96,7 +96,7 @@ class BuildingPlacementSystem {
                 health: 600,
                 description: 'Trade and resource exchange'
             },
-            'watch-tower': {
+            watch_tower: {
                 name: 'Watch Tower',
                 width: 2,
                 depth: 2,
@@ -118,14 +118,15 @@ class BuildingPlacementSystem {
     }
 
     startPlacement(buildingType, resourceManager) {
-        const buildingConfig = this.buildingTypes[buildingType];
+        const normalizedType = normalizeBuildingType(buildingType);
+        const buildingConfig = this.buildingTypes[normalizedType];
         
         if (!buildingConfig) {
             console.warn(`Unknown building type: ${buildingType}`);
             return false;
         }
         
-        this.currentBuildingType = buildingType;
+        this.currentBuildingType = normalizedType;
         this.requiredResources = buildingConfig.cost;
         
         // 检查资源是否足够
@@ -278,24 +279,23 @@ class BuildingPlacementSystem {
     }
 
     togglePlacement(buildingType) {
-        if (this.isPlacing && this.currentBuildingType === buildingType) {
+        const normalizedType = normalizeBuildingType(buildingType);
+
+        if (this.isPlacing && this.currentBuildingType === normalizedType) {
             this.cancelPlacement();
             return;
         }
 
         this.cancelPlacement();
 
-        const normalizedType = buildingType.replace(/-/g, '_');
-        const matchType = Object.keys(this.buildingTypes).find(
-            key => key === normalizedType || key === buildingType
-        );
-
-        if (matchType) {
-            this.currentBuildingType = matchType;
-            const config = this.buildingTypes[matchType];
+        if (this.buildingTypes[normalizedType]) {
+            this.currentBuildingType = normalizedType;
+            const config = this.buildingTypes[normalizedType];
             this.requiredResources = config.cost;
             this.isPlacing = true;
             this.createPreviewMesh(config);
+        } else {
+            console.warn(`Unknown building type: ${buildingType}`);
         }
     }
 
@@ -315,11 +315,11 @@ class BuildingPlacementSystem {
     }
 
     getBuildingConfig(buildingType) {
-        return this.buildingTypes[buildingType] || null;
+        return this.buildingTypes[normalizeBuildingType(buildingType)] || null;
     }
 
     getBuildingCost(buildingType) {
-        const config = this.buildingTypes[buildingType];
+        const config = this.getBuildingConfig(buildingType);
         return config ? config.cost : null;
     }
 

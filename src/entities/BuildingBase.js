@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import Entity from './Entity.js';
 import RomanNumeralCanvas from './RomanNumeralCanvas.js';
-import { CELL_SIZE, MAP_CONFIG, getPlayerColor, HUMAN_OWNER } from '../config.js';
+import { CELL_SIZE, MAP_CONFIG, getPlayerColor, HUMAN_OWNER, normalizeBuildingType } from '../config.js';
 
 class BuildingBase extends Entity {
     constructor(config) {
@@ -16,7 +16,7 @@ class BuildingBase extends Entity {
             owner: config.owner || HUMAN_OWNER
         });
 
-        this.buildingType = config.buildingType || 'house';
+        this.buildingType = normalizeBuildingType(config.buildingType || 'house');
         this.width = config.width || 2;
         this.depth = config.depth || 2;
         this.height = config.height || 2;
@@ -57,6 +57,9 @@ class BuildingBase extends Entity {
     getDefaultGridSizeX() {
         const gridSizes = {
             house: 2,
+            farm: 3,
+            lumber_camp: 2,
+            mining_camp: 2,
             barracks: 3,
             stable: 3,
             archery_range: 3,
@@ -73,6 +76,9 @@ class BuildingBase extends Entity {
     getDefaultGridSizeZ() {
         const gridSizes = {
             house: 2,
+            farm: 3,
+            lumber_camp: 2,
+            mining_camp: 2,
             barracks: 3,
             stable: 3,
             archery_range: 3,
@@ -94,6 +100,27 @@ class BuildingBase extends Entity {
                 symbol: '🏠',
                 color: 0x4169E1,
                 bgColor: 0x8B4513
+            },
+            farm: {
+                width: 3,
+                depth: 3,
+                symbol: '馃尵',
+                color: 0x9ACD32,
+                bgColor: 0x8B4513
+            },
+            lumber_camp: {
+                width: 2,
+                depth: 2,
+                symbol: '馃獡',
+                color: 0x8B4513,
+                bgColor: 0x654321
+            },
+            mining_camp: {
+                width: 2,
+                depth: 2,
+                symbol: '鉀忥笍',
+                color: 0x708090,
+                bgColor: 0x5C5C5C
             },
             barracks: {
                 width: 3,
@@ -166,6 +193,9 @@ class BuildingBase extends Entity {
     getBuildingFeatures() {
         const features = {
             house: { populationBonus: 5, isResidential: true },
+            farm: { producesFood: true, isEconomic: true },
+            lumber_camp: { dropOffResources: ['wood'], isEconomic: true, isDropOff: true },
+            mining_camp: { dropOffResources: ['gold', 'stone'], isEconomic: true, isDropOff: true },
             barracks: { canTrainUnits: ['soldier', 'knight'], isMilitary: true },
             stable: { canTrainUnits: ['scout'], isMilitary: true },
             archery_range: { canTrainUnits: ['archer'], isMilitary: true },

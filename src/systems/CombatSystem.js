@@ -83,7 +83,7 @@ class CombatSystem {
         
         if (distance > attacker.attackRange) {
             // 移动到攻击范围内
-            attacker.moveTo(target.position);
+            attacker.moveTo(target.position, { preserveAttack: true });
             return;
         }
         
