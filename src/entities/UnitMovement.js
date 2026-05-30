@@ -14,9 +14,9 @@ class UnitMovement {
             this.unit.clearBuildingState();
         }
 
-        // 玩家主动移动时，停止采集（保留已携带的资源）
+        // 玩家主动移动时，中断采集但保留已携带的资源（投放或切换类型时再清除）
         if (!options.preserveGathering && this.unit.currentResource) {
-            this.unit.stopGathering();
+            this.unit.gathering.clearActiveGathering();
         }
         
         const mapWidth = this.unit.pathfindingSystem ? this.unit.pathfindingSystem.grid.width * this.unit.pathfindingSystem.grid.cellSize : MAP_CONFIG.width * MAP_CONFIG.cellSize;
@@ -146,27 +146,14 @@ class UnitMovement {
                 if (this.unit.currentPathIndex >= this.unit.path.length) {
                     console.log(`[村民移动] 到达目标位置 - isReturning: ${this.unit.isReturning}, carryAmount: ${this.unit.carryAmount}`);
 
-                    if (this.unit.isReturning && this.unit.dropOffPoint) {
-                        const dx = this.unit.position.x - this.unit.dropOffPoint.position.x;
-                        const dz = this.unit.position.z - this.unit.dropOffPoint.position.z;
-                        const distanceToTownCenter = Math.sqrt(dx * dx + dz * dz);
-                        const townCenterArrivalDistance = 3;
-                        
-                        console.log(`[村民移动] 距离城镇中心: ${distanceToTownCenter.toFixed(1)}, 判定距离: ${townCenterArrivalDistance}`);
-                        
-                        if (distanceToTownCenter <= townCenterArrivalDistance) {
-                            console.log('[村民移动] 已到达城镇中心，开始交付资源');
-                            this.unit.deliverResources();
-                        }
-                    }
-
+                    // 到达路径终点，停止移动；资源交付由 ResourceGatheringSystem 在下一帧处理
                     this.unit.isMoving = false;
                     this.unit.path = [];
                     this.unit.currentAction = 'idle';
                     if (!this.unit.isBuilding) {
                         this.unit.setAnimationState('idle');
                     }
-                    
+
                     if (this.unit.game && this.unit.game.scene) {
                         this.unit.game.scene.clearPathVisualizer(this.unit.id);
                     }
@@ -207,20 +194,6 @@ class UnitMovement {
                         this.unit.isMoving = false;
                         this.unit.targetPosition = null;
 
-                        if (this.unit.isReturning && this.unit.dropOffPoint) {
-                            const dx = this.unit.position.x - this.unit.dropOffPoint.position.x;
-                            const dz = this.unit.position.z - this.unit.dropOffPoint.position.z;
-                            const distanceToTownCenter = Math.sqrt(dx * dx + dz * dz);
-                            const townCenterArrivalDistance = 3;
-                            
-                            console.log(`[村民移动-无路径] 距离城镇中心: ${distanceToTownCenter.toFixed(1)}, 判定距离: ${townCenterArrivalDistance}`);
-                            
-                            if (distanceToTownCenter <= townCenterArrivalDistance) {
-                                console.log('[村民移动-无路径] 已到达城镇中心，开始交付资源');
-                                this.unit.deliverResources();
-                            }
-                        }
-
                         if (!this.unit.currentResource) {
                             this.unit.currentAction = 'idle';
                             this.unit.setAnimationState('idle');
@@ -246,6 +219,11 @@ class UnitMovement {
                 
                 this.unit.position.copy(newPosition);
                 this.unit.mesh.position.copy(this.unit.position);
+                // 更新碰撞箱位置，然后同步空间索引（供绵羊捕获等距离检测使用）
+                this.unit.updateCollisionBox();
+                if (this.unit.game && this.unit.game.spatialIndex) {
+                    this.unit.game.spatialIndex.update(this.unit);
+                }
                 
                 const targetRotation = Math.atan2(direction.x, direction.z);
                 this.unit.mesh.rotation.y = targetRotation;

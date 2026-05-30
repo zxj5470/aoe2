@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import Scene from './Scene.js';
 import Camera from './Camera.js';
 import GameMap from '../world/Map.js';
@@ -17,7 +18,7 @@ import CombatSystem from '../systems/CombatSystem.js';
 import ResourceGatheringSystem from '../systems/ResourceGatheringSystem.js';
 import CollisionSystem from '../systems/CollisionSystem.js';
 import AISystem from '../systems/AISystem.js';
-import { HUMAN_OWNER, normalizeBuildingType } from '../config.js';
+import { HUMAN_OWNER, normalizeBuildingType, BUILDING_TYPES, BUILDING_CONFIG } from '../config.js';
 import SpatialIndex from './SpatialIndex.js';
 import HUD from '../ui/HUD.js';
 import { CELL_SIZE, MAP_CONFIG } from '../config.js';
@@ -33,7 +34,7 @@ class Game {
         this.camera = null;
         this.renderer = null;
         this.clock = null;
-        this.isRunning = false;
+        this.elapsedGameTime = 0;
         this.loadingProgress = 0;
         this.resources = {
             gold: 0,
@@ -69,6 +70,10 @@ class Game {
         this.uiUpdateTimer = 0;
         this.uiUpdateInterval = 1;
 
+        // 双击检测
+        this.lastClickTime = 0;
+        this.lastClickedEntityId = null;
+        this.doubleClickThreshold = 300; // ms
         this.showCollisionVisuals = false;
     }
 
@@ -129,14 +134,29 @@ class Game {
 
         this.selectionManager = new SelectionManager(this.formationSystem);
 
-        this.uiManager.init();
-        
         this.initEntities();
-        
+
+        // 相机默认定位到我方城镇中心
+        this.centerCameraOnTownCenter();
+        // 初始化资源管理器引用（player 在 initEntities 中创建，ResourceGatheringSystem 在此之前）
+        if (this.resourceGatheringSystem) {
+            this.resourceGatheringSystem.resourceManager = this.resourceManager;
+        }
+
+        this.uiManager.init();
+
+        this.updateResourceDisplay();
+
         this.eventManager.setupEventListeners();
-        
+
+        // 绑定玩家事件监听器（人口变化、资源变化、时代变化等）
+        this.bindPlayerEvents();
+
+        // 初始化人口显示（在事件监听器设置之后）
+        this.updatePopulationDisplay();
+
         this.hideLoadingScreen();
-        
+
         this.start();
     }
 
@@ -152,6 +172,16 @@ class Game {
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+        // 初始化 CSS2DRenderer（用于血条等 UI 元素）
+        this.css2DRenderer = new CSS2DRenderer();
+        this.css2DRenderer.setSize(window.innerWidth, window.innerHeight);
+        this.css2DRenderer.domElement.style.position = 'absolute';
+        this.css2DRenderer.domElement.style.top = '0';
+        this.css2DRenderer.domElement.style.left = '0';
+        this.css2DRenderer.domElement.style.pointerEvents = 'none';
+        this.css2DRenderer.domElement.style.zIndex = '10';
+        document.getElementById('game-container').appendChild(this.css2DRenderer.domElement);
     }
 
     async loadResources() {
@@ -256,6 +286,8 @@ class Game {
     }
 
     initEntities() {
+        console.log('[Game] initEntities 开始');
+
         // 初始化玩家
         this.player = new Player({
             id: HUMAN_OWNER,
@@ -264,83 +296,52 @@ class Game {
             wood: 200,    // 初始给一些资源用于测试
             food: 200,
             stone: 100,
-            maxPopulation: 20
+            maxPopulation: 0  // 由建筑数量计算得出
         });
 
+        console.log(`[Game] 玩家已创建, 初始人口: ${this.player.population.current}/${this.player.population.max}`);
+
         if (this.selectedMapType === 'arabia') {
+            console.log('[Game] 初始化阿拉伯地图实体');
             this.entityManager.initArabiaEntities();
         } else {
+            console.log('[Game] 初始化测试地图实体');
             this.entityManager.initTestUnits();
             this.entityManager.initTestBuildings();
             this.entityManager.initTestResources();
             this.entityManager.initTownCenter();
         }
 
+        // 根据建筑计算初始人口上限
+        console.log('[Game] 开始计算最大人口');
+        this.player.calculateMaxPopulation(this.entityManager);
+
+        console.log(`[Game] initEntities 完成, 人口: ${this.player.population.current}/${this.player.population.max}`);
+
         this.entityManager.registerUnitsToGatheringSystem();
         this.entityManager.registerResourceNodesToGatheringSystem();
-
-        this.updateResourceDisplay();
     }
 
     normalizeBuildingType(buildingType) {
         return normalizeBuildingType(buildingType);
     }
 
+    // 占地宽度（X轴方向格子数）
     getBuildingWidth(buildingType) {
         const normalizedType = normalizeBuildingType(buildingType);
-        const widths = {
-            house: 2,
-            farm: 3,
-            lumber_camp: 2,
-            mining_camp: 2,
-            barracks: 3,
-            stable: 3,
-            archery_range: 3,
-            castle: 5,
-            market: 3,
-            church: 3,
-            blacksmith: 3,
-            watch_tower: 2
-        };
-        return widths[normalizedType] || 2;
+        return BUILDING_CONFIG[normalizedType]?.width || 2;
     }
-    
+
+    // 占地纵深（Z轴方向格子数，即矩形的"高"）
     getBuildingDepth(buildingType) {
         const normalizedType = normalizeBuildingType(buildingType);
-        const depths = {
-            house: 2,
-            farm: 3,
-            lumber_camp: 2,
-            mining_camp: 2,
-            barracks: 3,
-            stable: 3,
-            archery_range: 3,
-            castle: 5,
-            market: 3,
-            church: 4,
-            blacksmith: 3,
-            watch_tower: 2
-        };
-        return depths[normalizedType] || 2;
+        return BUILDING_CONFIG[normalizedType]?.depth || 2;
     }
-    
+
+    // 离地高度（Y轴，建筑物的视觉高度）
     getBuildingHeight(buildingType) {
         const normalizedType = normalizeBuildingType(buildingType);
-        const heights = {
-            house: 2,
-            farm: 0.5,
-            lumber_camp: 1.5,
-            mining_camp: 1.5,
-            barracks: 2.5,
-            stable: 2.2,
-            archery_range: 2,
-            castle: 4,
-            market: 2,
-            church: 3.5,
-            blacksmith: 2,
-            watch_tower: 3
-        };
-        return heights[normalizedType] || 2;
+        return BUILDING_CONFIG[normalizedType]?.height || 2;
     }
 
     initIndependentSystems() {
@@ -374,8 +375,8 @@ class Game {
         
         requestAnimationFrame(() => this.animate());
         
-        const deltaTime = this.clock.getDelta();
-        
+        const deltaTime = Math.min(this.clock.getDelta(), 0.1); // cap to avoid spiral
+        this.elapsedGameTime += deltaTime;
         this.updateCore(deltaTime);
         this.updateSystems(deltaTime);
         this.updateUI(deltaTime);
@@ -402,6 +403,10 @@ class Game {
 
     render() {
         this.renderer.render(this.scene.getScene(), this.camera.getCamera());
+        // 渲染 CSS2D 元素（血条等）
+        if (this.css2DRenderer) {
+            this.css2DRenderer.render(this.scene.getScene(), this.camera.getCamera());
+        }
     }
 
     get entities() {
@@ -422,6 +427,25 @@ class Game {
 
     updateResourceDisplay() {
         this.uiManager.updateResourceDisplay();
+    }
+
+    updatePopulationDisplay() {
+        if (!this.player) {
+            console.log('[Game] updatePopulationDisplay: player 不存在');
+            return;
+        }
+
+        console.log(`[Game] updatePopulationDisplay: ${this.player.population.current}/${this.player.population.max}`);
+
+        const currentElement = document.getElementById('population-current');
+        const maxElement = document.getElementById('population-max');
+
+        if (currentElement) {
+            currentElement.textContent = this.player.population.current;
+        }
+        if (maxElement) {
+            maxElement.textContent = this.player.population.max;
+        }
     }
 
     bindPlayerEvents() {
@@ -465,12 +489,25 @@ class Game {
 
         if (this.buildingPlacementSystem && this.buildingPlacementSystem.isPlacing) {
             const worldPos = this.inputHandler.getWorldPosition();
-            const building = this.buildingPlacementSystem.placeBuilding(
+            const result = this.buildingPlacementSystem.placeBuilding(
                 worldPos,
                 this.player.resourceManager
             );
-            if (building) {
-                this.addEntity(building);
+
+            // 墙壁拖拽建造返回数组
+            if (Array.isArray(result)) {
+                result.forEach(building => {
+                    this.addEntity(building);
+                });
+                if (result.length > 0) {
+                    console.log(`[建造] 建造了 ${result.length} 段城墙`);
+                }
+                return;
+            }
+
+            // 普通建筑放置
+            if (result) {
+                this.addEntity(result);
 
                 // 让选中的村民去建造（而不是自动分配）
                 const selectedVillagers = this.selectionManager.selectedEntities.filter(
@@ -478,9 +515,9 @@ class Game {
                 );
 
                 if (selectedVillagers.length > 0) {
-                    console.log(`[建造] ${selectedVillagers.length} 个村民将建造 ${building.buildingType}`);
+                    console.log(`[建造] ${selectedVillagers.length} 个村民将建造 ${result.buildingType}`);
                     for (const villager of selectedVillagers) {
-                        villager.sendToBuild(building);
+                        villager.sendToBuild(result);
                     }
                 } else {
                     console.warn('[建造] 没有选中的村民，建筑将停留在建造状态');
@@ -490,13 +527,44 @@ class Game {
         }
 
         const pickedEntity = this.pickAtMouse(event);
+        const now = Date.now();
 
         if (pickedEntity) {
-            this.handleEntitySelection(pickedEntity, event.shiftKey);
+            // 双击同类型村民 → 选择视角内所有村民
+            if (pickedEntity.type === 'unit' && pickedEntity.unitType === 'villager' && pickedEntity.isPlayerOwned()) {
+                if (pickedEntity.id === this.lastClickedEntityId &&
+                    now - this.lastClickTime < this.doubleClickThreshold) {
+                    console.log('[双击] 选择视角内所有村民');
+                    this.selectAllVillagersInView();
+                    this.lastClickTime = 0;
+                    this.lastClickedEntityId = null;
+                    return;
+                }
+                this.lastClickTime = now;
+                this.lastClickedEntityId = pickedEntity.id;
+            } else {
+                this.lastClickTime = 0;
+                this.lastClickedEntityId = null;
+            }
+
+            // 绵羊选择：己方绵羊可被选中（独立选择，不与普通单位/建筑混选）
+            if (pickedEntity.type === 'resource' && pickedEntity.isSheep && pickedEntity.isPlayerOwned()) {
+                this.selectionManager.deselectAll();
+                this.selectionManager.selectEntity(pickedEntity, false);
+                return;
+            }
+
+            // Ctrl+点击同类型建筑 → 追加选择；普通点击 → 替换选择
+            const addToSelection = event.ctrlKey && pickedEntity.type === 'building';
+
+            this.handleEntitySelection(pickedEntity, addToSelection);
             return;
         }
-        
+
+        // 点击空地：取消所有选择
         this.selectionManager.deselectAll();
+        this.lastClickTime = 0;
+        this.lastClickedEntityId = null;
     }
 
     pickAtMouse(event = null) {
@@ -560,22 +628,109 @@ class Game {
 
         console.log('[handleRightClick] worldPos:', worldPos, 'selectedEntities:', this.selectionManager.selectedEntities.length, 'type:', this.selectionManager.selectionType);
 
-        const nearbyEntities = this.spatialIndex.queryPoint(worldPos.x, worldPos.z, 0.05);
+        const nearbyEntities = this.spatialIndex.queryPoint(worldPos.x, worldPos.z, 1.5);
+
+        // 如果选中的是已方绵羊，右键移动它
+        if (this.selectionManager.selectionType === 'resource' &&
+            this.selectionManager.selectedEntities.length === 1) {
+            const selEntity = this.selectionManager.selectedEntities[0];
+            if (selEntity.isSheep && selEntity.sheepState === 'owned') {
+                selEntity.setSheepTarget(worldPos);
+                return;
+            }
+        }
+
+        const selectedVillagers = this.selectionManager.selectedEntities.filter(
+            e => e.isAlive && e.type === 'unit' && e.unitType === 'villager' && e.isPlayerOwned()
+        );
 
         for (const entity of nearbyEntities) {
-            if (entity.type === 'resource' && entity.isAlive) {
-                console.log('[handleRightClick] 找到资源节点:', entity.resourceType, '中心:', entity.position);
-                
-                if (entity.showGatherIndicator) {
-                    entity.showGatherIndicator();
+            if (!entity.isAlive) continue;
+
+            // 携带资源的村民右键投放点建筑 → 投放资源（优先级最高）
+            if (entity.type === 'building' && entity.isPlayerOwned() && selectedVillagers.length > 0) {
+                const villagersWithResources = selectedVillagers.filter(v => v.carryAmount > 0 && v.carryType);
+                if (villagersWithResources.length > 0) {
+                    const dropOff = this.resourceGatheringSystem.dropOffPoints.find(
+                        p => p.building === entity && p.resourceTypes.includes(villagersWithResources[0].carryType)
+                    );
+                    if (dropOff) {
+                        for (const v of villagersWithResources) {
+                            v.dropOffPoint = entity;
+                            v.manualDropOff = true;
+                            this.resourceGatheringSystem.returnToDropOff(v);
+                        }
+                        return;
+                    }
                 }
-                
-                const townCenter = this.entityManager.getEntities().find(e => 
-                    e.type === 'building' && 
-                    e.buildingType === 'town_center' &&
-                    e.isAlive
+            }
+
+            // 绵羊捕获+宰杀：村民右键绵羊 → 移动到附近（自动捕获）后宰杀采集
+            if (entity.type === 'resource' && entity.isSheep && selectedVillagers.length > 0) {
+                if (entity.sheepState === 'wild') {
+                    // 野生绵羊：检查村民是否已在附近（2格内），是则立即捕获
+                    const villager = selectedVillagers[0];
+                    const dist = Math.sqrt(
+                        (villager.position.x - entity.position.x) ** 2 +
+                        (villager.position.z - entity.position.z) ** 2
+                    );
+                    if (dist <= 2) {
+                        entity.capture(villager.owner);
+                        // 捕获后立即宰杀+采集
+                        if (entity.sheepState === 'owned' && entity.isPlayerOwned()) {
+                            if (entity.showGatherIndicator) entity.showGatherIndicator();
+                            entity.startSlaughter();
+                            const townCenter = this.entityManager.getEntities().find(e =>
+                                e.type === 'building' && e.buildingType === BUILDING_TYPES.TOWN_CENTER && e.isAlive
+                            );
+                            this.selectionManager.issueCommand('gather', entity, townCenter);
+                        }
+                        return;
+                    }
+                    // 太远：发送村民移动到绵羊附近，由自动捕获机制处理
+                    const targetPos = this.resourceGatheringSystem.getGatherTarget(entity.position, villager.position);
+                    for (const v of selectedVillagers) {
+                        v.moveTo(targetPos, { preserveGathering: true });
+                    }
+                    return;
+                }
+                if (entity.sheepState === 'owned' && entity.isPlayerOwned()) {
+                    if (entity.showGatherIndicator) entity.showGatherIndicator();
+                    entity.startSlaughter();
+                    const townCenter = this.entityManager.getEntities().find(e =>
+                        e.type === 'building' && e.buildingType === BUILDING_TYPES.TOWN_CENTER && e.isAlive
+                    );
+                    this.selectionManager.issueCommand('gather', entity, townCenter);
+                    return;
+                }
+                // 绵羊已在宰杀中：直接下达采集命令
+                if (entity.sheepState === 'slaughtering') {
+                    if (entity.showGatherIndicator) entity.showGatherIndicator();
+                    const townCenter = this.entityManager.getEntities().find(e =>
+                        e.type === 'building' && e.buildingType === BUILDING_TYPES.TOWN_CENTER && e.isAlive
+                    );
+                    this.selectionManager.issueCommand('gather', entity, townCenter);
+                    return;
+                }
+            }
+
+            // 高棉文明：村民右键房屋 → 驻扎
+            if (entity.type === 'building' && entity.buildingType === BUILDING_TYPES.HOUSE &&
+                entity.isPlayerOwned() && selectedVillagers.length > 0 &&
+                this.player.hasCiv('khmer') && entity.buildingFeatures &&
+                entity.garrisonedUnits && entity.garrisonedUnits.length < 5) {
+                for (const v of selectedVillagers) {
+                    v.garrisonTo(entity);
+                }
+                return;
+            }
+
+            // 资源采集（排除已捕获的绵羊 - 它们不是普通资源）
+            if (entity.type === 'resource' && !entity.isSheep) {
+                if (entity.showGatherIndicator) entity.showGatherIndicator();
+                const townCenter = this.entityManager.getEntities().find(e =>
+                    e.type === 'building' && e.buildingType === BUILDING_TYPES.TOWN_CENTER && e.isAlive
                 );
-                
                 this.selectionManager.issueCommand('gather', entity, townCenter);
                 return;
             }
@@ -590,7 +745,6 @@ class Game {
             }
         }
 
-        console.log('[handleRightClick] 未点击到资源节点，执行移动命令');
         this.selectionManager.issueMoveCommand(new THREE.Vector3(worldPos.x, 0, worldPos.z));
     }
     
@@ -635,10 +789,19 @@ class Game {
                 }
             }
         }
-        
+
         if (selectedEntities.length > 0) {
-            this.selectionManager.selectEntities(selectedEntities, false);
-            console.log(`框选了 ${selectedEntities.length} 个单位`);
+            // 优先规则：如果同时含有人物和建筑，则排除建筑只选人物
+            const hasUnit = selectedEntities.some(e => e.type === 'unit');
+            const hasBuilding = selectedEntities.some(e => e.type === 'building');
+            let finalSelection = selectedEntities;
+            if (hasUnit && hasBuilding) {
+                finalSelection = selectedEntities.filter(e => e.type !== 'building');
+                console.log(`[框选] 混合选择 → 优先人物，排除 ${selectedEntities.length - finalSelection.length} 个建筑`);
+            }
+
+            this.selectionManager.selectEntities(finalSelection, false);
+            console.log(`框选了 ${finalSelection.length} 个单位`);
         }
     }
     
@@ -697,7 +860,65 @@ class Game {
             selectionBox.style.display = 'none';
         }
     }
-    
+
+    /**
+     * 双击村民时选择当前视角范围内的所有己方村民
+     */
+    selectAllVillagersInView() {
+        if (!this.camera || !this.entityManager || !this.selectionManager) return;
+
+        const cam = this.camera.getCamera();
+        const target = this.camera.target;
+        const zoom = this.camera.zoomLevel;
+        const aspect = this.canvas.clientWidth / this.canvas.clientHeight;
+
+        // 正交相机可见范围（地面投影，45度倾斜补偿）
+        const halfWidth = zoom * aspect / 2;
+        const halfDepth = zoom / 2 * Math.SQRT2;  // 45° 倾斜拉伸
+
+        const minX = target.x - halfWidth;
+        const maxX = target.x + halfWidth;
+        const minZ = target.z - halfDepth;
+        const maxZ = target.z + halfDepth;
+
+        const villagers = this.entityManager.entities.filter(e =>
+            e.isAlive &&
+            e.type === 'unit' &&
+            e.unitType === 'villager' &&
+            e.isPlayerOwned() &&
+            e.position.x >= minX && e.position.x <= maxX &&
+            e.position.z >= minZ && e.position.z <= maxZ
+        );
+
+        if (villagers.length === 0) return;
+
+        this.selectionManager.deselectAll();
+        for (const v of villagers) {
+            this.selectionManager.selectEntity(v, true);
+        }
+        console.log(`[双击] 选择了视角内 ${villagers.length} 个村民`);
+    }
+
+    /**
+     * 将相机定位到我方城镇中心
+     */
+    centerCameraOnTownCenter() {
+        if (!this.camera || !this.entityManager) return;
+
+        const tc = this.entityManager.entities.find(e =>
+            e.isAlive &&
+            e.type === 'building' &&
+            e.buildingType === BUILDING_TYPES.TOWN_CENTER &&
+            e.isPlayerOwned()
+        );
+
+        if (tc) {
+            this.camera.target.set(tc.position.x, 0, tc.position.z);
+            this.camera.updateCameraPosition();
+            console.log(`[相机] 已定位到我方城镇中心 (${tc.position.x.toFixed(1)}, ${tc.position.z.toFixed(1)})`);
+        }
+    }
+
     handleEntitySelection(entity, addToSelection) {
         console.log('[handleEntitySelection] entity:', entity, 'isAlive:', entity?.isAlive, 'userData:', entity?.userData);
         if (!this.selectionManager) return;

@@ -19,6 +19,7 @@ class Entity {
         this.isSelected = false;
         this.owner = config.owner || HUMAN_OWNER;
         this.isAlive = true;
+        this.isMouseOver = false;
     }
 
     generateId() {
@@ -73,6 +74,54 @@ class Entity {
         if (this.mesh) {
             this.mesh.userData.dead = true;
         }
+    }
+
+    onHover() {
+        this.isMouseOver = true;
+        this._applyHighlight();
+    }
+
+    onHoverOut() {
+        this.isMouseOver = false;
+        this._removeHighlight();
+    }
+
+    /**
+     * 悬停高亮：遍历所有 mesh 子对象，设置白色 emissive
+     */
+    _applyHighlight() {
+        if (!this.mesh) return;
+        this.mesh.traverse((child) => {
+            if (!child.isMesh || !child.material) return;
+            if (child.material.emissive === undefined) return;
+            // 跳过血条、选择环等UI元素
+            const name = child.name || '';
+            if (name.includes('healthBar') || name.includes('selectionRing') || name.includes('selectionGlow')) return;
+            // 保存原始 emissive（在 material 上标记，避免共享 material 的 mesh 重复保存）
+            if (child.material._origEmissive === undefined) {
+                child.material._origEmissive = child.material.emissive.getHex();
+                child.material._origEmissiveIntensity = child.material.emissiveIntensity || 0;
+            }
+            child.material.emissive = new THREE.Color(0xffffff);
+            child.material.emissiveIntensity = 0.3;
+        });
+    }
+
+    /**
+     * 取消悬停高亮
+     */
+    _removeHighlight() {
+        if (!this.mesh) return;
+        this.mesh.traverse((child) => {
+            if (!child.isMesh || !child.material) return;
+            const orig = child.material._origEmissive;
+            if (orig !== undefined) {
+                child.material.emissive.setHex(orig);
+                child.material.emissiveIntensity = child.material._origEmissiveIntensity || 0;
+                delete child.material._origEmissive;
+                delete child.material._origEmissiveIntensity;
+            }
+        });
     }
 
     select() {

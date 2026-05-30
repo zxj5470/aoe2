@@ -41,7 +41,7 @@ class SystemManager {
         );
 
         this.pathfinding = new Pathfinding(this.game.map.getGrid());
-        this.buildingPlacementSystem = new BuildingPlacementSystem(this.game.map, this.game.scene);
+        this.buildingPlacementSystem = new BuildingPlacementSystem(this.game.map, this.game.scene, this.game);
         
         this.resourceGatheringSystem = new ResourceGatheringSystem(
             this.game.map, 

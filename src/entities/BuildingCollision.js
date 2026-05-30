@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CELL_SIZE, MAP_CONFIG } from '../config.js';
+import { CELL_SIZE, MAP_CONFIG, BUILDING_TYPES } from '../config.js';
 
 class BuildingCollision {
     constructor(building) {
@@ -12,7 +12,7 @@ class BuildingCollision {
         let offsetX = 0;
         let offsetZ = 0;
         
-        if (this.building.buildingType === 'town_center') {
+        if (this.building.buildingType === BUILDING_TYPES.TOWN_CENTER) {
             width = 2;
             depth = 2;
             offsetX = -(this.building.gridSizeX - width) / 2;
@@ -49,7 +49,7 @@ class BuildingCollision {
             let offsetX = 0;
             let offsetZ = 0;
             
-            if (this.building.buildingType === 'town_center') {
+            if (this.building.buildingType === BUILDING_TYPES.TOWN_CENTER) {
                 offsetX = -(this.building.gridSizeX - width) / 2;
                 offsetZ = -(this.building.gridSizeZ - depth) / 2;
             }
@@ -110,7 +110,7 @@ class BuildingCollision {
         let offsetX = 0;
         let offsetZ = 0;
         
-        if (this.building.buildingType === 'town_center') {
+        if (this.building.buildingType === BUILDING_TYPES.TOWN_CENTER) {
             actualGridSizeX = 2;
             actualGridSizeZ = 2;
             offsetX = -(this.building.gridSizeX - actualGridSizeX) / 2;
@@ -192,33 +192,10 @@ class BuildingCollision {
         }
     }
 
+    /** @deprecated Use getOccupiedGridCells() instead — this method lacks MAP_CONFIG offset. */
     getOccupiedCells() {
-        const cells = [];
-        const gridX = Math.floor(this.building.position.x / CELL_SIZE);
-        const gridZ = Math.floor(this.building.position.z / CELL_SIZE);
-
-        let actualWidth = this.building.width;
-        let actualDepth = this.building.depth;
-        let offsetX = 0;
-        let offsetZ = 0;
-        
-        if (this.building.buildingType === 'town_center') {
-            actualWidth = 2;
-            actualDepth = 2;
-            offsetX = -(this.building.width - actualWidth) / 2;
-            offsetZ = -(this.building.depth - actualDepth) / 2;
-        }
-
-        for (let dx = 0; dx < actualWidth; dx++) {
-            for (let dz = 0; dz < actualDepth; dz++) {
-                cells.push({
-                    x: gridX + dx + offsetX,
-                    z: gridZ + dz + offsetZ
-                });
-            }
-        }
-
-        return cells;
+        console.warn('BuildingCollision.getOccupiedCells() is deprecated. Use getOccupiedGridCells() instead.');
+        return this.getOccupiedGridCells();
     }
 }
 

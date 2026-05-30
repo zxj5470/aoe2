@@ -334,7 +334,55 @@
             z-index: 2;
             opacity: 0.9;
         }
-        
+
+        .building-tooltip {
+            position: fixed;
+            z-index: 10000;
+            background: #3a2518;
+            border: 1px solid #8B6914;
+            border-radius: 4px;
+            padding: 8px 10px;
+            color: #D4A847;
+            font-size: 12px;
+            pointer-events: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+            min-width: 120px;
+            max-width: 200px;
+        }
+
+        .building-tooltip-name {
+            font-weight: bold;
+            font-size: 13px;
+            color: #FFD700;
+            margin-bottom: 3px;
+        }
+
+        .building-tooltip-desc {
+            font-style: italic;
+            font-size: 11px;
+            color: #B8956A;
+            margin-bottom: 5px;
+        }
+
+        .building-tooltip-divider {
+            border: none;
+            border-top: 1px solid #5a3d2b;
+            margin: 4px 0;
+        }
+
+        .building-tooltip-cost {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .building-tooltip-cost-item {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 12px;
+        }
+
         /* 建筑指令面板样式 - 已合并到建筑面板 */
         .building-commands-panel {
             display: none;
@@ -609,6 +657,7 @@
                 </div>
                 <div class="age-display">
                     <span id="current-age">黑暗时代</span>
+                    <span id="game-time" style="margin-left: 15px; color: #FFF; font-size: 13px;">00:00</span>
                 </div>
             </div>
 
@@ -618,67 +667,66 @@
 
             <div id="hud">
                 <div class="hud-panel hud-panel-left">
-                    <div class="panel-title">建筑</div>
                     <div class="building-buttons">
                         <button class="building-btn" data-building="house">
                             <span class="building-btn-icon">🏠</span>
-                            <span class="building-btn-text">房屋</span>
+                            <span class="building-btn-text"></span>
                         </button>
                         <button class="building-btn" data-building="barracks">
                             <span class="building-btn-icon">⚔️</span>
-                            <span class="building-btn-text">兵营</span>
+                            <span class="building-btn-text"></span>
                         </button>
                         <button class="building-btn" data-building="stable">
                             <span class="building-btn-icon">🐴</span>
-                            <span class="building-btn-text">马厩</span>
+                            <span class="building-btn-text"></span>
                         </button>
-                        <button class="building-btn" data-building="archery">
+                        <button class="building-btn" data-building="archery_range">
                             <span class="building-btn-icon">🏹</span>
-                            <span class="building-btn-text">射箭场</span>
+                            <span class="building-btn-text"></span>
                         </button>
                         <button class="building-btn" data-building="farm">
                             <span class="building-btn-icon">🌾</span>
-                            <span class="building-btn-text">农田</span>
+                            <span class="building-btn-text"></span>
                         </button>
-                        <button class="building-btn" data-building="lumber">
+                        <button class="building-btn" data-building="lumber_camp">
                             <span class="building-btn-icon">🌲</span>
-                            <span class="building-btn-text">伐木场</span>
+                            <span class="building-btn-text"></span>
                         </button>
-                        <button class="building-btn" data-building="mine">
+                        <button class="building-btn" data-building="mining_camp">
                             <span class="building-btn-icon">⛏️</span>
-                            <span class="building-btn-text">采矿场</span>
+                            <span class="building-btn-text"></span>
                         </button>
-                        <button class="building-btn" data-building="tower">
+                        <button class="building-btn" data-building="watch_tower">
                             <span class="building-btn-icon">🗼</span>
-                            <span class="building-btn-text">瞭望塔</span>
+                            <span class="building-btn-text"></span>
                         </button>
                         <button class="building-btn" data-building="castle">
                             <span class="building-btn-icon">🏰</span>
-                            <span class="building-btn-text">城堡</span>
+                            <span class="building-btn-text"></span>
                         </button>
                         <button class="building-btn" data-building="wall">
                             <span class="building-btn-icon">🧱</span>
-                            <span class="building-btn-text">城墙</span>
+                            <span class="building-btn-text"></span>
                         </button>
                         <button class="building-btn" data-building="gate">
                             <span class="building-btn-icon">🚪</span>
-                            <span class="building-btn-text">城门</span>
+                            <span class="building-btn-text"></span>
                         </button>
                         <button class="building-btn" data-building="blacksmith">
                             <span class="building-btn-icon">⚒️</span>
-                            <span class="building-btn-text">铁匠铺</span>
+                            <span class="building-btn-text"></span>
                         </button>
                         <button class="building-btn" data-building="market">
                             <span class="building-btn-icon">🏪</span>
-                            <span class="building-btn-text">市场</span>
+                            <span class="building-btn-text"></span>
                         </button>
                         <button class="building-btn" data-building="dock">
                             <span class="building-btn-icon">⚓</span>
-                            <span class="building-btn-text">码头</span>
+                            <span class="building-btn-text"></span>
                         </button>
                         <button class="building-btn" data-building="church">
                             <span class="building-btn-icon">⛪</span>
-                            <span class="building-btn-text">教堂</span>
+                            <span class="building-btn-text"></span>
                         </button>
                     </div>
                     

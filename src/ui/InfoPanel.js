@@ -1,5 +1,60 @@
 import { CELL_SIZE, getPlayerColor, getPlayerName } from '../config.js';
 
+// 村民工种名称映射（根据资源类型）
+const VILLAGER_JOB_NAMES = {
+  wood: '伐木工',
+  gold: '矿工',
+  stone: '矿工'
+};
+
+// 食物类工种映射（根据资源节点名称判断）
+const FOOD_JOB_NAMES = {
+  sheep: '牧羊人',
+  deer: '猎人',
+  boar: '猎人',
+  berry: '采集工',
+  浆果: '采集工'
+};
+
+function getVillagerDisplayName(entity) {
+  if (entity.unitType !== 'villager') return entity.name;
+
+  // 有当前资源正在采集：优先根据资源节点名称判断食物类工种
+  if (entity.currentResource && !entity.isMoving) {
+    if (entity.carryType === 'food') {
+      const resourceName = entity.currentResource?.name || '';
+      const lowerName = resourceName.toLowerCase();
+      for (const [key, jobName] of Object.entries(FOOD_JOB_NAMES)) {
+        if (lowerName.includes(key)) return jobName;
+      }
+      return '采集工';
+    }
+    if (VILLAGER_JOB_NAMES[entity.carryType]) {
+      return VILLAGER_JOB_NAMES[entity.carryType];
+    }
+  }
+
+  // 携带资源但未在采集（中断后）：保留工种名称直到资源投放或切换类型
+  if (entity.carryType && entity.carryAmount > 0) {
+    if (entity.carryType === 'food') {
+      // 食物类：尝试从 lastResourcePosition 获取资源名称
+      const lastNode = entity.lastResourcePosition?.node;
+      if (lastNode) {
+        const lowerName = (lastNode.name || '').toLowerCase();
+        for (const [key, jobName] of Object.entries(FOOD_JOB_NAMES)) {
+          if (lowerName.includes(key)) return jobName;
+        }
+      }
+      return '采集工';
+    }
+    if (VILLAGER_JOB_NAMES[entity.carryType]) {
+      return VILLAGER_JOB_NAMES[entity.carryType];
+    }
+  }
+
+  return entity.name;
+}
+
 class InfoPanel {
   constructor(game) {
     this.game = game;
@@ -50,9 +105,10 @@ class InfoPanel {
       const ownerName = getPlayerName(entity.owner);
 
       // 第一行：实体名 + 玩家名（玩家名带颜色）
+      const displayName = getVillagerDisplayName(entity);
       html = `
         <div class="info-row" style="justify-content: flex-start;">
-          <span>${entity.name} <span style="color: ${getPlayerColor(entity.owner)}">(${ownerName})</span></span>
+          <span>${displayName} <span style="color: ${getPlayerColor(entity.owner)}">(${ownerName})</span></span>
         </div>
       `;
 
@@ -71,12 +127,14 @@ class InfoPanel {
             <span style="color: ${healthColor};">${entity.health}/${entity.maxHealth}</span>
           </div>
         `;
-      } else if (entity.amount !== undefined) {
-        // 资源节点
+      }
+
+      // 资源节点（绵羊等有 health 和 amount 两个属性，需要独立显示）
+      if (entity.type === 'resource' && entity.amount !== undefined) {
         html += `
           <div class="info-row" style="margin-top: 8px;">
             <span>资源量:</span>
-            <span>${entity.amount}</span>
+            <span>${Math.ceil(entity.amount)}</span>
           </div>
         `;
       }
@@ -101,7 +159,7 @@ class InfoPanel {
           html += `
             <div class="info-row" style="margin-top: 8px; color: #FFD700;">
               <span>携带资源:</span>
-              <span>${entity.carryAmount} ${entity.carryType || '无'}</span>
+              <span>${Math.floor(entity.carryAmount)} ${entity.carryType || '无'}</span>
             </div>
           `;
         }
@@ -112,6 +170,35 @@ class InfoPanel {
             <span>${entity.buildingType || '未知'}</span>
           </div>
         `;
+
+        // 显示建造信息（如果正在建造中）
+        if (entity.isUnderConstruction) {
+          const info = entity.getConstructionInfo ? entity.getConstructionInfo() : {
+            progress: entity.constructionProgress || 0,
+            builderCount: entity.builderVillagers ? entity.builderVillagers.length : 0,
+            requiredBuilders: entity.requiredBuilders || 1,
+            remainingTimeSec: 0
+          };
+          const progress = Math.round(info.progress || 0);
+          const remainingTimeSec = info.remainingTimeSec || 0;
+          const builderCount = info.builderCount || 0;
+          const requiredBuilders = info.requiredBuilders || 1;
+
+          html += `
+            <div class="info-row" style="margin-top: 8px; color: #FFA500;">
+              <span>建造进度:</span>
+              <span>${progress}%</span>
+            </div>
+            <div class="info-row">
+              <span>剩余时间:</span>
+              <span>${remainingTimeSec}秒</span>
+            </div>
+            <div class="info-row">
+              <span>建造者:</span>
+              <span>${builderCount}/${requiredBuilders}</span>
+            </div>
+          `;
+        }
       }
     } else {
       // 多个单位选择

@@ -34,6 +34,14 @@ class ResourceManager {
         }
     }
 
+    addResources(resources) {
+        for (const [type, amount] of Object.entries(resources)) {
+            if (amount > 0) {
+                this.addResource(type, amount);
+            }
+        }
+    }
+
     removeResource(type, amount) {
         if (this.resources.hasOwnProperty(type)) {
             this.resources[type] = Math.max(0, this.resources[type] - amount);

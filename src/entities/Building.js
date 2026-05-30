@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import Entity from './Entity.js';
 import RomanNumeralCanvas from './RomanNumeralCanvas.js';
-import { CELL_SIZE, MAP_CONFIG, getPlayerColor } from '../config.js';
+import { CELL_SIZE, MAP_CONFIG, getPlayerColor, OWNER_TO_PLAYER_ID } from '../config.js';
 import BuildingBase from './BuildingBase.js';
 import BuildingConstruction from './BuildingConstruction.js';
 import BuildingProduction from './BuildingProduction.js';
@@ -22,12 +22,96 @@ class Building extends BuildingBase {
         this.construction.updateConstruction(deltaTime);
         this.production.updateProduction(deltaTime);
 
+        // 防御建筑自动攻击
+        if (this.buildingFeatures.canAttack && !this.isUnderConstruction) {
+            this.updateDefensiveAttack(deltaTime);
+        }
+
         // 更新血条渐隐动画
         this.updateHealthBarAnimation(deltaTime);
 
         if (this.isSelected) {
             this.updateSelectionVisual(deltaTime);
         }
+    }
+
+    updateDefensiveAttack(deltaTime) {
+        const currentTime = Date.now() / 1000;
+
+        // 如果有目标且目标存活，检查是否在攻击范围内
+        if (this.targetEntity && this.targetEntity.isAlive) {
+            const distance = this.position.distanceTo(this.targetEntity.position);
+
+            if (distance > this.attackRange) {
+                // 目标超出攻击范围，清除目标
+                this.targetEntity = null;
+                this.isAttacking = false;
+            } else if (currentTime - this.lastAttackTime >= this.attackCooldown) {
+                // 攻击冷却完成，执行攻击
+                this.performDefensiveAttack(currentTime);
+            }
+        } else {
+            // 没有目标或目标已死亡，寻找新目标
+            this.findDefensiveTarget();
+        }
+    }
+
+    findDefensiveTarget() {
+        if (!this._game || !this._game.combatSystem) return;
+
+        const closestEnemy = this._game.combatSystem.findTarget(this, this.attackRange);
+        if (closestEnemy) {
+            this.targetEntity = closestEnemy;
+            this.isAttacking = true;
+        }
+    }
+
+    performDefensiveAttack(currentTime) {
+        if (!this.targetEntity || !this.targetEntity.isAlive) return;
+
+        // 计算伤害
+        let damage = this.attackDamage;
+
+        // 应用护甲
+        damage = Math.max(1, damage - (this.targetEntity.armor || 0));
+
+        // 造成伤害
+        this.targetEntity.takeDamage(damage);
+
+        // 更新攻击时间
+        this.lastAttackTime = currentTime;
+
+        // 创建攻击效果
+        this.createDefensiveAttackEffect();
+
+        console.log(`[防御建筑] ${this.name} 攻击 ${this.targetEntity.name}，造成 ${damage} 点伤害`);
+    }
+
+    createDefensiveAttackEffect() {
+        if (!this._game || !this._game.scene) return;
+
+        // 创建简单的攻击效果（黄色闪光）
+        const effectGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+        const effectMaterial = new THREE.MeshBasicMaterial({
+            color: 0xFFFF00,
+            transparent: true,
+            opacity: 0.8
+        });
+
+        const effect = new THREE.Mesh(effectGeometry, effectMaterial);
+        effect.position.copy(this.position);
+        effect.position.y = this.height;
+
+        this._game.scene.add(effect);
+
+        // 自动移除效果
+        setTimeout(() => {
+            if (this._game && this._game.scene) {
+                this._game.scene.remove(effect);
+                effect.geometry.dispose();
+                effect.material.dispose();
+            }
+        }, 200);
     }
 
     updateConstruction(deltaTime) {
@@ -68,6 +152,14 @@ class Building extends BuildingBase {
 
     getConstructionProgress() {
         return this.construction.getConstructionProgress();
+    }
+
+    cancelConstruction() {
+        return this.construction.cancelConstruction();
+    }
+
+    getConstructionInfo() {
+        return this.construction.getConstructionInfo();
     }
 
     getProductionProgress() {

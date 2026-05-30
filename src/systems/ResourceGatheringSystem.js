@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 class ResourceGatheringSystem {
     constructor(map, resourceManager, spatialIndex) {
         this.map = map;
@@ -81,18 +83,24 @@ class ResourceGatheringSystem {
             if (!gatherer.isAlive) continue;
 
             if (gatherer.carryAmount >= this.carryCapacity) {
-                // 如果正在前往投放点的路上，确保保存了资源点引用
+                // 满载：保存资源点引用后返回投放
                 if (!gatherer.lastResourcePosition && gatherer.currentResource) {
                     gatherer.lastResourcePosition = {
                         node: gatherer.currentResource,
                         position: gatherer.currentResource.position.clone()
                     };
                 }
-                // 返回投放点
+                this.returnToDropOff(gatherer);
+            } else if (gatherer.isReturning && gatherer.carryAmount > 0 && gatherer.carryType) {
+                // 正在返回投放点（手动点击城镇中心或自然耗尽），继续投放流程
                 this.returnToDropOff(gatherer);
             } else if (gatherer.currentResource) {
-                // 继续收集
+                // 有目标资源：继续采集
                 this.continueGathering(gatherer, deltaTime);
+            } else if (gatherer.shouldAutoDrop && gatherer.carryAmount > 0 && gatherer.carryType) {
+                // 资源自然耗尽后自动投放（非玩家手动中断）
+                gatherer.shouldAutoDrop = false;
+                this.returnToDropOff(gatherer);
             }
         }
     }
@@ -115,182 +123,155 @@ class ResourceGatheringSystem {
             position: resourceNode.position.clone()
         };
 
-        // 移动到资源附近的可行走格子，而非资源中心（避免穿过被占用的资源格子）
-        const targetPosition = this.findNearestWalkableToResource(gatherer, resourceNode.position, 2.5);
-        gatherer.moveTo(targetPosition, { preserveGathering: true });
+        // 移动到资源旁离村民最近的可行走格子
+        const target = this.getGatherTarget(resourceNode.position, gatherer.position);
+        gatherer.moveTo(target, { preserveGathering: true });
 
         return true;
     }
 
     /**
-     * 查找资源附近最近的可行走格子
-     * @param {Unit} gatherer - 采集单位
-     * @param {Vector3} resourceCenter - 资源中心位置
-     * @param {number} maxDistance - 最大搜索距离（格子数）
-     * @returns {Vector3} 最近的可行走格子位置
+     * 找到资源格子旁边、离村民最近的可行走格子（世界坐标）
      */
-    findNearestWalkableToResource(gatherer, resourceCenter, maxDistance = 5) {
-        if (!gatherer.game || !gatherer.game.pathfindingSystem) {
-            return resourceCenter;
-        }
+    getGatherTarget(resourcePosition, gathererPosition) {
+        const grid = this.grid;
+        const halfW = grid.width * grid.cellSize / 2;
+        const halfH = grid.height * grid.cellSize / 2;
+        const cx = Math.floor(resourcePosition.x / grid.cellSize + grid.width / 2);
+        const cy = Math.floor(resourcePosition.z / grid.cellSize + grid.height / 2);
 
-        const pathfinding = gatherer.game.pathfindingSystem;
-        const grid = pathfinding.grid;
+        let bestCell = null;
+        let bestDist = Infinity;
 
-        // 从资源中心向外扩展搜索最近的可行走格子
-        for (let distance = 1; distance <= maxDistance; distance++) {
-            const cells = pathfinding.getCellsAtDistance(resourceCenter.x, resourceCenter.z, distance);
-
-            for (const cell of cells) {
-                if (cell.walkable && !cell.occupied) {
-                    // 找到可行走的格子，转换回世界坐标
-                    const worldX = cell.x * grid.cellSize + grid.cellSize / 2 - grid.width * grid.cellSize / 2;
-                    const worldZ = cell.y * grid.cellSize + grid.cellSize / 2 - grid.height * grid.cellSize / 2;
-
-                    return new THREE.Vector3(worldX, 0, worldZ);
+        for (let dist = 1; dist <= 3; dist++) {
+            for (let dx = -dist; dx <= dist; dx++) {
+                for (let dy = -dist; dy <= dist; dy++) {
+                    if (Math.abs(dx) + Math.abs(dy) !== dist) continue;
+                    const cell = grid.getCell(cx + dx, cy + dy);
+                    if (cell && cell.walkable && !cell.occupied) {
+                        const wx = cell.x * grid.cellSize + grid.cellSize / 2 - halfW;
+                        const wz = cell.y * grid.cellSize + grid.cellSize / 2 - halfH;
+                        const d = (gathererPosition.x - wx) ** 2 + (gathererPosition.z - wz) ** 2;
+                        if (d < bestDist) {
+                            bestDist = d;
+                            bestCell = { x: wx, z: wz };
+                        }
+                    }
                 }
             }
         }
-
-        // 如果附近没有可行走格子，返回资源中心（允许穿过，避免卡死）
-        return resourceCenter;
+        return bestCell ? new THREE.Vector3(bestCell.x, 0, bestCell.z) : resourcePosition;
     }
 
     continueGathering(gatherer, deltaTime) {
         const resourceNode = gatherer.currentResource;
-        
+
         if (!resourceNode || !resourceNode.userData) {
             gatherer.currentResource = null;
             gatherer.carryType = null;
             return;
         }
-        
-        const distance = gatherer.position.distanceTo(resourceNode.position);
-        
-        if (distance <= this.gatherRange) {
-            // 收集资源
-            const gatherRate = this.gatherRates[resourceNode.userData.resourceType] || 0.5;
-            const gatherAmount = gatherRate * deltaTime;
-            
-            // 检查资源是否足够
-            const availableAmount = Math.min(
-                gatherAmount,
-                resourceNode.userData.resourceAmount,
-                this.carryCapacity - gatherer.carryAmount
-            );
-            
-            if (availableAmount > 0) {
-                gatherer.carryAmount += availableAmount;
-                resourceNode.userData.resourceAmount -= availableAmount;
 
-                // 同步到资源节点的 amount 属性
-                if (resourceNode.amount !== undefined) {
-                    resourceNode.amount = resourceNode.userData.resourceAmount;
-                }
+        // 未到达目标格子时继续移动（不重复调用 moveTo）
+        if (gatherer.isMoving) return;
 
-                // 资源耗尽
-                if (resourceNode.userData.resourceAmount <= 0) {
-                    this.depleteResource(resourceNode);
-                    gatherer.currentResource = null;
-                    // 清除记录的资源点位置
-                    gatherer.lastResourcePosition = null;
+        // 到达目标格子后开始采集
+        const gatherRate = resourceNode.gatherSpeed || this.gatherRates[resourceNode.userData.resourceType] || 0.5;
+        const gatherAmount = gatherRate * deltaTime;
+
+        const availableAmount = Math.min(
+            gatherAmount,
+            resourceNode.amount,
+            this.carryCapacity - gatherer.carryAmount
+        );
+
+        if (availableAmount > 0) {
+            gatherer.carryAmount += availableAmount;
+            gatherer.carryType = resourceNode.userData.resourceType;
+
+            // 通过资源节点的 gather 方法采集（更新视觉效果、粒子、耗尽检测）
+            resourceNode.gather(availableAmount);
+
+            // 同步回 userData
+            resourceNode.userData.resourceAmount = resourceNode.amount;
+
+            // 资源耗尽
+            if (resourceNode.amount <= 0) {
+                this.depleteResource(resourceNode);
+                gatherer.currentResource = null;
+                gatherer.lastResourcePosition = null;
+                // 标记需要自动投放（区分于玩家手动中断）
+                if (gatherer.carryAmount > 0) {
+                    gatherer.shouldAutoDrop = true;
                 }
             }
-        } else {
-            // 移动到资源点（保留采集状态，不触发 stopGathering）
-            gatherer.moveTo(resourceNode.position, { preserveGathering: true });
         }
     }
 
     returnToDropOff(gatherer) {
         if (!gatherer.carryType || gatherer.carryAmount <= 0) return;
 
-        // 找到最近的投放点
         const dropOffPoint = this.findNearestDropOff(gatherer, gatherer.carryType);
 
-        if (dropOffPoint) {
-            // 使用 rbush 查询村民位置附近的建筑
-            const gathererBox = gatherer.getCollisionBox ? gatherer.getCollisionBox() : null;
-            if (!gathererBox) return;
+        if (!dropOffPoint) return;
 
-            // 计算村民中心位置
-            const gathererCenterX = (gathererBox.minX + gathererBox.maxX) / 2;
-            const gathererCenterZ = (gathererBox.minZ + gathererBox.maxZ) / 2;
+        // 曼哈顿距离判断是否已到达投放点边缘
+        const dx = Math.abs(gatherer.position.x - dropOffPoint.position.x);
+        const dz = Math.abs(gatherer.position.z - dropOffPoint.position.z);
+        const isAtDropOffPoint = (dx + dz) <= 2;
 
-            // 查询村民附近的建筑（使用较大的容差）
-            const tolerance = 5; // 5格容差，确保能查询到附近的建筑
-            const nearbyBuildings = this.spatialIndex.queryPoint(
-                gathererCenterX,
-                gathererCenterZ,
-                tolerance
-            );
+        if (isAtDropOffPoint) {
+            // 投放资源
+            this.resourceManager.addResource(gatherer.carryType, gatherer.carryAmount);
+            const deliveredType = gatherer.carryType;
+            gatherer.carryAmount = 0;
+            gatherer.carryType = null;
+            gatherer.isReturning = false;
 
-            // 检查是否有城镇中心在附近
-            const isAtDropOffPoint = nearbyBuildings.some(building => {
-                // 检查是否是同一个建筑
-                if (building === dropOffPoint.building) {
-                    // 检查村民是否在城镇中心的1格范围内
-                    const buildingBox = building.getCollisionBox ? building.getCollisionBox() : null;
-                    if (!buildingBox) return false;
+            // 手动投放：投放后停止，不自动寻路
+            if (gatherer.manualDropOff) {
+                gatherer.manualDropOff = false;
+                gatherer.currentResource = null;
+                gatherer.lastResourcePosition = null;
+                gatherer.dropOffPoint = null;
+                return;
+            }
 
-                    // 检查村民位置是否在建筑碰撞盒的1格扩展范围内
-                    const expandRange = 1; // 1格范围
-                    const expandedMinX = buildingBox.minX - expandRange;
-                    const expandedMaxX = buildingBox.maxX + expandRange;
-                    const expandedMinZ = buildingBox.minZ - expandRange;
-                    const expandedMaxZ = buildingBox.maxZ + expandRange;
+            // 自然投放：优先返回上次采集的资源点
+            if (gatherer.lastResourcePosition) {
+                const lastResource = gatherer.lastResourcePosition.node;
+                const lastPosition = gatherer.lastResourcePosition.position;
 
-                    return gathererCenterX >= expandedMinX && 
-                           gathererCenterX <= expandedMaxX &&
-                           gathererCenterZ >= expandedMinZ && 
-                           gathererCenterZ <= expandedMaxZ;
+                if (lastResource &&
+                    lastResource.isAlive &&
+                    lastResource.userData &&
+                    lastResource.userData.resourceAmount > 0) {
+                    gatherer.carryType = deliveredType;
+                    gatherer.moveTo(lastPosition, { preserveGathering: true });
+                    return;
                 }
-                return false;
-            });
+                // 资源点已耗尽，清除记录
+                gatherer.lastResourcePosition = null;
+            }
 
-            if (isAtDropOffPoint) {
-                // 投放资源
-                this.resourceManager.addResource(gatherer.carryType, gatherer.carryAmount);
-                gatherer.carryAmount = 0;
-                gatherer.carryType = null;
-
-                // 优先返回上次采集的资源点
-                if (gatherer.lastResourcePosition) {
-                    const lastResource = gatherer.lastResourcePosition.node;
-                    const lastPosition = gatherer.lastResourcePosition.position;
-
-                    // 检查资源点是否仍然有效且有资源
-                    if (lastResource && 
-                        lastResource.isAlive && 
-                        lastResource.userData && 
-                        lastResource.userData.resourceAmount > 0) {
-                        // 返回资源点
-                        gatherer.moveTo(lastPosition, { preserveGathering: true });
-                    } else {
-                        // 资源点已耗尽或无效，清除记录并寻找新资源
-                        gatherer.lastResourcePosition = null;
-                        gatherer.currentResource = null;
-                        
-                        // 尝试寻找最近的同类型资源
-                        const nearestResource = this.findNearestResource(
-                            gatherer, 
-                            gatherer.carryType || 'wood',
-                            50
-                        );
-                        if (nearestResource) {
-                            this.startGathering(gatherer, nearestResource);
-                        }
-                    }
-                } else if (gatherer.currentResource && gatherer.currentResource.userData.resourceAmount > 0) {
-                    // 如果没有lastResourcePosition但有currentResource，使用currentResource
-                    gatherer.moveTo(gatherer.currentResource.position, { preserveGathering: true });
+            if (gatherer.currentResource && gatherer.currentResource.isAlive &&
+                gatherer.currentResource.userData && gatherer.currentResource.userData.resourceAmount > 0) {
+                gatherer.carryType = deliveredType;
+                gatherer.moveTo(gatherer.currentResource.position, { preserveGathering: true });
+            } else {
+                // 寻找最近的同类型资源
+                const nearestResource = this.findNearestResource(gatherer, deliveredType, 50);
+                if (nearestResource) {
+                    this.startGathering(gatherer, nearestResource);
                 } else {
-                    // 没有任何资源记录，清除状态
                     gatherer.currentResource = null;
                     gatherer.lastResourcePosition = null;
                 }
-            } else {
-                // 移动到投放点
+            }
+        } else {
+            // 正在前往投放点的路上，避免每帧重复寻路
+            if (!gatherer.isReturning) {
+                gatherer.isReturning = true;
                 gatherer.moveTo(dropOffPoint.position, { preserveGathering: true });
             }
         }

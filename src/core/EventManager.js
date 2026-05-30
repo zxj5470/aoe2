@@ -1,3 +1,5 @@
+import { BUILDING_TYPES } from '../config.js';
+
 class EventManager {
     constructor(game) {
         this.game = game;
@@ -53,6 +55,18 @@ class EventManager {
     onKeyDown(event) {
         this.game.camera.handleKeyDown(event);
 
+        // Tab 键旋转建筑（放置模式下）
+        if (event.key === 'Tab') {
+            if (this.game.buildingPlacementSystem && this.game.buildingPlacementSystem.isPlacing) {
+                event.preventDefault();
+                const rotated = this.game.buildingPlacementSystem.rotatePlacement();
+                if (rotated) {
+                    console.log('[EventManager] Tab: 旋转建筑');
+                }
+                return;
+            }
+        }
+
         // Escape 键取消建筑放置
         if (event.key === 'Escape') {
             if (this.game.buildingPlacementSystem && this.game.buildingPlacementSystem.isPlacing) {
@@ -106,7 +120,7 @@ class EventManager {
                 this.game.hud.enableButton(1, {
                     icon: '⚔️',
                     name: '兵营',
-                    id: 'barracks',
+                    id: BUILDING_TYPES.BARRACKS,
                     type: 'military'
                 });
                 console.log('兵营已启用');
@@ -147,7 +161,17 @@ class EventManager {
             this.game.entityManager.toggleCollisionVisuals();
         }
 
+        // A/S/D/F → 命令面板按钮 0/1/2/3
+        const hotkeyMap = { 'a': 0, 'A': 0, 's': 1, 'S': 1, 'd': 2, 'D': 2, 'f': 3, 'F': 3 };
+        if (event.key in hotkeyMap) {
+            const hud = this.game.hud;
+            if (hud && hud.actionPanel && hud.actionPanel.getCurrentPreset() !== 'empty') {
+                hud.actionPanel.triggerHotButton(hotkeyMap[event.key]);
+            }
+        }
+
         if (event.key === 'h' || event.key === 'H') {
+            this.game.centerCameraOnTownCenter();
             this.game.entityManager.selectTownCenter();
         }
     }
@@ -196,31 +220,69 @@ class EventManager {
 
     updateEntityHoverState(event) {
         if (!this.game.entityManager) return;
-
         const entities = this.game.entityManager.getEntities();
         const hoveredEntity = this.game.pickAtMouse(event);
-
-        // 调试：记录悬停的实体
-        if (hoveredEntity) {
-            console.log('[悬停检测] 悬停实体:', hoveredEntity.name, hoveredEntity.type);
-        }
-
         // 重置所有实体（单位或建筑）的悬停状态
         for (const entity of entities) {
-            if ((entity.type === 'building' || entity.type === 'unit') && entity.onHoverOut) {
+            if ((entity.type === 'building' || entity.type === 'unit' || entity.type === 'resource') && entity.onHoverOut) {
                 if (entity === hoveredEntity) {
-                    if (!entity.isMouseOver) {
-                        console.log('[悬停检测] 触发 onHover:', entity.name);
-                    }
                     entity.onHover();
                 } else {
                     entity.onHoverOut();
                 }
             }
         }
+        // 鼠标样式变化：选中村民时，hover到可采集资源显示手型
+        this.updateCursorStyle(hoveredEntity);
+    }
+    /**
+     * 更新鼠标样式
+     */
+    updateCursorStyle(hoveredEntity) {
+        const canvas = this.game.canvas;
+        if (!canvas) return;
+        // 检查是否选中了村民
+        const selectedVillagers = this.game.selectionManager ?
+            this.game.selectionManager.selectedEntities.filter(
+                e => e.isAlive && e.type === 'unit' && e.unitType === 'villager' && e.isPlayerOwned()
+            ) : [];
+        const hasSelectedVillager = selectedVillagers.length > 0;
+        if (hasSelectedVillager && hoveredEntity) {
+            // 可采集资源类型（包括绵羊）
+            const isGatherable = hoveredEntity.type === 'resource' &&
+                (hoveredEntity.resourceType === 'wood' ||
+                 hoveredEntity.resourceType === 'food' ||
+                 hoveredEntity.resourceType === 'gold' ||
+                 hoveredEntity.resourceType === 'stone' ||
+                 hoveredEntity.isSheep);
+            // 正在建造的建筑
+            const isBuildable = hoveredEntity.type === 'building' &&
+                hoveredEntity.isUnderConstruction && hoveredEntity.isAlive;
+            // 携带资源的村民悬停在投放点建筑上
+            const isDropOff = hoveredEntity.type === 'building' && hoveredEntity.isPlayerOwned() &&
+                selectedVillagers.some(v => v.carryAmount > 0 && v.carryType) &&
+                this.game.resourceGatheringSystem &&
+                this.game.resourceGatheringSystem.dropOffPoints.some(
+                    p => p.building === hoveredEntity
+                );
+            if (isGatherable || isBuildable || isDropOff) {
+                canvas.style.cursor = 'pointer';
+                return;
+            }
+        }
+        // 默认鼠标样式
+        canvas.style.cursor = 'default';
     }
     
     onWheel(event) {
+        // 放置模式下：鼠标滚轮旋转可旋转建筑
+        if (this.game.buildingPlacementSystem && this.game.buildingPlacementSystem.isPlacing) {
+            const rotated = this.game.buildingPlacementSystem.rotatePlacement();
+            if (rotated) {
+                event.preventDefault();
+                return;
+            }
+        }
         this.game.camera.handleWheel(event);
     }
     
@@ -233,7 +295,7 @@ class EventManager {
         this.game.player.on('ageChange', (data) => {
             console.log(`[Player Event] 时代变化: ${data.oldLevel} -> ${data.newLevel} (${data.ageName})`);
             
-            const townCenter = this.game.entityManager.getEntities().find(e => e.buildingType === 'town_center');
+            const townCenter = this.game.entityManager.getEntities().find(e => e.buildingType === BUILDING_TYPES.TOWN_CENTER);
             if (townCenter) {
                 townCenter.setAgeLevel(data.newLevel);
             }
@@ -257,11 +319,16 @@ class EventManager {
         });
         
         this.game.player.on('populationChange', (data) => {
-            console.log(`[Player Event] 人口变化: ${data.oldCurrent}/${data.max} -> ${data.newCurrent}/${data.max}`);
-            
-            const populationElement = document.getElementById('population-display');
-            if (populationElement) {
-                populationElement.textContent = `${data.newCurrent}/${data.max}`;
+            console.log(`[Player Event] 人口变化: ${data.oldCurrent}/${data.oldMax} -> ${data.newCurrent}/${data.newMax}`);
+
+            // 更新人口显示
+            const currentElement = document.getElementById('population-current');
+            const maxElement = document.getElementById('population-max');
+            if (currentElement) {
+                currentElement.textContent = data.newCurrent;
+            }
+            if (maxElement) {
+                maxElement.textContent = data.newMax;
             }
         });
         

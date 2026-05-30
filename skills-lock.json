@@ -50,6 +50,24 @@
       "source": "CloudAI-X/threejs-skills",
       "sourceType": "github",
       "computedHash": "5afbbaa048507fcbb76adca76cdc2fa58f7edb68383c0c48785756fecb68a2d0"
+    },
+    "zentao-api": {
+      "source": "easysoft/zentao-skills",
+      "sourceType": "github",
+      "skillPath": "skills/zentao-api/SKILL.md",
+      "computedHash": "b0c12e066a84b807a8d17c7124c1c162f998c45fbc564e702791a759fe6f8983"
+    },
+    "zentao-cli": {
+      "source": "easysoft/zentao-skills",
+      "sourceType": "github",
+      "skillPath": "skills/zentao-cli/SKILL.md",
+      "computedHash": "86732b5b9adbee4eb67a3a15a02c2f36f80843bb59d08e034ecc54fa7e436017"
+    },
+    "zentao-tour": {
+      "source": "easysoft/zentao-skills",
+      "sourceType": "github",
+      "skillPath": "skills/zentao-tour/SKILL.md",
+      "computedHash": "2393f9f41d7928eb0cbc4da7f8ee73658cb65843db95e569841a67078eab492c"
     }
   }
 }

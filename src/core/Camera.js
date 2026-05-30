@@ -29,6 +29,8 @@ class Camera {
             dragStartY: 0
         };
         
+        // 防止首帧鼠标未移动时误触发边界滚动
+        this._mouseInitialized = false;
         // 射线投射器（用于鼠标交互）
         this.raycaster = new THREE.Raycaster();
         this.mouseVector = new THREE.Vector2();
@@ -102,17 +104,17 @@ class Camera {
     handleKeyboardMovement(deltaTime) {
         const moveAmount = this.moveSpeed * deltaTime;
         
-        // WASD移动
-        if (this.keys['w'] || this.keys['W'] || this.keys['ArrowUp']) {
+        // 方向键移动（WASD 已分配给命令面板快捷键）
+        if (this.keys['ArrowUp']) {
             this.moveForward(moveAmount);
         }
-        if (this.keys['s'] || this.keys['S'] || this.keys['ArrowDown']) {
+        if (this.keys['ArrowDown']) {
             this.moveBackward(moveAmount);
         }
-        if (this.keys['a'] || this.keys['A'] || this.keys['ArrowLeft']) {
+        if (this.keys['ArrowLeft']) {
             this.moveLeft(moveAmount);
         }
-        if (this.keys['d'] || this.keys['D'] || this.keys['ArrowRight']) {
+        if (this.keys['ArrowRight']) {
             this.moveRight(moveAmount);
         }
         
@@ -121,10 +123,12 @@ class Camera {
     }
 
     handleBorderScroll(deltaTime) {
+        // 鼠标尚未移动过时不触发边界滚动（防止初始(0,0)误触发）
+        if (!this._mouseInitialized) return;
+
         const rect = this.canvas.getBoundingClientRect();
         const mouseX = this.mouse.x - rect.left;
         const mouseY = this.mouse.y - rect.top;
-        
         const moveAmount = this.moveSpeed * deltaTime;
         
         // 检查鼠标是否在边界附近
@@ -285,6 +289,7 @@ class Camera {
     }
 
     handleMouseMove(event) {
+        this._mouseInitialized = true;
         this.mouse.x = event.clientX;
         this.mouse.y = event.clientY;
     }

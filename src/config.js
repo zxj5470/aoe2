@@ -41,13 +41,258 @@ export const HUMAN_OWNER = Object.entries(OWNER_TO_PLAYER_ID).find(([, pid]) => 
 const NEUTRAL_PLAYER_ID = 0;
 export const ENEMY_OWNER = Object.entries(OWNER_TO_PLAYER_ID).find(([key, pid]) => pid !== HUMAN_PLAYER_ID && pid !== NEUTRAL_PLAYER_ID && key !== 'player')?.[0] || 'enemy';
 
+export const BUILDING_TYPES = Object.freeze({
+    HOUSE:          'house',
+    FARM:           'farm',
+    LUMBER_CAMP:    'lumber_camp',
+    MINING_CAMP:    'mining_camp',
+    BARRACKS:       'barracks',
+    ARCHERY_RANGE:  'archery_range',
+    STABLE:         'stable',
+    BLACKSMITH:     'blacksmith',
+    MARKET:         'market',
+    CHURCH:         'church',
+    WATCH_TOWER:    'watch_tower',
+    CASTLE:         'castle',
+    TOWN_CENTER:    'town_center',
+    WALL:           'wall',
+    GATE:           'gate',
+    DOCK:           'dock',
+    DOOR:           'door',
+});
+
+// 城镇中心生产/研发按钮 ID 常量
+export const TOWN_CENTER_ACTIONS = Object.freeze({
+    PRODUCE_VILLAGER:  'produce-villager',
+    RESEARCH_LOOM:     'research-loom',
+    RESEARCH_TOWN_WATCH: 'research-town-watch',
+});
+
+// 建筑统一配置（单一数据源）
+// width - 占地宽度（X轴格子数）
+// depth - 占地纵深（Z轴格子数）
+// height - 离地高度（Y轴，视觉高度）
+export const BUILDING_CONFIG = Object.freeze({
+    [BUILDING_TYPES.HOUSE]: {
+        name: 'House', width: 2, depth: 2, height: 2,
+        cost: { wood: 50 }, health: 500, buildTime: 25,
+        description: 'Provides population space'
+    },
+    [BUILDING_TYPES.FARM]: {
+        name: 'Farm', width: 3, depth: 3, height: 0.5,
+        cost: { wood: 60 }, health: 200, buildTime: 15,
+        description: 'Produces food'
+    },
+    [BUILDING_TYPES.LUMBER_CAMP]: {
+        name: 'Lumber Camp', width: 2, depth: 2, height: 1.5,
+        cost: { wood: 100 }, health: 300, buildTime: 35,
+        description: 'Stores wood'
+    },
+    [BUILDING_TYPES.MINING_CAMP]: {
+        name: 'Mining Camp', width: 2, depth: 2, height: 1.5,
+        cost: { wood: 100 }, health: 300, buildTime: 35,
+        description: 'Stores stone and gold'
+    },
+    [BUILDING_TYPES.BARRACKS]: {
+        name: 'Barracks', width: 3, depth: 3, height: 3,
+        cost: { wood: 150 }, health: 800, buildTime: 50,
+        description: 'Trains military units'
+    },
+    [BUILDING_TYPES.ARCHERY_RANGE]: {
+        name: 'Archery Range', width: 3, depth: 3, height: 2.5,
+        cost: { wood: 175 }, health: 700, buildTime: 50,
+        description: 'Trains archers'
+    },
+    [BUILDING_TYPES.STABLE]: {
+        name: 'Stable', width: 3, depth: 3, height: 2.5,
+        cost: { wood: 175 }, health: 700, buildTime: 50,
+        description: 'Trains cavalry'
+    },
+    [BUILDING_TYPES.BLACKSMITH]: {
+        name: 'Blacksmith', width: 3, depth: 3, height: 2.5,
+        cost: { wood: 175 }, health: 600, buildTime: 40,
+        description: 'Upgrades unit equipment'
+    },
+    [BUILDING_TYPES.MARKET]: {
+        name: 'Market', width: 3, depth: 3, height: 2.5,
+        cost: { wood: 175 }, health: 600, buildTime: 40,
+        description: 'Trade and resource exchange'
+    },
+    [BUILDING_TYPES.WATCH_TOWER]: {
+        name: 'Watch Tower', width: 1, depth: 1, height: 4,
+        cost: { stone: 100 }, health: 1000, buildTime: 80,
+        description: 'Defensive structure'
+    },
+    [BUILDING_TYPES.CASTLE]: {
+        name: 'Castle', width: 5, depth: 5, height: 6,
+        cost: { stone: 600, gold: 300 }, health: 3000, buildTime: 200,
+        description: 'Powerful defensive structure'
+    },
+    [BUILDING_TYPES.CHURCH]: {
+        name: 'Church', width: 3, depth: 3, height: 4,
+        cost: { wood: 175, gold: 100 }, health: 600, buildTime: 50,
+        description: 'Heals and converts units'
+    },
+    [BUILDING_TYPES.TOWN_CENTER]: {
+        name: 'Town Center', width: 4, depth: 4, height: 4,
+        cost: {}, health: 2400, buildTime: 150,
+        description: 'Main building, creates villagers'
+    },
+    // 城墙（特殊：1x1 拖拽建造）
+    [BUILDING_TYPES.WALL]: {
+        name: 'Wall', width: 1, depth: 1, height: 1.5,
+        cost: { stone: 5 }, health: 300, buildTime: 8,
+        description: 'Defensive wall segment'
+    },
+    // 城门（特殊：1x2 可旋转）
+    [BUILDING_TYPES.GATE]: {
+        name: 'Gate', width: 1, depth: 2, height: 2.5,
+        cost: { wood: 30 }, health: 400, buildTime: 30,
+        description: 'Allows friendly units to pass',
+        rotatable: true
+    }
+});
+
+// ========== 文明加成配置 ==========
+// 加成类型 op：'multiply'（乘算）、'add'（加算）、'set'（覆写）
+// 多个文明加成按 activeCivs 数组顺序叠加
+export const CIV_BONUSES = Object.freeze({
+    spanish: {
+        builderEfficiency: { op: 'multiply', value: 1.25 },  // 村民建造速度 ×1.25
+    },
+    celts: {
+        woodGatherRate:   { op: 'multiply', value: 1.15 },   // 伐木速度 ×1.15
+        infantrySpeed:    { op: 'add',      value: 0.15 },    // 步兵移速 +15%
+    },
+    huns: {
+        noHouseRequired:  { op: 'set',      value: 1.0 },     // 不需要房屋
+    },
+    mongols: {
+        huntGatherRate: { op: 'multiply', value: 1.5 },      // 狩猎速度 ×1.5
+    },
+    khmer: {
+        villagerGarrisonHouse: { op: 'set', value: 1.0 },     // 村民可驻扎进房屋
+    },
+    // 通用文明加成（默认值，不提供任何加成）
+    generic: {},
+});
+
+// 建筑名称多语言配置
+export const BUILDING_I18N = {
+    zh: {
+        [BUILDING_TYPES.HOUSE]: '房屋',
+        [BUILDING_TYPES.FARM]: '农田',
+        [BUILDING_TYPES.LUMBER_CAMP]: '伐木场',
+        [BUILDING_TYPES.MINING_CAMP]: '采矿场',
+        [BUILDING_TYPES.BARRACKS]: '兵营',
+        [BUILDING_TYPES.ARCHERY_RANGE]: '射箭场',
+        [BUILDING_TYPES.STABLE]: '马厩',
+        [BUILDING_TYPES.BLACKSMITH]: '铁匠铺',
+        [BUILDING_TYPES.MARKET]: '市场',
+        [BUILDING_TYPES.CHURCH]: '教堂',
+        [BUILDING_TYPES.WATCH_TOWER]: '瞭望塔',
+        [BUILDING_TYPES.CASTLE]: '城堡',
+        [BUILDING_TYPES.TOWN_CENTER]: '城镇中心',
+        [BUILDING_TYPES.WALL]: '城墙',
+        [BUILDING_TYPES.GATE]: '城门',
+        [BUILDING_TYPES.DOCK]: '码头',
+        [TOWN_CENTER_ACTIONS.PRODUCE_VILLAGER]: '村民',
+        [TOWN_CENTER_ACTIONS.RESEARCH_LOOM]: '织布机',
+        [TOWN_CENTER_ACTIONS.RESEARCH_TOWN_WATCH]: '城镇瞭望'
+    },
+    en: {
+        [BUILDING_TYPES.HOUSE]: 'House',
+        [BUILDING_TYPES.FARM]: 'Farm',
+        [BUILDING_TYPES.LUMBER_CAMP]: 'Lumber Camp',
+        [BUILDING_TYPES.MINING_CAMP]: 'Mining Camp',
+        [BUILDING_TYPES.BARRACKS]: 'Barracks',
+        [BUILDING_TYPES.ARCHERY_RANGE]: 'Archery Range',
+        [BUILDING_TYPES.STABLE]: 'Stable',
+        [BUILDING_TYPES.BLACKSMITH]: 'Blacksmith',
+        [BUILDING_TYPES.MARKET]: 'Market',
+        [BUILDING_TYPES.CHURCH]: 'Church',
+        [BUILDING_TYPES.WATCH_TOWER]: 'Watch Tower',
+        [BUILDING_TYPES.CASTLE]: 'Castle',
+        [BUILDING_TYPES.TOWN_CENTER]: 'Town Center',
+        [BUILDING_TYPES.WALL]: 'Wall',
+        [BUILDING_TYPES.GATE]: 'Gate',
+        [BUILDING_TYPES.DOCK]: 'Dock',
+        [TOWN_CENTER_ACTIONS.PRODUCE_VILLAGER]: 'Villager',
+        [TOWN_CENTER_ACTIONS.RESEARCH_LOOM]: 'Loom',
+        [TOWN_CENTER_ACTIONS.RESEARCH_TOWN_WATCH]: 'Town Watch'
+    }
+};
+
+// 当前语言（默认中文）
+export let CURRENT_LANG = 'zh';
+
+export function setLanguage(lang) {
+    if (BUILDING_I18N[lang]) {
+        CURRENT_LANG = lang;
+    }
+}
+
+export function getBuildingName(buildingId) {
+    return BUILDING_I18N[CURRENT_LANG]?.[buildingId] || BUILDING_I18N['en']?.[buildingId] || buildingId;
+}
+
+// 建筑描述多语言配置
+export const BUILDING_DESC_I18N = {
+    zh: {
+        [BUILDING_TYPES.HOUSE]: '提供人口空间',
+        [BUILDING_TYPES.FARM]: '生产食物',
+        [BUILDING_TYPES.LUMBER_CAMP]: '存储木材',
+        [BUILDING_TYPES.MINING_CAMP]: '存储石料和金币',
+        [BUILDING_TYPES.BARRACKS]: '训练步兵单位',
+        [BUILDING_TYPES.ARCHERY_RANGE]: '训练弓箭手',
+        [BUILDING_TYPES.STABLE]: '训练骑兵',
+        [BUILDING_TYPES.BLACKSMITH]: '升级单位装备',
+        [BUILDING_TYPES.MARKET]: '贸易与资源交换',
+        [BUILDING_TYPES.WATCH_TOWER]: '防御建筑',
+        [BUILDING_TYPES.CASTLE]: '强大的防御建筑',
+        [BUILDING_TYPES.CHURCH]: '治疗和转化单位',
+        [BUILDING_TYPES.TOWN_CENTER]: '主建筑，可创建村民',
+        [BUILDING_TYPES.WALL]: '防御城墙段',
+        [BUILDING_TYPES.GATE]: '允许己方单位通过'
+    },
+    en: {
+        [BUILDING_TYPES.HOUSE]: 'Provides population space',
+        [BUILDING_TYPES.FARM]: 'Produces food',
+        [BUILDING_TYPES.LUMBER_CAMP]: 'Stores wood',
+        [BUILDING_TYPES.MINING_CAMP]: 'Stores stone and gold',
+        [BUILDING_TYPES.BARRACKS]: 'Trains military units',
+        [BUILDING_TYPES.ARCHERY_RANGE]: 'Trains archers',
+        [BUILDING_TYPES.STABLE]: 'Trains cavalry',
+        [BUILDING_TYPES.BLACKSMITH]: 'Upgrades unit equipment',
+        [BUILDING_TYPES.MARKET]: 'Trade and resource exchange',
+        [BUILDING_TYPES.WATCH_TOWER]: 'Defensive structure',
+        [BUILDING_TYPES.CASTLE]: 'Powerful defensive structure',
+        [BUILDING_TYPES.CHURCH]: 'Heals and converts units',
+        [BUILDING_TYPES.TOWN_CENTER]: 'Main building, creates villagers',
+        [BUILDING_TYPES.WALL]: 'Defensive wall segment',
+        [BUILDING_TYPES.GATE]: 'Allows friendly units to pass'
+    }
+};
+
+export function getBuildingDesc(buildingId) {
+    return BUILDING_DESC_I18N[CURRENT_LANG]?.[buildingId] || BUILDING_DESC_I18N['en']?.[buildingId] || '';
+}
+
+// 时代名称多语言
+export const AGE_I18N = {
+    zh: { 1: '封建时代', 2: '城堡时代', 3: '帝王时代' },
+    en: { 1: 'Feudal Age', 2: 'Castle Age', 3: 'Imperial Age' }
+};
+
+export function getAgeName(age) {
+    return AGE_I18N[CURRENT_LANG]?.[age] || AGE_I18N['en']?.[age] || `Age ${age}`;
+}
+
+// 建筑类型别名映射（向后兼容层）
+// 所有代码已统一使用 BUILDING_TYPES 枚举，此映射保留用于处理从 HTML data 属性、旧存档等来源的连字符格式输入
 export const BUILDING_TYPE_ALIASES = {
     house: 'house',
     farm: 'farm',
-    'lumber-camp': 'lumber_camp',
-    lumber_camp: 'lumber_camp',
-    'mining-camp': 'mining_camp',
-    mining_camp: 'mining_camp',
     barracks: 'barracks',
     archery: 'archery_range',
     'archery-range': 'archery_range',
@@ -56,9 +301,17 @@ export const BUILDING_TYPE_ALIASES = {
     blacksmith: 'blacksmith',
     market: 'market',
     church: 'church',
+    tower: 'watch_tower',
     'watch-tower': 'watch_tower',
     watch_tower: 'watch_tower',
+    lumber: 'lumber_camp',
+    'lumber-camp': 'lumber_camp',
+    lumber_camp: 'lumber_camp',
+    mine: 'mining_camp',
+    'mining-camp': 'mining_camp',
+    mining_camp: 'mining_camp',
     castle: 'castle',
+    gate: 'gate',
     'town-center': 'town_center',
     town_center: 'town_center'
 };
@@ -227,15 +480,15 @@ export const UNIT_CONFIG = {
     }
 };
 
-// 建筑配置
-export const BUILDING_CONFIG = {
+// 建筑建造/生产配置
+export const BUILDING_CONSTRUCTION_CONFIG = {
     // 建造配置
     constructionSpeed: 10,       // 建造速度（每秒进度）
     requiredBuilders: 1,         // 需要建造者数量
-    
+
     // 生产配置
     productionSpeed: 100,        // 生产速度（每秒进度百分比）
-    
+
     // 人口配置
     housePopulationBonus: 5,     // 房屋人口加成
 };

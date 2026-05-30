@@ -2,7 +2,7 @@
 
 **项目名称**: aoe2-web
 **当前版本**: v0.5.1-alpha
-**更新日期**: 2026-05-12
+**更新日期**: 2026-05-27
 
 ---
 
@@ -28,6 +28,7 @@
 | 相机系统 | 正交相机，45度俯视，键盘/鼠标/边缘滚动控制 | ✅ |
 | 输入系统 | 键盘、鼠标、相机控制 | ✅ |
 | 场景系统 | 200x200网格地图，地形渲染 | ✅ |
+| 空间索引 | RBush R-tree 优化碰撞检测和实体查询 | ✅ |
 
 ### 2.2 实体系统
 
@@ -40,9 +41,9 @@
 | 弓箭手 | 远程攻击 |
 | 侦察兵 | 快速移动 |
 
-**建筑 (10种)**: house、barracks、stable、archery_range、market、church、blacksmith、watch_tower、castle、town_center
+**建筑 (11种 + 城门)**: house、barracks、stable、archery_range、market、church、blacksmith、watch_tower、castle、town_center、wall、gate
 
-**资源节点 (4种)**: 木材(树木)、石材(岩石)、黄金(金矿)、食物(浆果丛)
+**资源节点 (5种)**: 木材(树木)、石材(岩石)、黄金(金矿)、食物(浆果丛)、羊
 
 ### 2.3 移动与寻路
 
@@ -64,42 +65,62 @@
 - 建筑资源消耗检查
 - 网格对齐放置
 - 城镇中心作为资源存储点
+- 城墙建造与旋转放置
+- 城门建筑
+- 建筑类型枚举中心化 (BUILDING_TYPES)
 
-### 2.6 战斗系统(基础)
+### 2.6 战斗系统
 
 - 攻击判定与伤害计算
 - 单位属性: 攻击、防御、速度、护甲
 - 单位克制关系
+- 护甲减免
+- 攻击冷却
+- 基础AI状态机 (idle/patrol/chase/attack/flee)
 
-### 2.7 UI系统
+### 2.7 生产系统
+
+- 建筑生产队列
+- 单位训练
+- 科技研究 (织布机、城镇瞭望)
+- 时代升级
+
+### 2.8 多玩家系统
+
+- 8色玩家颜色 (AOE2经典8色)
+- 玩家ID映射 (player/enemy → PlayerID → 颜色)
+- 阿拉伯地图双城镇中心 (红蓝双方各3村民、8只羊)
+- Player事件系统 (ageChange、populationChange、unitAdd、unitRemove)
+
+### 2.9 UI系统
 
 **HUD界面**:
 | 面板 | 功能 |
 |------|------|
 | 资源面板 | 肉、木、金、石显示，人口数，当前时代 |
-| 建筑面板 | 15个按钮，支持3种布局(3x5/4x3/4x4)，空白占位 |
-| 单位信息面板 | 名称、生命值(进度条)、属性 |
+| 建筑面板 | 按钮动态配置，支持默认建造菜单和军事菜单 |
+| 单位信息面板 | 名称、生命值(进度条)、属性、所属玩家颜色 |
 | 小地图 | 菱形坐标变换，点击跳转，显示实体点和视野框 |
-| Debug面板 | 相机位置、地图范围、建筑面板配置 |
+| Debug面板 | 相机位置、地图范围、鼠标坐标、拾取实体信息 |
+| 地图选择面板 | 游戏启动前选择地图类型 |
 
-**键盘快捷键**:
-| 按键 | 功能 |
-|------|------|
-| W/S/A/D 或 方向键 | 相机移动 |
-| 鼠标右键拖拽 | 平移视角 |
-| 滚轮 | 缩放视野 |
-| 左键点击 | 选择单位/建筑 |
-| Shift + 左键 | 多选 |
-| 拖拽框选 | 批量选择 |
-| 右键点击 | 移动/攻击/采集 |
-| Ctrl+1~5 | 切换编队 |
-| F12 | 显示/隐藏Debug面板 |
-| 1/2/3 | 切换建筑面板布局 |
-| Q/E/R | 建筑面板调试 |
+**其他UI特性**:
+- 血条悬停显示与渐隐动画
+- 罗马数字时代显示
+- 村民携带资源显示
 
-### 2.8 地图生成器 (8种地形)
+### 2.10 地图生成器 (8种地形)
 
-Arabia、ArabiaGenerator、Arena、BlackForest、GoldRush、Grassland、Highland、Islands、River
+Arabia、Arena、BlackForest、GoldRush、Grassland、Highland、Islands、River
+
+### 2.11 代码质量
+
+- BUILDING_TYPES 枚举替代硬编码字符串
+- BUILDING_CONFIG 统一建筑配置单一数据源
+- BUILDING_TYPE_ALIASES 别名映射
+- HUD 模块化重构 (ResourceDisplay、Minimap、ActionPanel、InfoPanel、HUD)
+- 实体系统拆分 (UnitBase/UnitMovement/UnitCombat/UnitGathering/UnitAnimation/UnitCollision, BuildingBase/BuildingConstruction/BuildingProduction/BuildingCollision)
+- isPlayerOwned() / isEnemy() 方法判断玩家归属
 
 ---
 
@@ -109,9 +130,10 @@ Arabia、ArabiaGenerator、Arena、BlackForest、GoldRush、Grassland、Highland
 |------|------|
 | 总阶段数 | 10 |
 | 已完成阶段 | 3 (第一/二/三阶段) |
-| 进行中阶段 | 2 (第四/五阶段部分完成) |
-| 任务完成度 | 52/60 (87%) |
-| 阶段完成度 | 5/10 (50%) |
+| 进行中阶段 | 4 (第四/五/八/九阶段部分完成) |
+| 待开发阶段 | 3 (第六/七/十阶段) |
+| 阶段完成度 | 3/10 (30%) 完成, 4/10 (40%) 进行中 |
+| 整体进度 | ~68% |
 
 ---
 
@@ -119,58 +141,82 @@ Arabia、ArabiaGenerator、Arena、BlackForest、GoldRush、Grassland、Highland
 
 ```
 src/
-├── main.js              # 应用入口
-├── config.js            # 配置文件
-├── core/                # 核心系统
-│   ├── Game.js          # 游戏主控制器
-│   ├── Scene.js         # 场景管理器
-│   ├── Camera.js        # 相机系统
-│   └── SpatialIndex.js  # 空间索引(RBush)
-├── entities/            # 实体
-│   ├── Entity.js        # 实体基类
-│   ├── Unit.js          # 单位类
-│   ├── Building.js       # 建筑类
-│   ├── ResourceNode.js  # 资源节点
-│   ├── Player.js        # 玩家
-│   ├── ResourceManager.js # 资源管理
-│   └── RomanNumeralCanvas.js # 罗马数字
-├── systems/             # 游戏系统
-│   ├── MovementSystem.js      # 移动系统
-│   ├── Pathfinding.js         # A*寻路
-│   ├── FormationSystem.js     # 编队系统
-│   ├── CollisionSystem.js     # 碰撞系统
-│   ├── CombatSystem.js        # 战斗系统
-│   ├── BuildingPlacementSystem.js # 建筑放置
-│   └── ResourceGatheringSystem.js # 资源收集
-├── input/               # 输入系统
-│   ├── InputHandler.js      # 输入处理
-│   └── SelectionManager.js  # 选择管理
-├── ui/                  # UI系统
-│   ├── HUD.js               # HUD主控制器
-│   └── MapSelectionPanel.js  # 小地图面板
-└── world/               # 世界系统
-    ├── Map.js           # 地图
-    ├── Grid.js          # 网格
-    ├── Terrain.js       # 地形
-    ├── MapConfig.js     # 地图配置
-    ├── MapGenerator.js  # 地图生成器
-    ├── TerrainMeshBuilder.js # 地形网格构建
-    └── generators/      # 地形生成器
-        ├── ArabiaGenerator.js
-        ├── ArenaGenerator.js
-        ├── BlackForestGenerator.js
-        ├── GoldRushGenerator.js
-        ├── GrasslandGenerator.js
-        ├── HighlandGenerator.js
-        ├── IslandsGenerator.js
-        └── RiverGenerator.js
+├── main.js                         # 应用入口
+├── config.js                       # 全局配置常量 (BUILDING_TYPES, BUILDING_CONFIG等)
+├── emojis.js                       # 建筑表情配置
+├── core/                           # 核心系统
+│   ├── Game.js                     # 游戏主控制器
+│   ├── Scene.js                    # 场景管理器
+│   ├── Camera.js                   # 相机控制器
+│   ├── EntityManager.js            # 实体 CRUD + 查询
+│   ├── SystemManager.js            # 系统初始化和管理
+│   ├── EventManager.js             # DOM 事件委托 + 事件总线
+│   ├── UIManager.js                # HUD 生命周期管理
+│   └── SpatialIndex.js             # RBush R-tree 空间索引
+├── entities/                       # 实体系统
+│   ├── Entity.js                   # 实体基类
+│   ├── Player.js                   # 玩家状态
+│   ├── ResourceManager.js          # 资源管理
+│   ├── ResourceNode.js             # 资源节点
+│   ├── RomanNumeralCanvas.js       # 罗马数字时代显示
+│   ├── UnitBase.js                 # 单位基础属性
+│   ├── Unit.js                     # 单位（组合子模块）
+│   ├── UnitMovement.js             # 移动逻辑
+│   ├── UnitCombat.js               # 战斗逻辑
+│   ├── UnitGathering.js            # 资源采集逻辑
+│   ├── UnitAnimation.js            # 动画逻辑
+│   ├── UnitCollision.js            # 碰撞逻辑
+│   ├── BuildingBase.js             # 建筑基础属性
+│   ├── Building.js                 # 建筑（组合子模块）
+│   ├── BuildingConstruction.js     # 建造逻辑
+│   ├── BuildingProduction.js       # 生产逻辑
+│   └── BuildingCollision.js        # 碰撞逻辑
+├── systems/                        # 游戏系统
+│   ├── Pathfinding.js              # A*寻路
+│   ├── FormationSystem.js          # 编队系统
+│   ├── CombatSystem.js             # 战斗系统
+│   ├── BuildingPlacementSystem.js  # 建筑放置系统
+│   ├── ResourceGatheringSystem.js  # 资源收集系统
+│   ├── CollisionSystem.js          # 碰撞检测系统
+│   └── AISystem.js                 # AI 状态机
+├── input/                          # 输入系统
+│   ├── InputHandler.js             # 输入处理
+│   └── SelectionManager.js         # 选择管理
+├── ui/                             # UI 系统
+│   ├── HUD.js                      # HUD 主协调器
+│   ├── ResourceDisplay.js          # 资源显示
+│   ├── Minimap.js                  # 小地图
+│   ├── ActionPanel.js              # 操作面板
+│   ├── InfoPanel.js                # 信息面板
+│   └── MapSelectionPanel.js        # 地图选择面板
+└── world/                          # 世界系统
+    ├── Map.js                      # 地图系统
+    ├── MapConfig.js                # 地图配置
+    ├── MapGenerator.js             # 地图生成器
+    ├── Terrain.js                  # 地形系统
+    ├── TerrainMeshBuilder.js       # 地形网格构建
+    ├── Grid.js                     # 网格系统
+    └── generators/                 # 8 种地图生成器
 ```
 
 ---
 
 ## 五、下一步开发方向
 
-- 完成第四阶段: 建筑建造系统(建筑升级、建筑队列)
-- 完成第五阶段: 战斗系统(战斗动画、单位死亡)
-- 第六阶段: 经济系统(科技树、时代演进)
-- 第七阶段: AI系统
+### 优先级 P0
+- 建筑建造进度显示与取消 (第四阶段核心未完成项)
+
+### 优先级 P1
+- 生产队列管理完善 (第六阶段起点)
+- 防御建筑攻击逻辑
+- AI系统完善 (巡逻/追击/逃跑状态机)
+
+### 优先级 P2
+- 属性升级系统
+- 科技树完善
+- 战争迷雾
+- 视锥剔除与LOD
+
+---
+
+**详细路线图**: 见 [roadmap.md](roadmap.md)

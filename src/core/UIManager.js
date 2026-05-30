@@ -10,7 +10,8 @@ class UIManager {
 
     init() {
         this.hud = new HUD(this.game);
-        
+        this.game.hud = this.hud;
+
         if (this.hud && this.hud.setupSelectionListener) {
             this.hud.setupSelectionListener();
         }
@@ -26,20 +27,15 @@ class UIManager {
             this.uiUpdateTimer = 0;
             if (this.hud) {
                 this.hud.updateUnitInfoPanel();
+                this.hud.resourceDisplay.updateGameTime(this.game.elapsedGameTime);
             }
         }
     }
 
     updateResourceDisplay() {
-        const goldElement = document.getElementById('resource-gold');
-        const woodElement = document.getElementById('resource-wood');
-        const foodElement = document.getElementById('resource-food');
-        const stoneElement = document.getElementById('resource-stone');
-        
-        if (goldElement) goldElement.textContent = this.game.resources.gold;
-        if (woodElement) woodElement.textContent = this.game.resources.wood;
-        if (foodElement) foodElement.textContent = this.game.resources.food;
-        if (stoneElement) stoneElement.textContent = this.game.resources.stone;
+        if (this.hud) {
+            this.hud.updateResourceDisplay();
+        }
     }
 
     getHUD() {

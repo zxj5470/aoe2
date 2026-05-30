@@ -71,10 +71,10 @@ class Grid {
 
         if (includeDiagonals) {
             directions.push(
-                { dx: -1, dy: -1 }, // 左上
-                { dx: 1, dy: -1 },  // 右上
-                { dx: -1, dy: 1 },  // 左下
-                { dx: 1, dy: 1 }    // 右下
+                { dx: -1, dy: -1 },
+                { dx: 1, dy: -1 },
+                { dx: -1, dy: 1 },
+                { dx: 1, dy: 1 }
             );
         }
 

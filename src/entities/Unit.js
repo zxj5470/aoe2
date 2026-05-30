@@ -11,15 +11,19 @@ import UnitCollision from './UnitCollision.js';
 class Unit extends UnitBase {
     constructor(config) {
         super(config);
-        
+
         this.movement = new UnitMovement(this);
         this.combat = new UnitCombat(this);
         this.gathering = new UnitGathering(this);
         this.animation = new UnitAnimation(this);
         this.collision = new UnitCollision(this);
+        this.isGarrisoned = false;
+        this.garrisonedBuilding = null;
     }
 
     update(deltaTime) {
+        if (this.isGarrisoned) return;
+
         if (!this.isAlive) {
             this._deathTimer = (this._deathTimer || 0) + deltaTime;
             this.animation.animateDying(deltaTime);
@@ -34,10 +38,7 @@ class Unit extends UnitBase {
         this.combat.updateCombat(deltaTime);
         this.animation.updateAnimation(deltaTime);
         this.updateHealthBar();
-
-        // 更新血条渐隐动画
         this.updateHealthBarAnimation(deltaTime);
-
         this.gathering.updateBuilding(deltaTime);
         this.gathering.updateResourceGathering(deltaTime);
     }
@@ -71,12 +72,26 @@ class Unit extends UnitBase {
         this.movement.moveTo(targetPosition, options);
     }
 
-    attackEntity(targetEntity) {
-        this.combat.attackEntity(targetEntity);
+    /**
+     * 驻扎进建筑（高棉文明）
+     */
+    garrisonTo(building) {
+        if (this.isGarrisoned) return;
+        if (!building || !building.garrison) return;
+        this.stop();
+        building.garrison(this);
     }
 
-    performAttack() {
-        this.combat.performAttack();
+    /**
+     * 从建筑中放出
+     */
+    ungarrison() {
+        if (!this.isGarrisoned || !this.garrisonedBuilding) return;
+        this.garrisonedBuilding.ungarrison(1);
+    }
+
+    attackEntity(targetEntity) {
+        this.combat.attackEntity(targetEntity);
     }
 
     gatherResource(resourceEntity, dropOffPoint = null) {
@@ -93,10 +108,6 @@ class Unit extends UnitBase {
 
     updateResourceGathering(deltaTime) {
         this.gathering.updateResourceGathering(deltaTime);
-    }
-
-    returnToTownCenter() {
-        this.gathering.returnToTownCenter();
     }
 
     stopGathering() {

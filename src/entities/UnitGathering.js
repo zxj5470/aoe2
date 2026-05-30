@@ -1,5 +1,3 @@
-import * as THREE from 'three';
-
 class UnitGathering {
     constructor(unit) {
         this.unit = unit;
@@ -52,50 +50,16 @@ class UnitGathering {
     }
 
     updateResourceGathering(deltaTime) {
+        // 资源采集由 ResourceGatheringSystem 统一管理
+        // 此方法仅做资源节点有效性检查
         if (!this.unit.currentResource || this.unit.isReturning) {
             return;
         }
 
         if (!this.unit.currentResource.isAlive || this.unit.currentResource.amount <= 0) {
-            this.unit.stopGathering();
-            return;
+            // 资源耗尽：清除资源引用，但保留已携带的资源让 ResourceGatheringSystem 处理投放
+            this.unit.currentResource = null;
         }
-
-        const dx = this.unit.position.x - this.unit.currentResource.position.x;
-        const dz = this.unit.position.z - this.unit.currentResource.position.z;
-        const distanceToResource = Math.sqrt(dx * dx + dz * dz);
-        if (distanceToResource > 1.5) {
-            return;
-        }
-
-        this.unit.gatherTimer += deltaTime;
-        this.unit.returnTimer += deltaTime;
-
-        if (this.unit.gatherTimer >= this.unit.gatherInterval) {
-            this.unit.gatherTimer = 0;
-            this.unit.carryAmount += 1;
-            
-            console.log(`[村民采集] 携带资源: ${this.unit.carryAmount}, 类型: ${this.unit.carryType}`);
-        }
-
-        if (this.unit.returnTimer >= this.unit.returnTime) {
-            console.log('[村民采集] 20秒已到，开始返回城镇中心');
-            this.unit.returnToTownCenter();
-        }
-    }
-
-    returnToTownCenter() {
-        if (!this.unit.dropOffPoint) {
-            console.warn('[村民采集] 没有投放点，无法返回');
-            this.unit.stopGathering();
-            return;
-        }
-
-        this.unit.isReturning = true;
-        this.unit.currentAction = 'returning';
-        
-        const townCenterPos = this.unit.dropOffPoint.position;
-        this.unit.moveTo(new THREE.Vector3(townCenterPos.x, 0, townCenterPos.z), { preserveGathering: true });
     }
 
     stopGathering() {
@@ -103,42 +67,41 @@ class UnitGathering {
         this.unit.carryType = null;
         this.unit.carryAmount = 0;
         this.unit.gatherTimer = 0;
-        this.unit.returnTimer = 0;
         this.unit.isReturning = false;
         this.unit.dropOffPoint = null;
         this.unit.currentAction = 'idle';
         this.unit.setAnimationState('idle');
     }
 
+    /**
+     * 清除活跃采集状态，保留已携带资源
+     * 用于村民被玩家手动移动等中断场景
+     */
+    clearActiveGathering() {
+        this.unit.currentResource = null;
+        this.unit.gatherTimer = 0;
+        this.unit.isReturning = false;
+        this.unit.currentAction = 'idle';
+        this.unit.setAnimationState('idle');
+        // carryType、carryAmount、dropOffPoint 保留（shouldAutoDrop 防止自动投放）
+    }
+
     deliverResources() {
-        console.log(`[村民采集] 尝试交付资源 - 携带量: ${this.unit.carryAmount}, 类型: ${this.unit.carryType}`);
-        
-        if (this.unit.carryAmount <= 0) {
-            console.log('[村民采集] 没有携带资源，无需交付');
-            this.unit.stopGathering();
-            return;
-        }
+        if (this.unit.carryAmount <= 0) return;
 
         const deliveredAmount = this.unit.carryAmount;
         const resourceType = this.unit.carryType;
 
-        console.log(`[村民采集] 交付资源: ${deliveredAmount} ${resourceType}`);
-
         if (this.unit.game && this.unit.game.resourceManager) {
             this.unit.game.resourceManager.addResource(resourceType, deliveredAmount);
-            console.log(`[村民采集] 总资源增加: ${deliveredAmount} ${resourceType}`);
-            
             if (this.unit.game.hud) {
                 this.unit.game.hud.updateResourceDisplay();
             }
-        } else {
-            console.error('[村民采集] 无法访问ResourceManager', {
-                hasGame: !!this.unit.game,
-                hasResourceManager: this.unit.game ? !!this.unit.game.resourceManager : false
-            });
         }
 
-        this.unit.stopGathering();
+        this.unit.carryAmount = 0;
+        this.unit.carryType = null;
+        this.unit.isReturning = false;
     }
 
     gatherResource(resourceEntity, dropOffPoint = null) {
@@ -148,8 +111,16 @@ class UnitGathering {
             return;
         }
 
+        const newType = resourceEntity.userData.resourceType;
+
+        // 切换资源类型时，先丢弃旧资源
+        if (this.unit.carryAmount > 0 && this.unit.carryType && this.unit.carryType !== newType) {
+            this.unit.carryAmount = 0;
+            this.unit.carryType = null;
+        }
+
         this.unit.currentResource = resourceEntity;
-        this.unit.carryType = resourceEntity.userData.resourceType;
+        this.unit.carryType = newType;
         if (this.unit.carryAmount === undefined) this.unit.carryAmount = 0;
         
         if (dropOffPoint) {
@@ -158,7 +129,13 @@ class UnitGathering {
         
         console.log(`[村民采集] 开始采集 ${this.unit.carryType}，投放点: ${this.unit.dropOffPoint ? '已设置' : '未设置'}`);
 
-        this.unit.moveTo(resourceEntity.position, { preserveGathering: true });
+        // 移动到资源旁离村民最近的可行走格子（与普通移动相同的寻路逻辑）
+        if (this.unit.game && this.unit.game.resourceGatheringSystem) {
+            const target = this.unit.game.resourceGatheringSystem.getGatherTarget(resourceEntity.position, this.unit.position);
+            this.unit.moveTo(target, { preserveGathering: true });
+        } else {
+            this.unit.moveTo(resourceEntity.position, { preserveGathering: true });
+        }
 
         this.unit.setAnimationState('gathering');
     }

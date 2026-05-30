@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import Entity from './Entity.js';
 import { CELL_SIZE, MAP_CONFIG, getPlayerColor, UNIT_CONFIG, HUMAN_OWNER } from '../config.js';
 
@@ -41,7 +42,7 @@ class UnitBase extends Entity {
         // 血条悬停状态
         this.isMouseOver = false;
         this.healthBarHideTimer = 0;
-        this.healthBarHideDelay = 1.0; // 1秒后开始隐藏
+        this.healthBarHideDelay = 0.5; // 0.5秒后开始渐隐
         this.healthBarFadeTimer = 0;
         this.healthBarFadeDuration = 0.5; // 0.5秒完成渐隐
 
@@ -54,8 +55,6 @@ class UnitBase extends Entity {
         this.currentResource = null;
         this.gatherTimer = 0;
         this.gatherInterval = UNIT_CONFIG.gatherInterval;
-        this.returnTimer = 0;
-        this.returnTime = UNIT_CONFIG.returnTime;
         this.isReturning = false;
         this.dropOffPoint = null;
 
@@ -85,41 +84,47 @@ class UnitBase extends Entity {
         const playerColorHex = getPlayerColor(this.owner);
         const playerColor = new THREE.Color(playerColorHex).getHex() || config.bodyColor;
         
-        const bodyGeometry = new THREE.BoxGeometry(
-            config.bodyWidth, 
-            config.bodyHeight, 
-            config.bodyWidth * 0.6
-        );
-        const bodyMaterial = new THREE.MeshStandardMaterial({ 
-            color: playerColor,
-            roughness: 0.7,
-            metalness: 0.3
-        });
-        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        body.position.y = config.bodyHeight / 2;
-        body.castShadow = true;
-        body.receiveShadow = true;
-        body.name = 'body';
-        group.add(body);
-        
-        const headGeometry = new THREE.SphereGeometry(
-            config.headSize, 
-            16, 
-            16
-        );
-        const headMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0xFFDBB4,
-            roughness: 0.8
-        });
-        const head = new THREE.Mesh(headGeometry, headMaterial);
-        head.position.y = config.bodyHeight + config.headSize * 0.8;
-        head.castShadow = true;
-        head.receiveShadow = true;
-        head.name = 'head';
-        group.add(head);
-        
-        this.createWeapon(group, config);
-        this.createLegs(group, config);
+        // 侦察骑兵：骑马模型
+        if (this.unitType === 'scout') {
+            this.createScoutMesh(group, config, playerColor);
+        } else {
+            // 其他单位：普通模型
+            const bodyGeometry = new THREE.BoxGeometry(
+                config.bodyWidth, 
+                config.bodyHeight, 
+                config.bodyWidth * 0.6
+            );
+            const bodyMaterial = new THREE.MeshStandardMaterial({ 
+                color: playerColor,
+                roughness: 0.7,
+                metalness: 0.3
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = config.bodyHeight / 2;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            body.name = 'body';
+            group.add(body);
+            
+            const headGeometry = new THREE.SphereGeometry(
+                config.headSize, 
+                16, 
+                16
+            );
+            const headMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xFFDBB4,
+                roughness: 0.8
+            });
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.y = config.bodyHeight + config.headSize * 0.8;
+            head.castShadow = true;
+            head.receiveShadow = true;
+            head.name = 'head';
+            group.add(head);
+            
+            this.createWeapon(group, config);
+            this.createLegs(group, config);
+        }
         
         group.scale.set(config.scale, config.scale, config.scale);
         
@@ -138,6 +143,112 @@ class UnitBase extends Entity {
         this.createHealthBar();
         
         return this.mesh;
+    }
+    
+    /**
+     * 创建侦察骑兵骑马模型
+     */
+    createScoutMesh(group, config, playerColor) {
+        // 马身（椭圆体）
+        const horseBodyGeometry = new THREE.SphereGeometry(0.5, 12, 8);
+        horseBodyGeometry.scale(1, 0.7, 1.6);
+        const horseMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x8B4513,
+            roughness: 0.8
+        });
+        const horseBody = new THREE.Mesh(horseBodyGeometry, horseMaterial);
+        horseBody.position.y = 0.6;
+        horseBody.castShadow = true;
+        horseBody.receiveShadow = true;
+        horseBody.name = 'horseBody';
+        group.add(horseBody);
+        
+        // 马头
+        const horseHeadGeometry = new THREE.SphereGeometry(0.22, 8, 8);
+        horseHeadGeometry.scale(0.8, 1, 1.2);
+        const horseHead = new THREE.Mesh(horseHeadGeometry, horseMaterial);
+        horseHead.position.set(0, 0.9, 0.7);
+        horseHead.rotation.x = -0.3;
+        horseHead.castShadow = true;
+        horseHead.name = 'horseHead';
+        group.add(horseHead);
+        
+        // 马耳
+        for (let side = -1; side <= 1; side += 2) {
+            const earGeometry = new THREE.ConeGeometry(0.06, 0.15, 6);
+            const ear = new THREE.Mesh(earGeometry, horseMaterial);
+            ear.position.set(side * 0.1, 1.15, 0.65);
+            ear.rotation.x = -0.3;
+            ear.name = 'horseEar';
+            group.add(ear);
+        }
+        
+        // 马尾
+        const tailGeometry = new THREE.CylinderGeometry(0.04, 0.02, 0.5, 6);
+        const tail = new THREE.Mesh(tailGeometry, horseMaterial);
+        tail.position.set(0, 0.7, -0.85);
+        tail.rotation.x = 0.5;
+        tail.name = 'horseTail';
+        group.add(tail);
+        
+        // 四条马腿
+        const legGeometry = new THREE.CylinderGeometry(0.07, 0.06, 0.6, 6);
+        const legPositions = [
+            { x: -0.25, z: 0.35 },
+            { x: 0.25, z: 0.35 },
+            { x: -0.25, z: -0.35 },
+            { x: 0.25, z: -0.35 }
+        ];
+        legPositions.forEach((pos, i) => {
+            const leg = new THREE.Mesh(legGeometry, horseMaterial);
+            leg.position.set(pos.x, 0.3, pos.z);
+            leg.castShadow = true;
+            leg.name = `horseLeg_${i}`;
+            group.add(leg);
+        });
+        
+        // 骑手身体（使用玩家颜色）
+        const riderBodyGeometry = new THREE.BoxGeometry(0.3, 0.5, 0.25);
+        const riderMaterial = new THREE.MeshStandardMaterial({ 
+            color: playerColor,
+            roughness: 0.7,
+            metalness: 0.3
+        });
+        const riderBody = new THREE.Mesh(riderBodyGeometry, riderMaterial);
+        riderBody.position.y = 1.25;
+        riderBody.castShadow = true;
+        riderBody.name = 'riderBody';
+        group.add(riderBody);
+        
+        // 骑手头
+        const riderHeadGeometry = new THREE.SphereGeometry(0.15, 12, 12);
+        const riderHeadMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xFFDBB4,
+            roughness: 0.8
+        });
+        const riderHead = new THREE.Mesh(riderHeadGeometry, riderHeadMaterial);
+        riderHead.position.y = 1.6;
+        riderHead.castShadow = true;
+        riderHead.name = 'riderHead';
+        group.add(riderHead);
+        
+        // 帽子（侦察骑兵特征）
+        const hatGeometry = new THREE.CylinderGeometry(0.2, 0.18, 0.12, 8);
+        const hatMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x654321,
+            roughness: 0.9
+        });
+        const hat = new THREE.Mesh(hatGeometry, hatMaterial);
+        hat.position.y = 1.75;
+        hat.name = 'hat';
+        group.add(hat);
+        
+        // 帽檐
+        const brimGeometry = new THREE.CylinderGeometry(0.28, 0.28, 0.03, 12);
+        const brim = new THREE.Mesh(brimGeometry, hatMaterial);
+        brim.position.y = 1.7;
+        brim.name = 'hatBrim';
+        group.add(brim);
     }
     
     createWeapon(group, config) {
@@ -283,155 +394,83 @@ class UnitBase extends Entity {
     createHealthBar() {
         const config = this.appearanceConfig;
 
-        const healthBarGroup = new THREE.Group();
-        healthBarGroup.position.y = config.bodyHeight * 1.5 + 0.5;
-        healthBarGroup.name = 'healthBarGroup';
+        // 创建 HTML 血条容器
+        const healthBarDiv = document.createElement('div');
+        healthBarDiv.style.cssText = `
+            width: 30px;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 2px;
+            overflow: hidden;
+            pointer-events: none;
+        `;
 
-        const bgGeometry = new THREE.PlaneGeometry(config.bodyWidth * 2, 0.2);
-        const bgMaterial = new THREE.MeshBasicMaterial({
-            color: 0x000000,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0.7,
-            depthWrite: false
-        });
-        const background = new THREE.Mesh(bgGeometry, bgMaterial);
-        background.position.z = 0.01;
-        background.name = 'healthBarBackground';
-        healthBarGroup.add(background);
+        // 创建血量填充条
+        const healthFill = document.createElement('div');
+        healthFill.style.cssText = `
+            width: 100%;
+            height: 100%;
+            background: #00FF00;
+            transition: width 0.2s ease;
+        `;
+        healthBarDiv.appendChild(healthFill);
 
-        const healthGeometry = new THREE.PlaneGeometry(config.bodyWidth * 2, 0.15);
-        const healthMaterial = new THREE.MeshBasicMaterial({
-            color: 0x00FF00,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 1,
-            depthWrite: false
-        });
-        this.healthBar = new THREE.Mesh(healthGeometry, healthMaterial);
-        this.healthBar.position.z = 0.02;
-        this.healthBar.name = 'healthBar';
-        healthBarGroup.add(this.healthBar);
+        // 创建 CSS2DObject
+        this.healthBarCSS = new CSS2DObject(healthBarDiv);
+        this.healthBarCSS.position.y = config.bodyHeight * 1.5 + 0.5;
+        this.healthBarCSS.name = 'healthBarCSS';
+        this.healthBarCSS.visible = false; // 默认隐藏
+        this.mesh.add(this.healthBarCSS);
 
-        const borderGeometry = new THREE.PlaneGeometry(config.bodyWidth * 2.05, 0.22);
-        const borderMaterial = new THREE.MeshBasicMaterial({
-            color: 0xFFFFFF,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0.5,
-            depthWrite: false
-        });
-        const border = new THREE.Mesh(borderGeometry, borderMaterial);
-        border.position.z = 0.005;
-        border.name = 'healthBarBorder';
-        healthBarGroup.add(border);
+        // 保存引用
+        this.healthBarElement = healthBarDiv;
+        this.healthBarFill = healthFill;
 
-        this.mesh.add(healthBarGroup);
-        this.healthBarGroup = healthBarGroup;
-
-        // 血条默认可见
-        healthBarGroup.visible = true;
+        // 兼容旧代码
+        this.healthBarGroup = this.healthBarCSS;
 
         this.updateHealthBar();
     }
     
     updateHealthBar() {
-        if (!this.healthBar) return;
+        if (!this.healthBarFill) return;
 
         const healthPercentage = this.getHealthPercentage();
 
-        this.healthBar.scale.x = healthPercentage;
+        // 更新血条宽度
+        this.healthBarFill.style.width = `${healthPercentage * 100}%`;
 
+        // 更新血条颜色
         if (healthPercentage > 0.6) {
-            this.healthBar.material.color.setHex(0x00FF00);
+            this.healthBarFill.style.background = '#00FF00';
         } else if (healthPercentage > 0.3) {
-            this.healthBar.material.color.setHex(0xFFFF00);
+            this.healthBarFill.style.background = '#FFFF00';
         } else {
-            this.healthBar.material.color.setHex(0xFF0000);
+            this.healthBarFill.style.background = '#FF0000';
         }
+    }
 
-        const originalWidth = this.healthBar.geometry.parameters.width;
-        const newWidth = originalWidth * healthPercentage;
-        this.healthBar.position.x = -(originalWidth - newWidth) / 2;
-
-        // 血量不满时，血条始终可见（不考虑渐隐）
-        if (healthPercentage < 1.0) {
-            if (this.healthBarGroup) {
-                this.healthBarGroup.visible = true;
-                this.healthBarGroup.traverse((child) => {
-                    if (child.isMesh && child.material) {
-                        child.material.opacity = child.material.userData?.baseOpacity || child.material.opacity;
-                    }
-                });
-            }
-            return;
+    /**
+     * 每帧更新血条可见性 — 单一仲裁点
+     * 规则：血量不满 / 鼠标悬停 → 显示，否则隐藏
+     */
+    updateHealthBarAnimation(deltaTime) {
+        if (!this.healthBarCSS) return;
+        const shouldShow = this.health < this.maxHealth || this.isSelected || this.isMouseOver;
+        if (shouldShow) {
+            this.healthBarCSS.visible = true;
+        } else {
+            this.healthBarCSS.visible = false;
         }
-
-        // 正常状态下，鼠标移开后1秒开始渐隐
     }
 
     onHover() {
-        this.isMouseOver = true;
-        this.healthBarHideTimer = 0;
-        this.healthBarFadeTimer = 0;
-
-        if (this.healthBarGroup) {
-            this.healthBarGroup.visible = true;
-            this.healthBarGroup.traverse((child) => {
-                if (child.isMesh && child.material) {
-                    if (!child.material.userData) {
-                        child.material.userData = { baseOpacity: child.material.opacity };
-                    }
-                    child.material.opacity = child.material.userData.baseOpacity;
-                }
-            });
-        }
+        super.onHover();
     }
 
     onHoverOut() {
-        this.isMouseOver = false;
-        // 不立即隐藏，等待1秒后开始渐隐
-    }
-
-    updateHealthBarAnimation(deltaTime) {
-        if (!this.healthBarGroup) return;
-
-        // 血量不满时，不执行渐隐逻辑
-        if (this.health < this.maxHealth) {
-            return;
-        }
-
-        // 如果鼠标悬停，不执行渐隐
-        if (this.isMouseOver) {
-            this.healthBarHideTimer = 0;
-            this.healthBarFadeTimer = 0;
-            return;
-        }
-
-        // 鼠标移出后，等待1秒再开始渐隐
-        if (this.healthBarHideTimer < this.healthBarHideDelay) {
-            this.healthBarHideTimer += deltaTime;
-            return;
-        }
-
-        // 开始渐隐
-        if (this.healthBarFadeTimer < this.healthBarFadeDuration) {
-            this.healthBarFadeTimer += deltaTime;
-            const fadeProgress = this.healthBarFadeTimer / this.healthBarFadeDuration;
-
-            this.healthBarGroup.traverse((child) => {
-                if (child.isMesh && child.material) {
-                    if (!child.material.userData) {
-                        child.material.userData = { baseOpacity: child.material.opacity };
-                    }
-                    const baseOpacity = child.material.userData.baseOpacity;
-                    child.material.opacity = baseOpacity * (1 - fadeProgress);
-                }
-            });
-        } else {
-            // 渐隐完成，隐藏血条
-            this.healthBarGroup.visible = false;
-        }
+        super.onHoverOut();
     }
 
     die() {
@@ -463,6 +502,7 @@ class UnitBase extends Entity {
         this.updateCombat(deltaTime);
         this.updateAnimation(deltaTime);
         this.updateHealthBar();
+        this.updateHealthBarAnimation(deltaTime);
 
         this.updateBuilding(deltaTime);
         this.updateResourceGathering(deltaTime);

@@ -1,3 +1,5 @@
+import { BUILDING_TYPES, BUILDING_CONFIG, TOWN_CENTER_ACTIONS, normalizeBuildingType, getBuildingName, getBuildingDesc, getAgeName } from '../config.js';
+
 class ActionPanel {
   constructor(game) {
     this.game = game;
@@ -12,52 +14,65 @@ class ActionPanel {
     };
 
     this.ageUpgradeCosts = {
-      1: { food: 500, gold: 250 },
-      2: { food: 800, gold: 400 },
+      1: { food: 500, gold: 0 },
+      2: { food: 800, gold: 200 },
       3: { food: 1000, gold: 800 }
     };
 
-    this.ageNames = {
-      1: 'Feudal Age',
-      2: 'Castle Age',
-      3: 'Imperial Age'
-    };
+    // 时代名称通过 getAgeName() 获取（i18n）
 
     this.buildingPanelPresets = {
       empty: [],
       default: [
-        { id: 'house', icon: 'H', name: 'House', type: 'residential' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: 'farm', icon: 'F', name: 'Farm', type: 'economy' },
-        { id: 'lumber-camp', icon: 'L', name: 'Lumber Camp', type: 'economy' },
-        { id: 'mining-camp', icon: 'M', name: 'Mining Camp', type: 'economy' },
-        { id: 'watch-tower', icon: 'T', name: 'Watch Tower', type: 'defense' },
-        { id: 'stable', icon: 'St', name: 'Stable', type: 'military' },
-        { id: 'archery-range', icon: 'A', name: 'Archery', type: 'military' },
-        { id: 'castle', icon: 'C', name: 'Castle', type: 'defense' },
-        { id: 'wall', icon: 'W', name: 'Wall', type: 'defense' },
-        { id: 'gate', icon: 'G', name: 'Gate', type: 'defense' },
-        { id: 'blacksmith', icon: 'B', name: 'Blacksmith', type: 'economy' },
-        { id: 'market', icon: 'Mk', name: 'Market', type: 'economy' },
-        { id: 'dock', icon: 'D', name: 'Dock', type: 'economy' },
-        { id: 'church', icon: 'Ch', name: 'Church', type: 'special' }
+        { id: BUILDING_TYPES.HOUSE, icon: 'H', type: 'residential' },
+        { id: '', icon: '', type: 'empty' },
+        { id: BUILDING_TYPES.FARM, icon: 'F', type: 'economy' },
+        { id: BUILDING_TYPES.LUMBER_CAMP, icon: 'L', type: 'economy' },
+        { id: BUILDING_TYPES.MINING_CAMP, icon: 'M', type: 'economy' },
+        { id: BUILDING_TYPES.WATCH_TOWER, icon: 'T', type: 'defense' },
+        { id: BUILDING_TYPES.STABLE, icon: 'St', type: 'military' },
+        { id: BUILDING_TYPES.ARCHERY_RANGE, icon: 'A', type: 'military' },
+        { id: BUILDING_TYPES.CASTLE, icon: 'C', type: 'defense' },
+        { id: BUILDING_TYPES.WALL, icon: 'W', type: 'defense' },
+        { id: BUILDING_TYPES.GATE, icon: 'G', type: 'defense' },
+        { id: BUILDING_TYPES.BLACKSMITH, icon: 'B', type: 'economy' },
+        { id: BUILDING_TYPES.MARKET, icon: 'Mk', type: 'economy' },
+        { id: BUILDING_TYPES.DOCK, icon: 'D', type: 'economy' },
+        { id: BUILDING_TYPES.CHURCH, icon: 'Ch', type: 'special' }
       ],
       military: [
-        { id: 'barracks', icon: 'B', name: 'Barracks', type: 'military' },
-        { id: 'archery-range', icon: 'A', name: 'Archery', type: 'military' },
-        { id: 'stable', icon: 'St', name: 'Stable', type: 'military' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: 'watch-tower', icon: 'T', name: 'Watch Tower', type: 'defense' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: '', icon: '', name: '', type: 'empty' },
-        { id: 'castle', icon: 'C', name: 'Castle', type: 'defense' },
-        { id: 'next', icon: '>', name: 'Next', type: 'nav' },
-        { id: 'close', icon: 'X', name: 'Close', type: 'nav' }
+        { id: BUILDING_TYPES.BARRACKS, icon: 'B', type: 'military' },
+        { id: BUILDING_TYPES.ARCHERY_RANGE, icon: 'A', type: 'military' },
+        { id: BUILDING_TYPES.STABLE, icon: 'St', type: 'military' },
+        { id: '', icon: '', type: 'empty' },
+        { id: '', icon: '', type: 'empty' },
+        { id: BUILDING_TYPES.WATCH_TOWER, icon: 'T', type: 'defense' },
+        { id: '', icon: '', type: 'empty' },
+        { id: '', icon: '', type: 'empty' },
+        { id: '', icon: '', type: 'empty' },
+        { id: '', icon: '', type: 'empty' },
+        { id: '', icon: '', type: 'empty' },
+        { id: '', icon: '', type: 'empty' },
+        { id: BUILDING_TYPES.CASTLE, icon: 'C', type: 'defense' },
+        { id: 'next', icon: '>', type: 'nav' },
+        { id: 'close', icon: 'X', type: 'nav' }
+      ],
+      khmer_villager: [
+        { id: 'garrison', icon: 'G', type: 'garrison' },
+        { id: BUILDING_TYPES.HOUSE, icon: 'H', type: 'residential' },
+        { id: '', icon: '', type: 'empty' },
+        { id: BUILDING_TYPES.FARM, icon: 'F', type: 'economy' },
+        { id: BUILDING_TYPES.LUMBER_CAMP, icon: 'L', type: 'economy' },
+        { id: BUILDING_TYPES.MINING_CAMP, icon: 'M', type: 'economy' },
+        { id: BUILDING_TYPES.WATCH_TOWER, icon: 'T', type: 'defense' },
+        { id: BUILDING_TYPES.STABLE, icon: 'St', type: 'military' },
+        { id: BUILDING_TYPES.ARCHERY_RANGE, icon: 'A', type: 'military' },
+        { id: BUILDING_TYPES.CASTLE, icon: 'C', type: 'defense' },
+        { id: BUILDING_TYPES.WALL, icon: 'W', type: 'defense' },
+        { id: BUILDING_TYPES.GATE, icon: 'G', type: 'defense' },
+        { id: BUILDING_TYPES.BLACKSMITH, icon: 'B', type: 'economy' },
+        { id: BUILDING_TYPES.MARKET, icon: 'Mk', type: 'economy' },
+        { id: BUILDING_TYPES.CHURCH, icon: 'Ch', type: 'special' }
       ]
     };
 
@@ -69,6 +84,20 @@ class ActionPanel {
     this.switchToPreset('empty');
     this.updateBuildingPanelConfig({ rows: 3, cols: 5, totalButtons: 15 });
     this.setupButtonListeners();
+    this.updateBuildingButtonTexts();
+  }
+
+  // 更新建筑按钮文字（i18n）
+  updateBuildingButtonTexts() {
+    this.buildingButtons.forEach(btn => {
+      const buildingId = btn.dataset.building;
+      if (buildingId) {
+        const textSpan = btn.querySelector('.building-btn-text');
+        if (textSpan) {
+          textSpan.textContent = getBuildingName(buildingId);
+        }
+      }
+    });
   }
 
   setupButtonListeners() {
@@ -136,15 +165,69 @@ class ActionPanel {
 
       const text = document.createElement('span');
       text.className = 'building-btn-text';
-      text.textContent = button.name || '';
+      text.textContent = button.id ? getBuildingName(button.id) : '';
 
       btn.appendChild(icon);
       btn.appendChild(text);
+
+      if (button.id && button.type !== 'empty' && button.type !== 'nav') {
+        btn.addEventListener('mouseenter', (e) => this.showBuildingTooltip(e.currentTarget, button.id));
+        btn.addEventListener('mouseleave', () => this.hideBuildingTooltip());
+      }
+
       this.container.appendChild(btn);
     });
 
     this.buildingButtons = document.querySelectorAll('.building-btn');
     this.setupButtonListeners();
+  }
+
+  RESOURCE_EMOJIS = { food: '🍖', wood: '🌲', gold: '🏅', stone: '🪨' };
+
+  showBuildingTooltip(btn, buildingId) {
+    const config = BUILDING_CONFIG[buildingId];
+    if (!config) return;
+    const cost = config.cost;
+    if (!cost || Object.keys(cost).length === 0) return;
+
+    this.hideBuildingTooltip();
+
+    const tooltip = document.createElement('div');
+    tooltip.className = 'building-tooltip';
+
+    tooltip.innerHTML = `
+      <div class="building-tooltip-name">${getBuildingName(buildingId)}</div>
+      <div class="building-tooltip-desc">${getBuildingDesc(buildingId)}</div>
+      <hr class="building-tooltip-divider">
+      <div class="building-tooltip-cost">
+        ${Object.entries(cost).map(([res, val]) =>
+          `<span class="building-tooltip-cost-item">${this.RESOURCE_EMOJIS[res] || res} ${val}</span>`
+        ).join('')}
+      </div>
+    `;
+
+    document.body.appendChild(tooltip);
+
+    const rect = btn.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    let left = rect.left + (rect.width - tooltipRect.width) / 2;
+    let top = rect.top - tooltipRect.height - 6;
+
+    if (left < 4) left = 4;
+    if (left + tooltipRect.width > window.innerWidth - 4) left = window.innerWidth - tooltipRect.width - 4;
+    if (top < 4) top = rect.bottom + 6;
+
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+
+    this._buildingTooltip = tooltip;
+  }
+
+  hideBuildingTooltip() {
+    if (this._buildingTooltip) {
+      this._buildingTooltip.remove();
+      this._buildingTooltip = null;
+    }
   }
 
   handleBuildingClick(buildingType, button) {
@@ -177,6 +260,11 @@ class ActionPanel {
       return;
     }
 
+    if (currentButtonConfig?.type === 'cancel' && currentButtonConfig?.action === 'cancel_construction') {
+      this.handleCancelConstruction();
+      return;
+    }
+
     if (this.game.buildingPlacementSystem) {
       const selectedVillagers = this.game.selectionManager ?
         this.game.selectionManager.selectedEntities.filter(
@@ -203,6 +291,40 @@ class ActionPanel {
     }
   }
 
+  handleCancelConstruction() {
+    if (!this.currentSelectedBuilding) {
+      console.warn('[ActionPanel] No selected building');
+      return;
+    }
+
+    if (!this.currentSelectedBuilding.isUnderConstruction) {
+      console.warn('[ActionPanel] Building is not under construction');
+      return;
+    }
+
+    const refund = this.currentSelectedBuilding.cancelConstruction();
+    if (refund) {
+      // 退还资源
+      if (this.game.resourceManager) {
+        this.game.resourceManager.addResources(refund);
+      }
+
+      // 从实体管理器中移除建筑
+      if (this.game.entityManager) {
+        this.game.entityManager.removeEntity(this.currentSelectedBuilding);
+      }
+
+      // 取消选择
+      if (this.game.selectionManager) {
+        this.game.selectionManager.deselectAll();
+      }
+
+      this.showEmptyPanel();
+
+      console.log('[ActionPanel] 建造已取消，退还资源:', refund);
+    }
+  }
+
   handleAgeUpgrade(command) {
     if (!this.game.player) return;
 
@@ -222,9 +344,8 @@ class ActionPanel {
       this.game.hud.showNotification(`Advanced to ${this.game.player.getAgeName()}`);
     }
 
-    this.switchToPreset('town_center_production');
+    this.switchToPreset(`${BUILDING_TYPES.TOWN_CENTER}_production`);
   }
-
   handleProductionCommand(command) {
     if (!this.currentSelectedBuilding) {
       console.warn('[ActionPanel] No selected building');
@@ -304,19 +425,24 @@ class ActionPanel {
       time: this.getResearchTime(techType)
     });
   }
-
   updateForSelection(selectedEntities) {
     if (!selectedEntities || selectedEntities.length === 0) {
       this.showEmptyPanel();
       return;
     }
-
     const allVillagers = selectedEntities.every(
       entity => entity.type === 'unit' && entity.unitType === 'villager' && entity.isPlayerOwned()
     );
 
     if (allVillagers) {
       this.currentSelectedBuilding = null;
+
+      // 高棉文明：村民可驻扎进房屋
+      if (this.game.player && this.game.player.hasCiv('khmer')) {
+        this.switchToPreset('khmer_villager');
+        return;
+      }
+
       this.switchToPreset('default');
       return;
     }
@@ -327,7 +453,7 @@ class ActionPanel {
       if (entity.type === 'building' && entity.isPlayerOwned()) {
         const normalizedType = this.normalizeBuildingType(entity.buildingType || entity.type);
         const productionPresetName = `${normalizedType}_production`;
-        const hasPreset = productionPresetName === 'town_center_production' ||
+        const hasPreset = productionPresetName === `${BUILDING_TYPES.TOWN_CENTER}_production` ||
           this.buildingPanelPresets[productionPresetName] ||
           this.hasBuildingProductionPreset(entity);
 
@@ -354,7 +480,7 @@ class ActionPanel {
   switchToPreset(presetName) {
     let preset;
 
-    if (presetName === 'town_center_production') {
+    if (presetName === `${BUILDING_TYPES.TOWN_CENTER}_production`) {
       preset = this.getTownCenterProductionPreset();
     } else if (presetName.endsWith('_production') && this.currentSelectedBuilding && this.hasBuildingProductionPreset(this.currentSelectedBuilding)) {
       preset = this.getBuildingProductionPreset(this.currentSelectedBuilding);
@@ -388,7 +514,22 @@ class ActionPanel {
   getCurrentPreset() {
     return this.currentPreset;
   }
-
+  /**
+   * 通过快捷键触发命令面板按钮（A→0, S→1, D→2, F→3）
+   * @param {number} index - 按钮索引 0-14
+   */
+  triggerHotButton(index) {
+    const buttonConfig = this.buildingPanelConfig.buttons[index];
+    if (!buttonConfig || !buttonConfig.id) {
+      console.warn(`[ActionPanel] triggerHotButton(${index}): 无按钮配置`);
+      return;
+    }
+    if (buttonConfig.type === 'empty' || buttonConfig.type === 'nav') {
+      console.warn(`[ActionPanel] triggerHotButton(${index}): 按钮类型为 ${buttonConfig.type}, 跳过`);
+      return;
+    }
+    this.handleBuildingClick(buttonConfig.id);
+  }
   addPreset(name, buttons) {
     this.buildingPanelPresets[name] = buttons.map(button => ({ ...button }));
   }
@@ -397,18 +538,32 @@ class ActionPanel {
     const ageLevel = this.game.player ? this.game.player.getAgeLevel() : 1;
     const canUpgrade = ageLevel < 4;
     const upgradeCost = canUpgrade ? this.ageUpgradeCosts[ageLevel] : null;
-    const nextAgeName = canUpgrade ? this.ageNames[ageLevel] : null;
+    const nextAgeName = canUpgrade ? getAgeName(ageLevel) : null;
 
     return this.padButtons([
-      { id: 'produce-villager', icon: 'V', name: 'Villager', type: 'production', cost: { food: 50 }, action: 'produce', target: 'villager' },
-      { id: 'research-loom', icon: 'Lm', name: 'Loom', type: 'research', cost: { gold: 50 }, action: 'research', target: 'loom' },
-      { id: 'research-town-watch', icon: 'Tw', name: 'Town Watch', type: 'research', cost: { gold: 100 }, action: 'research', target: 'town_watch' },
+      { id: TOWN_CENTER_ACTIONS.PRODUCE_VILLAGER, icon: 'V', type: 'production', cost: { food: 50 }, action: 'produce', target: 'villager' },
+      { id: TOWN_CENTER_ACTIONS.RESEARCH_LOOM, icon: 'Lm', type: 'research', cost: { gold: 50 }, action: 'research', target: 'loom' },
+      { id: TOWN_CENTER_ACTIONS.RESEARCH_TOWN_WATCH, icon: 'Tw', type: 'research', cost: { gold: 100 }, action: 'research', target: 'town_watch' },
       { id: canUpgrade ? 'age-up' : '', icon: canUpgrade ? '^' : '', name: canUpgrade ? nextAgeName : '', type: canUpgrade ? 'age_upgrade' : 'empty', cost: upgradeCost, action: canUpgrade ? 'age_up' : '', target: canUpgrade ? 'next_age' : '' },
-      { id: 'close-production', icon: 'X', name: 'Close', type: 'nav' }
+      { id: 'close-production', icon: 'X', type: 'nav' }
     ]);
   }
 
   getBuildingProductionPreset(building) {
+    // 如果建筑正在建造中，显示取消建造按钮
+    if (building.isUnderConstruction) {
+      const buttons = [
+        {
+          id: 'cancel-construction',
+          icon: 'X',
+          name: '取消建造',
+          type: 'cancel',
+          action: 'cancel_construction'
+        }
+      ];
+      return this.padButtons(buttons);
+    }
+
     const trainableUnits = building?.buildingFeatures?.canTrainUnits || [];
     const buttons = trainableUnits.map(unitType => ({
       id: `train-${unitType}`,
@@ -496,11 +651,7 @@ class ActionPanel {
   }
 
   normalizeBuildingType(buildingType) {
-    if (this.game && this.game.normalizeBuildingType) {
-      return this.game.normalizeBuildingType(buildingType);
-    }
-
-    return buildingType ? buildingType.replace(/-/g, '_') : buildingType;
+    return normalizeBuildingType(buildingType);
   }
 }
 

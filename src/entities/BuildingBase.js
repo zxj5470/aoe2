@@ -1,28 +1,34 @@
 import * as THREE from 'three';
+import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import Entity from './Entity.js';
 import RomanNumeralCanvas from './RomanNumeralCanvas.js';
-import { CELL_SIZE, MAP_CONFIG, getPlayerColor, HUMAN_OWNER, normalizeBuildingType } from '../config.js';
+import { CELL_SIZE, MAP_CONFIG, getPlayerColor, HUMAN_OWNER, normalizeBuildingType, BUILDING_TYPES, BUILDING_CONFIG } from '../config.js';
 import { BUILDING_EMOJIS } from '../emojis.js';
 
 class BuildingBase extends Entity {
     constructor(config) {
+        const maxHealth = config.health || config.maxHealth || 200;
+        const isUnderConstruction = config.isUnderConstruction || false;
+        const constructionProgress = config.constructionProgress || 0;
+
         super({
             name: config.name || 'Building',
             type: 'building',
             x: config.x || 0,
             y: config.y || 0,
             z: config.z || 0,
-            health: config.health || 200,
-            maxHealth: config.maxHealth || 200,
+            // 如果正在建造中，生命值根据建造进度计算
+            health: isUnderConstruction ? Math.floor(maxHealth * constructionProgress / 100) : maxHealth,
+            maxHealth: maxHealth,
             owner: config.owner || HUMAN_OWNER
         });
 
-        this.buildingType = normalizeBuildingType(config.buildingType || 'house');
+        this.buildingType = normalizeBuildingType(config.buildingType || BUILDING_TYPES.HOUSE);
         this.width = config.width || 2;
         this.depth = config.depth || 2;
         this.height = config.height || 2;
-        this.isUnderConstruction = config.isUnderConstruction || false;
-        this.constructionProgress = config.constructionProgress || 0;
+        this.isUnderConstruction = isUnderConstruction;
+        this.constructionProgress = constructionProgress;
         this.builderVillagers = [];
         this.requiredBuilders = 1;
         this.productionQueue = [];
@@ -30,16 +36,14 @@ class BuildingBase extends Entity {
         this.productionProgress = 0;
 
         this.selectionRing = null;
-        this.healthBar = null;
-        this.healthBarGroup = null;
+        this.healthBarCSS = null;
+        this.healthBarElement = null;
+        this.healthBarFill = null;
 
         // 血条悬停状态
         this.isMouseOver = false;
-        this.healthBarHideTimer = 0;
-        this.healthBarHideDelay = 1.0; // 1秒后开始隐藏
-        this.healthBarFadeTimer = 0;
-        this.healthBarFadeDuration = 0.5; // 0.5秒完成渐隐
 
+        this.placementRotation = config.placementRotation || 0;
         this.gridSizeX = config.gridSizeX || this.getDefaultGridSizeX();
         this.gridSizeZ = config.gridSizeZ || this.getDefaultGridSizeZ();
 
@@ -48,6 +52,20 @@ class BuildingBase extends Entity {
         this.appearanceConfig = this.getAppearanceConfig();
         this.buildingFeatures = this.getBuildingFeatures();
 
+        // 驻军系统
+        this.garrisonedUnits = [];
+        this.garrisonCapacity = this.buildingFeatures.garrisonCapacity || 0;
+
+        // 防御建筑攻击属性
+        if (this.buildingFeatures.canAttack) {
+            this.attackDamage = config.attackDamage || 10;
+            this.attackRange = this.buildingFeatures.attackRange || 6;
+            this.attackCooldown = config.attackCooldown || 2;
+            this.lastAttackTime = 0;
+            this.targetEntity = null;
+            this.isAttacking = false;
+        }
+
         if (this.appearanceConfig) {
             this.width = this.appearanceConfig.width || this.width;
             this.depth = this.appearanceConfig.depth || this.depth;
@@ -55,160 +73,105 @@ class BuildingBase extends Entity {
         }
     }
 
+    // 占地宽度（X轴方向格子数）
     getDefaultGridSizeX() {
-        const gridSizes = {
-            house: 2,
-            farm: 3,
-            lumber_camp: 2,
-            mining_camp: 2,
-            barracks: 3,
-            stable: 3,
-            archery_range: 3,
-            castle: 5,
-            market: 3,
-            church: 3,
-            blacksmith: 3,
-            watch_tower: 2,
-            town_center: 4
-        };
-        return gridSizes[this.buildingType] || 2;
+        return BUILDING_CONFIG[this.buildingType]?.width || 2;
     }
 
+    // 占地纵深（Z轴方向格子数，即矩形的"高"）
     getDefaultGridSizeZ() {
-        const gridSizes = {
-            house: 2,
-            farm: 3,
-            lumber_camp: 2,
-            mining_camp: 2,
-            barracks: 3,
-            stable: 3,
-            archery_range: 3,
-            castle: 5,
-            market: 3,
-            church: 4,
-            blacksmith: 3,
-            watch_tower: 2,
-            town_center: 4
-        };
-        return gridSizes[this.buildingType] || 2;
+        return BUILDING_CONFIG[this.buildingType]?.depth || 2;
     }
 
+    // 建筑外观配置（含尺寸、符号、颜色）
+    // width - 占地宽度，depth - 占地纵深，height - 离地高度
+    // 建筑外观配置（尺寸引用 BUILDING_CONFIG，仅定义视觉属性）
     getAppearanceConfig() {
-        const configs = {
-            house: {
-                width: 2,
-                depth: 2,
-                symbol: BUILDING_EMOJIS.house,
-                color: 0x4169E1,
-                bgColor: 0x8B4513
-            },
-            farm: {
-                width: 3,
-                depth: 3,
-                symbol: BUILDING_EMOJIS.farm,
-                color: 0x9ACD32,
-                bgColor: 0x8B4513
-            },
-            lumber_camp: {
-                width: 2,
-                depth: 2,
-                symbol: BUILDING_EMOJIS.lumber_camp,
-                color: 0x8B4513,
-                bgColor: 0x654321
-            },
-            mining_camp: {
-                width: 2,
-                depth: 2,
-                symbol: BUILDING_EMOJIS.mining_camp,
-                color: 0x708090,
-                bgColor: 0x5C5C5C
-            },
-            barracks: {
-                width: 3,
-                depth: 3,
-                symbol: BUILDING_EMOJIS.barracks,
-                color: 0x1E90FF,
-                bgColor: 0x8B4513
-            },
-            stable: {
-                width: 3,
-                depth: 3,
-                symbol: BUILDING_EMOJIS.stable,
-                color: 0x228B22,
-                bgColor: 0x8B4513
-            },
-            archery_range: {
-                width: 3,
-                depth: 3,
-                symbol: BUILDING_EMOJIS.archery_range,
-                color: 0x32CD32,
-                bgColor: 0x8B4513
-            },
-            castle: {
-                width: 5,
-                depth: 5,
-                symbol: BUILDING_EMOJIS.castle,
-                color: 0x00008B,
-                bgColor: 0x696969
-            },
-            market: {
-                width: 3,
-                depth: 3,
-                symbol: BUILDING_EMOJIS.market,
-                color: 0xDAA520,
-                bgColor: 0x8B4513
-            },
-            church: {
-                width: 3,
-                depth: 4,
-                symbol: BUILDING_EMOJIS.church,
-                color: 0xFFFAF0,
-                bgColor: 0x8B4513
-            },
-            blacksmith: {
-                width: 3,
-                depth: 3,
-                symbol: BUILDING_EMOJIS.blacksmith,
-                color: 0x708090,
-                bgColor: 0x8B4513
-            },
-            watch_tower: {
-                width: 2,
-                depth: 2,
-                symbol: BUILDING_EMOJIS.watch_tower,
-                color: 0x4682B4,
-                bgColor: 0x696969
-            },
-            town_center: {
-                width: 4,
-                depth: 4,
-                symbol: BUILDING_EMOJIS.town_center,
-                color: 0xF5DEB3,
-                bgColor: 0x8B4513
-            }
+        const visualConfigs = {
+            [BUILDING_TYPES.HOUSE]: { symbol: BUILDING_EMOJIS[BUILDING_TYPES.HOUSE], color: 0x4169E1, bgColor: 0x8B4513 },
+            [BUILDING_TYPES.FARM]: { symbol: BUILDING_EMOJIS[BUILDING_TYPES.FARM], color: 0x9ACD32, bgColor: 0x8B4513 },
+            [BUILDING_TYPES.LUMBER_CAMP]: { symbol: BUILDING_EMOJIS[BUILDING_TYPES.LUMBER_CAMP], color: 0x8B4513, bgColor: 0x654321 },
+            [BUILDING_TYPES.MINING_CAMP]: { symbol: BUILDING_EMOJIS[BUILDING_TYPES.MINING_CAMP], color: 0x708090, bgColor: 0x5C5C5C },
+            [BUILDING_TYPES.BARRACKS]: { symbol: BUILDING_EMOJIS[BUILDING_TYPES.BARRACKS], color: 0x1E90FF, bgColor: 0x8B4513 },
+            [BUILDING_TYPES.STABLE]: { symbol: BUILDING_EMOJIS[BUILDING_TYPES.STABLE], color: 0x228B22, bgColor: 0x8B4513 },
+            [BUILDING_TYPES.ARCHERY_RANGE]: { symbol: BUILDING_EMOJIS[BUILDING_TYPES.ARCHERY_RANGE], color: 0x32CD32, bgColor: 0x8B4513 },
+            [BUILDING_TYPES.CASTLE]: { symbol: BUILDING_EMOJIS[BUILDING_TYPES.CASTLE], color: 0x00008B, bgColor: 0x696969 },
+            [BUILDING_TYPES.MARKET]: { symbol: BUILDING_EMOJIS[BUILDING_TYPES.MARKET], color: 0xDAA520, bgColor: 0x8B4513 },
+            [BUILDING_TYPES.CHURCH]: { symbol: BUILDING_EMOJIS[BUILDING_TYPES.CHURCH], color: 0xFFFAF0, bgColor: 0x8B4513 },
+            [BUILDING_TYPES.BLACKSMITH]: { symbol: BUILDING_EMOJIS[BUILDING_TYPES.BLACKSMITH], color: 0x708090, bgColor: 0x8B4513 },
+            [BUILDING_TYPES.WATCH_TOWER]: { symbol: BUILDING_EMOJIS[BUILDING_TYPES.WATCH_TOWER], color: 0x4682B4, bgColor: 0x696969 },
+            [BUILDING_TYPES.TOWN_CENTER]: { symbol: BUILDING_EMOJIS[BUILDING_TYPES.TOWN_CENTER], color: 0xF5DEB3, bgColor: 0x8B4513 },
+            gate: { symbol: BUILDING_EMOJIS['gate'], color: 0xA0522D, bgColor: 0x696969 }
         };
 
-        return configs[this.buildingType] || configs.house;
+        const buildingConfig = BUILDING_CONFIG[this.buildingType] || BUILDING_CONFIG[BUILDING_TYPES.HOUSE];
+        const visual = visualConfigs[this.buildingType] || visualConfigs[BUILDING_TYPES.HOUSE];
+
+        return {
+            width: buildingConfig.width,
+            depth: buildingConfig.depth,
+            height: buildingConfig.height,
+            ...visual
+        };
     }
 
     getBuildingFeatures() {
         const features = {
-            house: { populationBonus: 5, isResidential: true },
-            farm: { producesFood: true, isEconomic: true },
-            lumber_camp: { dropOffResources: ['wood'], isEconomic: true, isDropOff: true },
-            mining_camp: { dropOffResources: ['gold', 'stone'], isEconomic: true, isDropOff: true },
-            barracks: { canTrainUnits: ['soldier', 'knight'], isMilitary: true },
-            stable: { canTrainUnits: ['scout'], isMilitary: true },
-            archery_range: { canTrainUnits: ['archer'], isMilitary: true },
-            castle: { canTrainUnits: ['elite'], isMilitary: true, isDefensive: true },
-            market: { canTrade: true, isEconomic: true },
-            church: { canHeal: true, isSpecial: true },
-            blacksmith: { canUpgrade: true, isEconomic: true },
-            watch_tower: { canAttack: true, isDefensive: true, attackRange: 6 },
-            town_center: { canCreateVillagers: true, isEconomic: true, isDropOff: true }
+            [BUILDING_TYPES.HOUSE]: { populationBonus: 5, isResidential: true, garrisonCapacity: 5 },
+            [BUILDING_TYPES.FARM]: { producesFood: true, isEconomic: true },
+            [BUILDING_TYPES.LUMBER_CAMP]: { dropOffResources: ['wood'], isEconomic: true, isDropOff: true },
+            [BUILDING_TYPES.MINING_CAMP]: { dropOffResources: ['gold', 'stone'], isEconomic: true, isDropOff: true },
+            [BUILDING_TYPES.BARRACKS]: { canTrainUnits: ['soldier', 'knight'], isMilitary: true },
+            [BUILDING_TYPES.STABLE]: { canTrainUnits: ['scout'], isMilitary: true },
+            [BUILDING_TYPES.ARCHERY_RANGE]: { canTrainUnits: ['archer'], isMilitary: true },
+            [BUILDING_TYPES.CASTLE]: { canTrainUnits: ['elite'], isMilitary: true, isDefensive: true },
+            [BUILDING_TYPES.MARKET]: { canTrade: true, isEconomic: true },
+            [BUILDING_TYPES.CHURCH]: { canHeal: true, isSpecial: true },
+            [BUILDING_TYPES.BLACKSMITH]: { canUpgrade: true, isEconomic: true },
+            [BUILDING_TYPES.WATCH_TOWER]: { canAttack: true, isDefensive: true, attackRange: 6 },
+            [BUILDING_TYPES.TOWN_CENTER]: { canCreateVillagers: true, isEconomic: true, isDropOff: true },
+            gate: { isDefensive: true, isGate: true }
         };
 
         return features[this.buildingType] || {};
+    }
+
+    /**
+     * 驻扎单位
+     */
+    garrison(unit) {
+        if (!this.garrisonCapacity || this.garrisonedUnits.length >= this.garrisonCapacity) return false;
+        if (!unit.isAlive || unit.type !== 'unit') return false;
+
+        this.garrisonedUnits.push(unit);
+        unit.isGarrisoned = true;
+        unit.garrisonedBuilding = this;
+        if (unit.mesh) unit.mesh.visible = false;
+        if (unit.selectionRing) unit.selectionRing.visible = false;
+        unit.stop();
+        console.log(`[Garrison] ${unit.name} 驻扎进 ${this.name} (${this.garrisonedUnits.length}/${this.garrisonCapacity})`);
+        return true;
+    }
+
+    /**
+     * 放出指定数量的驻扎单位
+     */
+    ungarrison(count = 1) {
+        const released = [];
+        for (let i = 0; i < Math.min(count, this.garrisonedUnits.length); i++) {
+            const unit = this.garrisonedUnits.shift();
+            unit.isGarrisoned = false;
+            unit.garrisonedBuilding = null;
+            if (unit.mesh) {
+                unit.mesh.visible = true;
+                unit.mesh.position.copy(this.position);
+                unit.mesh.position.x += (Math.random() - 0.5) * 2;
+                unit.mesh.position.z += (Math.random() - 0.5) * 2;
+            }
+            if (unit.selectionRing) unit.selectionRing.visible = Boolean(unit.isSelected);
+            released.push(unit);
+        }
+        return released;
     }
 
     createMesh() {
@@ -217,7 +180,8 @@ class BuildingBase extends Entity {
 
         this.width = config.width;
         this.depth = config.depth;
-        this.height = 1;
+        // 使用配置中的高度，如果没有则使用默认值
+        this.height = this.height || config.height || 2;
 
         this.createSymbolMarker(group, config);
 
@@ -239,6 +203,8 @@ class BuildingBase extends Entity {
 
         this.createSelectionRing();
         this.createHealthBar();
+
+        console.log('[BuildingBase] createMesh completed, healthBarElement:', this.healthBarElement ? 'created' : 'null');
 
         return this.mesh;
     }
@@ -270,7 +236,7 @@ class BuildingBase extends Entity {
 
         let texture;
         
-        if (this.buildingType === 'town_center') {
+        if (this.buildingType === BUILDING_TYPES.TOWN_CENTER) {
             texture = RomanNumeralCanvas.createTexture(this.ageLevel || 1);
         } else {
             const canvas = document.createElement('canvas');
@@ -298,7 +264,7 @@ class BuildingBase extends Entity {
         let posX = 0;
         let posZ = 0;
 
-        if (this.buildingType === 'town_center') {
+        if (this.buildingType === BUILDING_TYPES.TOWN_CENTER) {
             symbolSize = 1.4;
             posX = -this.width / 2 + 1;
             posZ = -this.depth / 2 + 1;
@@ -327,7 +293,7 @@ class BuildingBase extends Entity {
     updateSymbolTexture() {
         if (!this.symbolPlane || !this.mesh) return;
 
-        if (this.buildingType === 'town_center') {
+        if (this.buildingType === BUILDING_TYPES.TOWN_CENTER) {
             RomanNumeralCanvas.updateTexture(this.symbolPlane, this.ageLevel || 1);
         } else {
             const config = this.appearanceConfig;
@@ -394,174 +360,106 @@ class BuildingBase extends Entity {
     }
     
     createHealthBar() {
-        console.log('[BuildingBase.createHealthBar] 创建血条:', this.name, 'height:', this.height, 'width:', this.width, 'depth:', this.depth);
-        
-        const healthBarGroup = new THREE.Group();
-        // 血条位置在建筑顶部上方
-        healthBarGroup.position.y = this.height + 0.5;
-        healthBarGroup.name = 'healthBarGroup';
+        // 创建 HTML 血条容器
+        const healthBarDiv = document.createElement('div');
+        healthBarDiv.style.cssText = `
+            width: 80px;
+            height: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 2px;
+            overflow: hidden;
+            pointer-events: none;
+        `;
 
-        const bgGeometry = new THREE.PlaneGeometry(Math.max(this.width, this.depth) * 0.8, 0.15);
-        const bgMaterial = new THREE.MeshBasicMaterial({
-            color: 0x000000,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0.7,
-            depthWrite: false
-        });
-        const background = new THREE.Mesh(bgGeometry, bgMaterial);
-        background.position.z = 0.01;
-        background.name = 'healthBarBackground';
-        healthBarGroup.add(background);
+        // 创建血量填充条
+        const healthFill = document.createElement('div');
+        healthFill.style.cssText = `
+            width: 100%;
+            height: 100%;
+            background: #00FF00;
+            transition: width 0.2s ease;
+        `;
+        healthBarDiv.appendChild(healthFill);
 
-        const healthGeometry = new THREE.PlaneGeometry(Math.max(this.width, this.depth) * 0.8, 0.1);
-        const healthMaterial = new THREE.MeshBasicMaterial({
-            color: 0x00FF00,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 1,
-            depthWrite: false
-        });
-        this.healthBar = new THREE.Mesh(healthGeometry, healthMaterial);
-        this.healthBar.position.z = 0.02;
-        this.healthBar.name = 'healthBar';
-        healthBarGroup.add(this.healthBar);
+        // 创建 CSS2DObject
+        this.healthBarCSS = new CSS2DObject(healthBarDiv);
+        this.healthBarCSS.position.y = 0.5;
+        this.healthBarCSS.name = 'healthBarCSS';
+        this.healthBarCSS.visible = false; // 默认隐藏
+        this.mesh.add(this.healthBarCSS);
 
-        const borderGeometry = new THREE.PlaneGeometry(Math.max(this.width, this.depth) * 0.85, 0.17);
-        const borderMaterial = new THREE.MeshBasicMaterial({
-            color: 0xFFFFFF,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0.5,
-            depthWrite: false
-        });
-        const border = new THREE.Mesh(borderGeometry, borderMaterial);
-        border.position.z = 0.005;
-        border.name = 'healthBarBorder';
-        healthBarGroup.add(border);
+        // 保存引用
+        this.healthBarElement = healthBarDiv;
+        this.healthBarFill = healthFill;
 
-        this.mesh.add(healthBarGroup);
-        this.healthBarGroup = healthBarGroup;
-
-        // 血条默认可见
-        healthBarGroup.visible = true;
-
-        console.log('[BuildingBase.createHealthBar] 血条创建完成, visible:', healthBarGroup.visible);
         this.updateHealthBar();
     }
-    
+
     updateHealthBar() {
-        if (!this.healthBar) return;
+        if (!this.healthBarFill) return;
 
         const healthPercentage = this.getHealthPercentage();
 
-        this.healthBar.scale.x = healthPercentage;
+        // 更新血条宽度
+        this.healthBarFill.style.width = `${healthPercentage * 100}%`;
 
+        // 更新血条颜色
         if (healthPercentage > 0.6) {
-            this.healthBar.material.color.setHex(0x00FF00);
+            this.healthBarFill.style.background = '#00FF00';
         } else if (healthPercentage > 0.3) {
-            this.healthBar.material.color.setHex(0xFFFF00);
+            this.healthBarFill.style.background = '#FFFF00';
         } else {
-            this.healthBar.material.color.setHex(0xFF0000);
+            this.healthBarFill.style.background = '#FF0000';
         }
-
-        const originalWidth = this.healthBar.geometry.parameters.width;
-        const newWidth = originalWidth * healthPercentage;
-        this.healthBar.position.x = -(originalWidth - newWidth) / 2;
-
-        // 建造中或血量不满时，血条始终可见（不考虑渐隐）
-        if (this.isUnderConstruction || healthPercentage < 1.0) {
-            if (this.healthBarGroup) {
-                this.healthBarGroup.visible = true;
-                this.healthBarGroup.traverse((child) => {
-                    if (child.isMesh && child.material) {
-                        child.material.opacity = child.material.userData?.baseOpacity || child.material.opacity;
-                    }
-                });
-            }
-            return;
-        }
-
-        // 正常状态下，鼠标移开后1秒开始渐隐
     }
 
     onHover() {
-        console.log('[BuildingBase.onHover] 建筑悬停:', this.name, 'healthBarGroup:', !!this.healthBarGroup, 'visible:', this.healthBarGroup?.visible);
-        
-        this.isMouseOver = true;
-        this.healthBarHideTimer = 0;
-        this.healthBarFadeTimer = 0;
-
-        if (this.healthBarGroup) {
-            this.healthBarGroup.visible = true;
-            this.healthBarGroup.traverse((child) => {
-                if (child.isMesh && child.material) {
-                    // 只在第一次悬停时保存 baseOpacity
-                    if (!child.material.userData) {
-                        child.material.userData = { baseOpacity: child.material.opacity };
-                        console.log('[BuildingBase.onHover] 保存 baseOpacity:', child.name, child.material.opacity);
-                    }
-                    // 恢复透明度
-                    child.material.opacity = child.material.userData.baseOpacity;
-                    console.log('[BuildingBase.onHover] 恢复透明度:', child.name, child.material.opacity);
-                }
-            });
-        }
+        super.onHover();
     }
 
     onHoverOut() {
-        this.isMouseOver = false;
-        // 不立即隐藏，等待1秒后开始渐隐
+        super.onHoverOut();
     }
 
+
+    /**
+     * 显示血条
+     */
+    showHealthBar() {
+        if (this.healthBarCSS) {
+            this.healthBarCSS.visible = true;
+        }
+    }
+
+    /**
+     * 隐藏血条
+     */
+    hideHealthBar() {
+        if (this.healthBarCSS) {
+            this.healthBarCSS.visible = false;
+        }
+    }
+
+    /**
+     * 每帧更新血条可见性 — 单一仲裁点
+     * 规则：建造中 / 血量不满 / 鼠标悬停 → 显示，否则隐藏
+     */
     updateHealthBarAnimation(deltaTime) {
-        if (!this.healthBarGroup) return;
+        if (!this.healthBarCSS) return;
 
-        // 建造中或血量不满时，不执行渐隐逻辑
-        if (this.isUnderConstruction || this.health < this.maxHealth) {
-            console.log('[BuildingBase.updateHealthBarAnimation] 跳过渐隐: isUnderConstruction=', this.isUnderConstruction, 'health=', this.health, 'maxHealth=', this.maxHealth);
-            return;
-        }
+        const shouldShow = this.isUnderConstruction || this.health < this.maxHealth || this.isMouseOver;
 
-        // 如果鼠标悬停，不执行渐隐
-        if (this.isMouseOver) {
-            console.log('[BuildingBase.updateHealthBarAnimation] 鼠标悬停，跳过渐隐');
-            return;
-        }
-
-        // 鼠标移出后，等待1秒再开始渐隐
-        if (this.healthBarHideTimer < this.healthBarHideDelay) {
-            this.healthBarHideTimer += deltaTime;
-            return;
-        }
-
-        // 开始渐隐
-        if (this.healthBarFadeTimer < this.healthBarFadeDuration) {
-            this.healthBarFadeTimer += deltaTime;
-            const fadeProgress = this.healthBarFadeTimer / this.healthBarFadeDuration;
-
-            this.healthBarGroup.traverse((child) => {
-                if (child.isMesh && child.material) {
-                    if (!child.material.userData) {
-                        child.material.userData = { baseOpacity: child.material.opacity };
-                    }
-                    const baseOpacity = child.material.userData.baseOpacity;
-                    child.material.opacity = baseOpacity * (1 - fadeProgress);
-                }
-            });
+        if (shouldShow) {
+            this.showHealthBar();
         } else {
-            // 渐隐完成，隐藏血条
-            console.log('[BuildingBase.updateHealthBarAnimation] 渐隐完成，隐藏血条');
-            this.healthBarGroup.visible = false;
+            this.hideHealthBar();
         }
     }
 
     update(deltaTime) {
         if (!this.isAlive) return;
-        
-        this.updateConstruction(deltaTime);
-        this.updateProduction(deltaTime);
-        
+
         if (this.isSelected) {
             this.updateSelectionVisual(deltaTime);
         }
@@ -575,13 +473,10 @@ class BuildingBase extends Entity {
     
     takeDamage(amount) {
         this.health -= amount;
-        
-        if (this.healthBarGroup) {
-            this.healthBarGroup.visible = true;
-        }
-        
+
+        this.showHealthBar();
         this.updateHealthBar();
-        
+
         if (this.health <= 0) {
             this.health = 0;
             this.die();
@@ -590,11 +485,12 @@ class BuildingBase extends Entity {
     
     heal(amount) {
         this.health = Math.min(this.health + amount, this.maxHealth);
-        
+
         this.updateHealthBar();
-        
-        if (this.health >= this.maxHealth && this.healthBarGroup) {
-            this.healthBarGroup.visible = false;
+
+        // 满血时隐藏血条
+        if (this.health >= this.maxHealth) {
+            this.hideHealthBar();
         }
     }
     
@@ -607,9 +503,7 @@ class BuildingBase extends Entity {
         if (this.selectionGlow) {
             this.selectionGlow.visible = false;
         }
-        if (this.healthBarGroup) {
-            this.healthBarGroup.visible = false;
-        }
+        this.hideHealthBar();
         
         if (this.mesh) {
             this.mesh.traverse((child) => {

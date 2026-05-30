@@ -163,15 +163,16 @@ class Pathfinding {
 
     findNearbyWalkable(cell, radius) {
         for (let distance = 1; distance <= radius; distance++) {
-            const neighbors = this.grid.getNeighbors(cell.x, cell.y, true);
-
-            for (const neighbor of neighbors) {
-                if (neighbor.walkable && !neighbor.occupied) {
-                    return neighbor;
+            for (let dx = -distance; dx <= distance; dx++) {
+                for (let dy = -distance; dy <= distance; dy++) {
+                    if (Math.abs(dx) + Math.abs(dy) !== distance) continue;
+                    const neighbor = this.grid.getCell(cell.x + dx, cell.y + dy);
+                    if (neighbor && neighbor.walkable && !neighbor.occupied) {
+                        return neighbor;
+                    }
                 }
             }
         }
-
         return null;
     }
 

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import Entity from './Entity.js';
-import { CELL_SIZE, MAP_CONFIG } from '../config.js';
+import { CELL_SIZE, MAP_CONFIG, getPlayerColor } from '../config.js';
 
 class ResourceNode extends Entity {
     constructor(config) {
@@ -17,7 +17,7 @@ class ResourceNode extends Entity {
 
         this.resourceType = config.resourceType || 'wood'; // wood, stone, gold, food
         this.amount = config.amount || 100;
-        this.maxAmount = config.maxAmount || 100;
+        this.maxAmount = config.maxAmount || this.amount;
         this.gatherSpeed = config.gatherSpeed || 1;
         this.gatherer = null;
         this.isBeingGathered = false;
@@ -41,8 +41,20 @@ class ResourceNode extends Entity {
         this.gatherParticles = [];
         this.particleInterval = 0;
 
+        // 绵羊检测（必须在 getAppearanceConfig 之前）
+        this.isSheep = config.name && config.name.startsWith('sheep_');
+
         // 根据资源类型设置外观配置
         this.appearanceConfig = this.getAppearanceConfig();
+
+        // 绵羊特有状态初始化
+        this.sheepState = this.isSheep ? 'wild' : null;
+        this.sheepSpeed = 3;
+        this.sheepTargetPosition = null;
+        this.isSheepMoving = false;
+        this.slaughterFoodAmount = 0;
+        this.sheepCaptureCheckTimer = 0;
+        this.sheepCaptureCheckInterval = 0.5; // 每0.5秒检测一次
 
         // 更新userData以包含资源数量（供ResourceGatheringSystem使用）
         this.userData = {
@@ -57,6 +69,7 @@ class ResourceNode extends Entity {
         this.gatherIndicator = null;
         this.gatherIndicatorTimer = null;
     }
+
 
     /**
      * 显示采集指示器（绿色方框，持续显示）
@@ -337,7 +350,17 @@ class ResourceNode extends Entity {
                 hasBerries: true
             }
         };
-        
+
+        // 绵羊使用特殊外观
+        if (this.isSheep) {
+            return {
+                type: 'sheep',
+                bodyColor: 0xEEEEEE,
+                headColor: 0x333333,
+                size: 0.5
+            };
+        }
+
         return configs[this.resourceType] || configs.wood;
     }
 
@@ -357,6 +380,9 @@ class ResourceNode extends Entity {
                 break;
             case 'bush':
                 this.createBush(group, config);
+                break;
+            case 'sheep':
+                this.createSheep(group, config);
                 break;
         }
         
@@ -623,6 +649,92 @@ class ResourceNode extends Entity {
         }
     }
 
+    /**
+     * 创建绵羊模型（白色毛球 + 黑色头 + 4条腿）
+     */
+    createSheep(group, config) {
+        const bodyColor = config.bodyColor;
+        const headColor = config.headColor;
+
+        // 身体（白色椭球体）
+        const bodyGeometry = new THREE.SphereGeometry(config.size, 12, 8);
+        bodyGeometry.scale(1, 0.8, 1.2);
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+            color: bodyColor,
+            roughness: 0.85
+        });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.position.y = config.size * 0.8;
+        body.castShadow = true;
+        body.receiveShadow = true;
+        body.name = 'sheepBody';
+        group.add(body);
+
+        // 头（深色小球）
+        const headGeometry = new THREE.SphereGeometry(config.size * 0.45, 8, 8);
+        const headMaterial = new THREE.MeshStandardMaterial({
+            color: headColor,
+            roughness: 0.7
+        });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        head.position.set(0, config.size * 1.1, config.size * 0.8);
+        head.scale.set(1, 0.9, 0.8);
+        head.name = 'sheepHead';
+        group.add(head);
+        // 脖子颜色环（捕获后显示玩家颜色）
+        const neckRingGeometry = new THREE.TorusGeometry(config.size * 0.35, config.size * 0.06, 8, 16);
+        const neckRingMaterial = new THREE.MeshStandardMaterial({
+            color: 0xCCCCCC, // 默认灰色
+            roughness: 0.5,
+            metalness: 0.3
+        });
+        const neckRing = new THREE.Mesh(neckRingGeometry, neckRingMaterial);
+        neckRing.position.set(0, config.size * 0.95, config.size * 0.3);
+        neckRing.rotation.x = Math.PI / 2;
+        neckRing.name = 'sheepNeckRing';
+        group.add(neckRing);
+        this.neckRingMesh = neckRing;
+        // 耳朵（2个）
+        for (let side = -1; side <= 1; side += 2) {
+            const earGeometry = new THREE.SphereGeometry(config.size * 0.12, 6, 6);
+            earGeometry.scale(1, 1.5, 0.5);
+            const earMaterial = new THREE.MeshStandardMaterial({
+                color: 0x444444,
+                roughness: 0.8
+            });
+            const ear = new THREE.Mesh(earGeometry, earMaterial);
+            ear.position.set(side * config.size * 0.25, config.size * 1.45, config.size * 0.75);
+            ear.name = `sheepEar_${side}`;
+            group.add(ear);
+        }
+
+        // 4条腿
+        for (let i = 0; i < 4; i++) {
+            const legX = (i % 2 === 0 ? -1 : 1) * config.size * 0.4;
+            const legZ = (i < 2 ? 1 : -1) * config.size * 0.5;
+            const legGeometry = new THREE.CylinderGeometry(config.size * 0.08, config.size * 0.08, config.size * 0.5, 6);
+            const legMaterial = new THREE.MeshStandardMaterial({
+                color: 0x222222,
+                roughness: 0.8
+            });
+            const leg = new THREE.Mesh(legGeometry, legMaterial);
+            leg.position.set(legX, config.size * 0.25, legZ);
+            leg.name = `sheepLeg_${i}`;
+            group.add(leg);
+        }
+
+        // 尾巴（小球）
+        const tailGeometry = new THREE.SphereGeometry(config.size * 0.12, 6, 6);
+        const tailMaterial = new THREE.MeshStandardMaterial({
+            color: 0xEEEEEE,
+            roughness: 0.9
+        });
+        const tail = new THREE.Mesh(tailGeometry, tailMaterial);
+        tail.position.set(0, config.size * 0.95, -config.size * 0.9);
+        tail.name = 'sheepTail';
+        group.add(tail);
+    }
+
     update(deltaTime) {
         if (!this.isAlive) {
             // 如果资源已耗尽，处理重生逻辑
@@ -640,9 +752,138 @@ class ResourceNode extends Entity {
         if (this.sparkleMeshes) {
             this.updateSparkle(deltaTime);
         }
-        
+
         // 更新粒子效果
         this.updateParticles(deltaTime);
+        // 绵羊系统：自动捕获检测 + 移动
+        if (this.isSheep) {
+            // 野生绵羊：每0.5秒检测周围2格内是否有单位，有则自动捕获
+            if (this.sheepState === 'wild' && this._game && this._game.spatialIndex) {
+                this.sheepCaptureCheckTimer += deltaTime;
+                if (this.sheepCaptureCheckTimer >= this.sheepCaptureCheckInterval) {
+                    this.sheepCaptureCheckTimer = 0;
+                    const nearbyUnits = this._game.spatialIndex.queryPoint(this.position.x, this.position.z, 2);
+                    for (const entity of nearbyUnits) {
+                        if (entity.isAlive && entity.type === 'unit') {
+                            this.capture(entity.owner);
+                            break;
+                        }
+                    }
+                }
+            }
+            this.updateSheepMovement(deltaTime);
+        }
+    }
+
+    // ========== 绵羊系统 ==========
+
+    /**
+     * 捕获绵羊 - 村民右键中立绵羊后调用
+     */
+    capture(newOwner) {
+        if (this.sheepState !== 'wild') return;
+
+        this.owner = newOwner;
+        this.sheepState = 'owned';
+        this.sheepOwner = newOwner;
+
+        // 更新 userData 中的 owner
+        if (this.userData) this.userData.owner = newOwner;
+        if (this.mesh && this.mesh.userData) this.mesh.userData.owner = newOwner;
+
+        // 切换绵羊视觉为玩家颜色
+        this._updateSheepColor();
+
+        console.log(`[Sheep] ${this.name} 被 ${newOwner} 捕获`);
+    }
+
+    /**
+     * 开始宰杀 - 村民右键已方绵羊后调用
+     * @returns {number} 可获取的食物量
+     */
+    startSlaughter() {
+        if (this.sheepState !== 'owned') return 0;
+
+        this.sheepState = 'slaughtering';
+        this.slaughterFoodAmount = this.amount;
+        this.gatherSpeed = 2; // 宰杀采集速度加倍
+
+        // 同步更新 userData，让 ResourceGatheringSystem 能识别为可采集资源
+        if (this.userData) {
+            this.userData.resourceAmount = this.amount;
+            this.userData.resourceType = 'food';
+        }
+
+        // 停止移动
+        this.isSheepMoving = false;
+        this.sheepTargetPosition = null;
+
+        console.log(`[Sheep] ${this.name} 开始宰杀, 食物: ${this.slaughterFoodAmount}`);
+        return this.slaughterFoodAmount;
+    }
+
+    /**
+     * 绵羊移动到目标位置
+     */
+    setSheepTarget(targetPos) {
+        if (this.sheepState !== 'owned') return;
+        this.sheepTargetPosition = new THREE.Vector3(targetPos.x, 0, targetPos.z);
+        this.isSheepMoving = true;
+    }
+
+    /**
+     * 每帧更新绵羊移动
+     */
+    updateSheepMovement(deltaTime) {
+        if (!this.isSheepMoving || !this.sheepTargetPosition || !this.isAlive) return;
+
+        const dx = this.sheepTargetPosition.x - this.position.x;
+        const dz = this.sheepTargetPosition.z - this.position.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+
+        if (dist < 0.1) {
+            // 到达目标
+            this.isSheepMoving = false;
+            this.sheepTargetPosition = null;
+            return;
+        }
+
+        const step = Math.min(this.sheepSpeed * deltaTime, dist);
+        this.position.x += (dx / dist) * step;
+        this.position.z += (dz / dist) * step;
+
+        // 同步 mesh 位置和朝向
+        if (this.mesh) {
+            this.mesh.position.x = this.position.x;
+            this.mesh.position.z = this.position.z;
+            this.mesh.rotation.y = Math.atan2(dx, dz);
+        }
+        // 清除碰撞箱缓存，让空间索引使用新位置
+        this.collisionBox = null;
+        // 同步空间索引
+        if (this._game && this._game.spatialIndex) {
+            this._game.spatialIndex.update(this);
+        }
+    }
+
+    /**
+     * 更新绵羊颜色 - 根据所有者切换
+     */
+    _updateSheepColor() {
+        if (!this.mesh) return;
+        const bodyColor = this.isPlayerOwned() ? 0x4A90D9 : 0xCCCCCC;
+        // 脖子环使用玩家颜色
+        const neckRingColor = this.isPlayerOwned() ? getPlayerColor(this.owner) : 0xCCCCCC;
+        this.mesh.traverse((child) => {
+            if (child.name === 'sheepBody' && child.material) {
+                child.material.color.setHex(bodyColor);
+                child.material.needsUpdate = true;
+            }
+            if (child.name === 'sheepNeckRing' && child.material) {
+                child.material.color.setHex(neckRingColor);
+                child.material.needsUpdate = true;
+            }
+        });
     }
     
     /**
@@ -752,12 +993,17 @@ class ResourceNode extends Entity {
      */
     updateVisualBasedOnAmount() {
         if (!this.mesh) return;
-        
-        const remainingRatio = this.amount / this.maxAmount;
-        
-        // 调整缩放
-        this.mesh.scale.setScalar(remainingRatio);
-        
+
+        const remainingRatio = Math.min(this.amount / this.maxAmount, 1);
+
+        if (this.isSheep) {
+            // 绵羊不缩放，更新资源条
+            this._updateResourceBar(remainingRatio);
+        } else {
+            // 非绵羊资源节点：调整缩放
+            this.mesh.scale.setScalar(remainingRatio);
+        }
+
         // 如果是灌木，减少浆果数量
         if (this.resourceType === 'food' && this.berryMeshes) {
             const visibleBerryCount = Math.floor(this.berryMeshes.length * remainingRatio);
@@ -765,6 +1011,47 @@ class ResourceNode extends Entity {
                 berry.visible = index < visibleBerryCount;
             });
         }
+    }
+
+    /**
+     * 创建/更新绵羊资源条（显示剩余食物量）
+     */
+    _updateResourceBar(ratio) {
+        if (!this.mesh) return;
+
+        // 首次调用时创建资源条
+        if (!this._resourceBar) {
+            const barWidth = 0.8;
+            const barHeight = 0.08;
+
+            // 背景条（深灰）
+            const bgGeom = new THREE.PlaneGeometry(barWidth, barHeight);
+            const bgMat = new THREE.MeshBasicMaterial({ color: 0x333333, side: THREE.DoubleSide });
+            const bgMesh = new THREE.Mesh(bgGeom, bgMat);
+            bgMesh.rotation.x = -Math.PI / 2;
+            bgMesh.position.set(0, 0.02, 0.55);
+
+            // 前景条（绿色）
+            const fgGeom = new THREE.PlaneGeometry(barWidth, barHeight);
+            const fgMat = new THREE.MeshBasicMaterial({ color: 0x44AA44, side: THREE.DoubleSide });
+            const fgMesh = new THREE.Mesh(fgGeom, fgMat);
+            fgMesh.rotation.x = -Math.PI / 2;
+            fgMesh.position.set(0, 0.025, 0.55);
+
+            this.mesh.add(bgMesh);
+            this.mesh.add(fgMesh);
+
+            this._resourceBar = { bg: bgMesh, fg: fgMesh, width: barWidth };
+        }
+
+        // 更新前景条宽度和位置
+        const newWidth = this._resourceBar.width * ratio;
+        this._resourceBar.fg.scale.x = ratio;
+        this._resourceBar.fg.position.x = -(this._resourceBar.width * (1 - ratio)) / 2;
+
+        // 颜色随比例变化：绿 → 黄 → 红
+        const color = ratio > 0.5 ? 0x44AA44 : ratio > 0.25 ? 0xAAAA44 : 0xAA4444;
+        this._resourceBar.fg.material.color.setHex(color);
     }
     
     /**

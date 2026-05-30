@@ -7,20 +7,11 @@ class UnitCombat {
 
     attackEntity(targetEntity) {
         if (!targetEntity || !targetEntity.isAlive) return;
-        
+
         this.unit.targetEntity = targetEntity;
         this.unit.isAttacking = true;
         this.unit.currentAction = 'attacking';
         this.unit.isMoving = false;
-    }
-
-    performAttack() {
-        if (this.unit.targetEntity && this.unit.targetEntity.isAlive) {
-            const direction = new THREE.Vector3()
-                .subVectors(this.unit.targetEntity.position, this.unit.position)
-                .normalize();
-            this.unit.mesh.rotation.y = Math.atan2(direction.x, direction.z);
-        }
     }
 
     updateCombat(deltaTime) {
@@ -37,9 +28,16 @@ class UnitCombat {
 
         if (distance <= this.unit.attackRange) {
             this.unit.setAnimationState('attacking');
-            this.performAttack();
-        } else {
-            this.unit.moveTo(this.unit.targetEntity.position, { preserveAttack: true });
+            this.faceTarget(this.unit.targetEntity);
+        }
+    }
+
+    faceTarget(targetEntity) {
+        if (targetEntity && targetEntity.isAlive) {
+            const direction = new THREE.Vector3()
+                .subVectors(targetEntity.position, this.unit.position)
+                .normalize();
+            this.unit.mesh.rotation.y = Math.atan2(direction.x, direction.z);
         }
     }
 }

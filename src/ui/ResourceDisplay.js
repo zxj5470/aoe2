@@ -10,9 +10,10 @@ class ResourceDisplay {
       stone: document.getElementById('resource-stone'),
       populationCurrent: document.getElementById('population-current'),
       populationMax: document.getElementById('population-max'),
-      age: document.getElementById('current-age')
+      age: document.getElementById('current-age'),
+      gameTime: document.getElementById('game-time')
     };
-    
+
     this.population = { current: 1, max: 20 };
     this.age = '黑暗时代';
   }
@@ -23,20 +24,20 @@ class ResourceDisplay {
 
   updateResourceDisplay() {
     if (!this.game.resourceManager) return;
-    
+
     const resources = this.game.resourceManager.getAllResources();
-    
+
     if (this.elements.gold) {
-      this.elements.gold.textContent = resources.gold;
+      this.elements.gold.textContent = Math.floor(resources.gold);
     }
     if (this.elements.wood) {
-      this.elements.wood.textContent = resources.wood;
+      this.elements.wood.textContent = Math.floor(resources.wood);
     }
     if (this.elements.food) {
-      this.elements.food.textContent = resources.food;
+      this.elements.food.textContent = Math.floor(resources.food);
     }
     if (this.elements.stone) {
-      this.elements.stone.textContent = resources.stone;
+      this.elements.stone.textContent = Math.floor(resources.stone);
     }
   }
 
@@ -57,6 +58,14 @@ class ResourceDisplay {
     if (this.elements.age) {
       this.elements.age.textContent = ageName;
     }
+  }
+
+  updateGameTime(elapsedSeconds) {
+    if (!this.elements.gameTime) return;
+    const mins = Math.floor(elapsedSeconds / 60);
+    const secs = Math.floor(elapsedSeconds % 60);
+    this.elements.gameTime.textContent =
+      `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   }
 
   getPopulation() {

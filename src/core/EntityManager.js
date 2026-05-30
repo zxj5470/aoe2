@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import Unit from '../entities/Unit.js';
 import Building from '../entities/Building.js';
 import ResourceNode from '../entities/ResourceNode.js';
-import { HUMAN_OWNER, ENEMY_OWNER } from '../config.js';
+import { HUMAN_OWNER, ENEMY_OWNER, isHumanPlayer, BUILDING_TYPES } from '../config.js';
 
 class EntityManager {
     constructor(game) {
@@ -23,7 +23,7 @@ class EntityManager {
         }
 
         if (this.game.spatialIndex) {
-            if (entity.type === 'resource' || entity.type === 'building') {
+            if (entity.type === 'resource' || entity.type === 'building' || entity.type === 'unit') {
                 this.game.spatialIndex.insert(entity);
             }
         }
@@ -36,9 +36,25 @@ class EntityManager {
             this.game.combatSystem.registerCombatant(entity);
         }
 
+        // 注册防御建筑到战斗系统
+        if (this.game.combatSystem && entity.type === 'building' && entity.buildingFeatures?.canAttack) {
+            this.game.combatSystem.registerCombatant(entity);
+        }
+
         // 建筑/资源新增时，使受影响的缓存路径失效
         if (entity.type === 'building' || entity.type === 'resource') {
             this.invalidatePathCacheForEntity(entity);
+        }
+
+        // 建筑变更时更新人口上限
+        if (entity.type === 'building' && this.game.player) {
+            this.game.player.onBuildingChange(this);
+        }
+
+        // 单位添加时更新当前人口
+        if (entity.type === 'unit' && this.game.player && entity.isPlayerOwned()) {
+            console.log(`[EntityManager] 添加玩家单位: ${entity.unitType} ${entity.name}`);
+            this.game.player.addUnit(entity);
         }
     }
 
@@ -48,7 +64,7 @@ class EntityManager {
             this.entities.splice(index, 1);
             this.game.scene.removeEntity(entity);
 
-            if (this.game.spatialIndex && (entity.type === 'resource' || entity.type === 'building')) {
+            if (this.game.spatialIndex && (entity.type === 'resource' || entity.type === 'building' || entity.type === 'unit')) {
                 this.game.spatialIndex.remove(entity);
             }
 
@@ -72,6 +88,11 @@ class EntityManager {
                 if (this.game.collisionSystem) {
                     this.game.collisionSystem.updateGridOccupancy();
                 }
+            }
+
+            // 建筑变更时更新人口上限
+            if (entity.type === 'building' && this.game.player) {
+                this.game.player.onBuildingChange(this);
             }
         }
     }
@@ -134,6 +155,28 @@ class EntityManager {
         });
     }
 
+    // 按建筑类型统计数量（只统计已完成的建筑）
+    getBuildingCountByType(buildingType, owner = null) {
+        return this.entities.filter(e =>
+            e.type === 'building' &&
+            e.buildingType === buildingType &&
+            e.isAlive &&
+            !e.isUnderConstruction &&
+            (owner === null || e.owner === owner)
+        ).length;
+    }
+
+    // 统计玩家的建筑数量（使用 isHumanPlayer 检查，兼容 'blue' 和 'player'）
+    getPlayerBuildingCountByType(buildingType) {
+        return this.entities.filter(e =>
+            e.type === 'building' &&
+            e.buildingType === buildingType &&
+            e.isAlive &&
+            !e.isUnderConstruction &&
+            isHumanPlayer(e.owner)
+        ).length;
+    }
+
     getEntitiesInRect(x1, z1, x2, z2) {
         const minX = Math.min(x1, x2);
         const maxX = Math.max(x1, x2);
@@ -155,9 +198,9 @@ class EntityManager {
         for (const tc of mapData.townCenters) {
             const worldX = tc.x - mapData.width / 2 + 0.5;
             const worldZ = tc.y - mapData.height / 2 + 0.5;
-            
+
             const townCenter = new Building({
-                buildingType: 'town_center',
+                buildingType: BUILDING_TYPES.TOWN_CENTER,
                 name: `${tc.owner}_town_center`,
                 x: alignToGrid(worldX, 4),
                 z: alignToGrid(worldZ, 4),
@@ -171,7 +214,14 @@ class EntityManager {
 
             const tcMesh = townCenter.createMesh();
             if (tcMesh) {
+                console.log(`[EntityManager] 创建城镇中心: ${townCenter.name}, owner: ${townCenter.owner}, isPlayerOwned: ${townCenter.isPlayerOwned()}`);
                 this.addEntity(townCenter);
+                // 将城镇中心注册为资源投放点
+                if (this.game.resourceGatheringSystem) {
+                    this.game.resourceGatheringSystem.addDropOffPoint(
+                        townCenter, ['wood', 'food', 'gold', 'stone']
+                    );
+                }
             }
         }
 
@@ -215,12 +265,16 @@ class EntityManager {
             return Math.round(coord) + offset;
         };
 
-        const townCenters = this.entities.filter(e => e.buildingType === 'town_center');
+        const townCenters = this.entities.filter(e => e.buildingType === BUILDING_TYPES.TOWN_CENTER);
+        console.log(`[EntityManager] 找到 ${townCenters.length} 个城镇中心`);
+
+        let totalVillagers = 0;
 
         for (const tc of townCenters) {
             const tcX = tc.position.x;
             const tcZ = tc.position.z;
             const owner = tc.owner;
+            console.log(`[EntityManager] 为 ${owner} 的城镇中心创建村民`);
 
             for (let i = 0; i < 3; i++) {
                 const angle = (i / 3) * Math.PI * 2;
@@ -250,13 +304,51 @@ class EntityManager {
                 const villagerMesh = villager.createMesh();
                 if (villagerMesh) {
                     this.addEntity(villager);
+                    totalVillagers++;
                 }
+            }
+
+            // 为玩家生成侦察骑兵
+            if (tc.isPlayerOwned() || owner === 'blue') {
+                this.spawnScoutNearTownCenter(tc, alignToGrid);
             }
         }
 
         this.spawnSheepAroundTownCenters(townCenters, alignToGrid);
 
-        console.log(`阿拉伯地图初始化：${townCenters.length} 个城镇中心，${townCenters.length * 3} 个村民，8 只羊`);
+        console.log(`阿拉伯地图初始化：${townCenters.length} 个城镇中心，${totalVillagers} 个村民，8 只羊`);
+    }
+
+    spawnScoutNearTownCenter(tc, alignToGrid) {
+        const angle = Math.PI * 0.75; // 与村民位置错开
+        const distance = 5;
+        const x = alignToGrid(tc.position.x + Math.cos(angle) * distance, 1);
+        const z = alignToGrid(tc.position.z + Math.sin(angle) * distance, 1);
+
+        const scout = new Unit({
+            unitType: 'scout',
+            name: `${tc.owner}_scout`,
+            x,
+            z,
+            owner: tc.owner,
+            health: 35,
+            maxHealth: 35,
+            speed: 8,
+            attackDamage: 3,
+            attackRange: 1,
+            attackSpeed: 1,
+            armor: 0,
+            sightRange: 6,
+            pathfindingSystem: this.game.pathfinding,
+            formationSystem: this.game.formationSystem,
+            game: this.game
+        });
+
+        const scoutMesh = scout.createMesh();
+        if (scoutMesh) {
+            this.addEntity(scout);
+            console.log(`[EntityManager] 创建侦察骑兵: ${scout.name}, owner: ${scout.owner}`);
+        }
     }
 
     spawnSheepAroundTownCenters(townCenters, alignToGrid) {
@@ -329,6 +421,7 @@ class EntityManager {
             { unitType: 'villager', name: '村民1', x: alignToGrid(-5), z: alignToGrid(0) },
             { unitType: 'villager', name: '村民2', x: alignToGrid(-5), z: alignToGrid(3) },
             { unitType: 'villager', name: '村民3', x: alignToGrid(-5), z: alignToGrid(-3) },
+            { unitType: 'scout', name: '侦察骑兵', x: alignToGrid(2), z: alignToGrid(4) },
             { unitType: 'soldier', name: '士兵1', x: alignToGrid(0), z: alignToGrid(5) },
             { unitType: 'soldier', name: '士兵2', x: alignToGrid(3), z: alignToGrid(5) },
             { unitType: 'knight', name: '骑士1', x: alignToGrid(5), z: alignToGrid(0) },
@@ -407,17 +500,17 @@ class EntityManager {
         const getSize = (type) => this.game.getBuildingWidth(type) || 2;
 
         const buildingConfigs = [
-            { buildingType: 'house', name: '房屋1', x: alignToGrid(8, getSize('house')), z: alignToGrid(0, getSize('house')) },
-            { buildingType: 'house', name: '房屋2', x: alignToGrid(8, getSize('house')), z: alignToGrid(4, getSize('house')) },
-            { buildingType: 'house', name: '房屋3', x: alignToGrid(8, getSize('house')), z: alignToGrid(-4, getSize('house')) },
-            { buildingType: 'barracks', name: '兵营', x: alignToGrid(12, getSize('barracks')), z: alignToGrid(8, getSize('barracks')) },
-            { buildingType: 'stable', name: '马厩', x: alignToGrid(15, getSize('stable')), z: alignToGrid(12, getSize('stable')) },
-            { buildingType: 'archery_range', name: '靶场', x: alignToGrid(18, getSize('archery_range')), z: alignToGrid(8, getSize('archery_range')) },
-            { buildingType: 'watch_tower', name: '瞭望塔', x: alignToGrid(20, getSize('watch_tower')), z: alignToGrid(5, getSize('watch_tower')) },
-            { buildingType: 'market', name: '市场', x: alignToGrid(12, getSize('market')), z: alignToGrid(-8, getSize('market')) },
-            { buildingType: 'blacksmith', name: '铁匠铺', x: alignToGrid(15, getSize('blacksmith')), z: alignToGrid(-12, getSize('blacksmith')) },
-            { buildingType: 'church', name: '教堂', x: alignToGrid(20, getSize('church')), z: alignToGrid(0, getSize('church')) },
-            { buildingType: 'castle', name: '城堡', x: alignToGrid(25, getSize('castle')), z: alignToGrid(0, getSize('castle')) }
+            { buildingType: BUILDING_TYPES.HOUSE, name: '房屋1', x: alignToGrid(8, getSize(BUILDING_TYPES.HOUSE)), z: alignToGrid(0, getSize(BUILDING_TYPES.HOUSE)) },
+            { buildingType: BUILDING_TYPES.HOUSE, name: '房屋2', x: alignToGrid(8, getSize(BUILDING_TYPES.HOUSE)), z: alignToGrid(4, getSize(BUILDING_TYPES.HOUSE)) },
+            { buildingType: BUILDING_TYPES.HOUSE, name: '房屋3', x: alignToGrid(8, getSize(BUILDING_TYPES.HOUSE)), z: alignToGrid(-4, getSize(BUILDING_TYPES.HOUSE)) },
+            { buildingType: BUILDING_TYPES.BARRACKS, name: '兵营', x: alignToGrid(12, getSize(BUILDING_TYPES.BARRACKS)), z: alignToGrid(8, getSize(BUILDING_TYPES.BARRACKS)) },
+            { buildingType: BUILDING_TYPES.STABLE, name: '马厩', x: alignToGrid(15, getSize(BUILDING_TYPES.STABLE)), z: alignToGrid(12, getSize(BUILDING_TYPES.STABLE)) },
+            { buildingType: BUILDING_TYPES.ARCHERY_RANGE, name: '靶场', x: alignToGrid(18, getSize(BUILDING_TYPES.ARCHERY_RANGE)), z: alignToGrid(8, getSize(BUILDING_TYPES.ARCHERY_RANGE)) },
+            { buildingType: BUILDING_TYPES.WATCH_TOWER, name: '瞭望塔', x: alignToGrid(20, getSize(BUILDING_TYPES.WATCH_TOWER)), z: alignToGrid(5, getSize(BUILDING_TYPES.WATCH_TOWER)) },
+            { buildingType: BUILDING_TYPES.MARKET, name: '市场', x: alignToGrid(12, getSize(BUILDING_TYPES.MARKET)), z: alignToGrid(-8, getSize(BUILDING_TYPES.MARKET)) },
+            { buildingType: BUILDING_TYPES.BLACKSMITH, name: '铁匠铺', x: alignToGrid(15, getSize(BUILDING_TYPES.BLACKSMITH)), z: alignToGrid(-12, getSize(BUILDING_TYPES.BLACKSMITH)) },
+            { buildingType: BUILDING_TYPES.CHURCH, name: '教堂', x: alignToGrid(20, getSize(BUILDING_TYPES.CHURCH)), z: alignToGrid(0, getSize(BUILDING_TYPES.CHURCH)) },
+            { buildingType: BUILDING_TYPES.CASTLE, name: '城堡', x: alignToGrid(25, getSize(BUILDING_TYPES.CASTLE)), z: alignToGrid(0, getSize(BUILDING_TYPES.CASTLE)) }
         ];
 
         for (const config of buildingConfigs) {
@@ -438,9 +531,9 @@ class EntityManager {
         }
 
         const enemyBuildingConfigs = [
-            { buildingType: 'barracks', name: '敌军兵营', x: alignToGrid(-15, getSize('barracks')), z: alignToGrid(8, getSize('barracks')), owner: ENEMY_OWNER },
-            { buildingType: 'watch_tower', name: '敌军瞭望塔', x: alignToGrid(-18, getSize('watch_tower')), z: alignToGrid(12, getSize('watch_tower')), owner: ENEMY_OWNER },
-            { buildingType: 'house', name: '敌军房屋', x: alignToGrid(-12, getSize('house')), z: alignToGrid(15, getSize('house')), owner: ENEMY_OWNER }
+            { buildingType: BUILDING_TYPES.BARRACKS, name: '敌军兵营', x: alignToGrid(-15, getSize(BUILDING_TYPES.BARRACKS)), z: alignToGrid(8, getSize(BUILDING_TYPES.BARRACKS)), owner: ENEMY_OWNER },
+            { buildingType: BUILDING_TYPES.WATCH_TOWER, name: '敌军瞭望塔', x: alignToGrid(-18, getSize(BUILDING_TYPES.WATCH_TOWER)), z: alignToGrid(12, getSize(BUILDING_TYPES.WATCH_TOWER)), owner: ENEMY_OWNER },
+            { buildingType: BUILDING_TYPES.HOUSE, name: '敌军房屋', x: alignToGrid(-12, getSize(BUILDING_TYPES.HOUSE)), z: alignToGrid(15, getSize(BUILDING_TYPES.HOUSE)), owner: ENEMY_OWNER }
         ];
 
         for (const config of enemyBuildingConfigs) {
@@ -513,7 +606,7 @@ class EntityManager {
         };
 
         const townCenter = new Building({
-            buildingType: 'town_center',
+            buildingType: BUILDING_TYPES.TOWN_CENTER,
             name: '城镇中心',
             x: alignToGrid(0, 4),
             z: alignToGrid(0, 4),
@@ -592,6 +685,8 @@ class EntityManager {
     }
 
     spawnUnitFromBuilding(building, unitType) {
+        console.log(`[EntityManager] spawnUnitFromBuilding: ${unitType} from ${building.name}, owner: ${building.owner}, isPlayerOwned: ${building.isPlayerOwned()}`);
+
         const unitConfig = this.game.getUnitConfig(unitType);
         const halfW = (building.gridSizeX || 2) / 2 + 1;
         const spawnX = building.position.x + halfW;
@@ -618,10 +713,9 @@ class EntityManager {
 
         const mesh = unit.createMesh();
         if (mesh) {
+            console.log(`[EntityManager] 单位已创建: ${unit.name}, isPlayerOwned: ${unit.isPlayerOwned()}`);
             this.addEntity(unit);
-            if (this.game.player && building.isPlayerOwned()) {
-                this.game.player.addUnit(unit);
-            }
+            // addEntity 已经调用了 addUnit，无需重复调用
             if (this.game.resourceGatheringSystem && unit.unitType === 'villager') {
                 this.game.resourceGatheringSystem.registerGatherer(unit);
             }
@@ -635,8 +729,9 @@ class EntityManager {
 
         const townCenters = this.entities.filter(entity => 
             entity.type === 'building' && 
-            entity.buildingType === 'town_center' &&
-            entity.isAlive
+            entity.buildingType === BUILDING_TYPES.TOWN_CENTER &&
+            entity.isAlive &&
+            entity.isPlayerOwned()
         );
 
         if (townCenters.length === 0) {
@@ -647,7 +742,7 @@ class EntityManager {
         const currentlySelected = this.game.selectionManager.getSelectedEntities();
         let currentIndex = -1;
 
-        if (currentlySelected.length === 1 && currentlySelected[0].buildingType === 'town_center') {
+        if (currentlySelected.length === 1 && currentlySelected[0].buildingType === BUILDING_TYPES.TOWN_CENTER) {
             currentIndex = townCenters.indexOf(currentlySelected[0]);
         }
 
