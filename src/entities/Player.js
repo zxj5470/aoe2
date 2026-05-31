@@ -263,10 +263,29 @@ class Player {
             case 'town_watch':
                 break;
             case 'forging':
+            case 'iron_casting':
+            case 'blast_furnace':
             case 'scale_mail_armor':
+            case 'chain_mail_armor':
+            case 'plate_mail_armor':
             case 'scale_barding_armor':
+            case 'chain_barding_armor':
+            case 'plate_barding_armor':
             case 'fletching':
+            case 'bodkin_arrow':
+            case 'bracer':
             case 'padded_archer_armor':
+            case 'leather_archer_armor':
+            case 'ring_archer_armor':
+            case 'militia_upgrade':
+            case 'man_at_arms_upgrade':
+            case 'longsword_upgrade':
+            case 'supplies':
+            case 'arson':
+            case 'light_cavalry_upgrade':
+            case 'hussar_upgrade':
+            case 'bloodlines':
+            case 'husbandry':
                 for (const unit of this.units) {
                     this.applyTechEffectToUnit(unit, techType);
                 }
@@ -298,24 +317,32 @@ class Player {
 
         switch (techType) {
             case 'forging':
+            case 'iron_casting':
+            case 'blast_furnace':
                 if (unit.unitType === 'soldier' || unit.unitType === 'knight' || unit.unitType === 'scout') {
                     unit.attackDamage += 1;
                     unit.appliedTechs.add(techType);
                 }
                 break;
             case 'scale_mail_armor':
+            case 'chain_mail_armor':
+            case 'plate_mail_armor':
                 if (unit.unitType === 'soldier') {
                     unit.armor += 1;
                     unit.appliedTechs.add(techType);
                 }
                 break;
             case 'scale_barding_armor':
+            case 'chain_barding_armor':
+            case 'plate_barding_armor':
                 if (unit.unitType === 'knight' || unit.unitType === 'scout') {
                     unit.armor += 1;
                     unit.appliedTechs.add(techType);
                 }
                 break;
             case 'fletching':
+            case 'bodkin_arrow':
+            case 'bracer':
                 if (unit.unitType === 'archer') {
                     unit.attackDamage += 1;
                     unit.attackRange += 1;
@@ -323,8 +350,55 @@ class Player {
                 }
                 break;
             case 'padded_archer_armor':
+            case 'leather_archer_armor':
+            case 'ring_archer_armor':
                 if (unit.unitType === 'archer') {
                     unit.armor += 1;
+                    unit.appliedTechs.add(techType);
+                }
+                break;
+            case 'militia_upgrade':
+            case 'man_at_arms_upgrade':
+            case 'longsword_upgrade':
+                if (unit.unitType === 'soldier') {
+                    unit.attackDamage += 1;
+                    unit.maxHealth += 5;
+                    unit.health = Math.min(unit.health + 5, unit.maxHealth);
+                    unit.appliedTechs.add(techType);
+                }
+                break;
+            case 'supplies':
+                if (unit.unitType === 'soldier') {
+                    unit.maxHealth += 5;
+                    unit.health = Math.min(unit.health + 5, unit.maxHealth);
+                    unit.appliedTechs.add(techType);
+                }
+                break;
+            case 'arson':
+                if (unit.unitType === 'soldier') {
+                    unit.attackDamage += 2;
+                    unit.appliedTechs.add(techType);
+                }
+                break;
+            case 'light_cavalry_upgrade':
+            case 'hussar_upgrade':
+                if (unit.unitType === 'scout') {
+                    unit.attackDamage += 1;
+                    unit.maxHealth += 10;
+                    unit.health = Math.min(unit.health + 10, unit.maxHealth);
+                    unit.appliedTechs.add(techType);
+                }
+                break;
+            case 'bloodlines':
+                if (unit.unitType === 'knight' || unit.unitType === 'scout') {
+                    unit.maxHealth += 20;
+                    unit.health = Math.min(unit.health + 20, unit.maxHealth);
+                    unit.appliedTechs.add(techType);
+                }
+                break;
+            case 'husbandry':
+                if (unit.unitType === 'knight' || unit.unitType === 'scout') {
+                    unit.setSpeed?.(unit.speed * 1.1);
                     unit.appliedTechs.add(techType);
                 }
                 break;

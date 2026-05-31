@@ -229,6 +229,26 @@
             color: #b9965f;
         }
 
+        .civilization-tech-progress {
+            display: flex;
+            gap: 3px;
+            margin-top: 2px;
+        }
+
+        .civilization-tech-progress-box {
+            width: 9px;
+            height: 9px;
+            background: #555;
+            border: 1px solid #777;
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+        }
+
+        .civilization-tech-progress-box.researched {
+            background: #3ecf55;
+            border-color: #9aff9a;
+            box-shadow: 0 0 4px rgba(62, 207, 85, 0.55);
+        }
+
         #production-queue-bar {
             position: absolute;
             top: 32px;

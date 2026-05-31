@@ -733,10 +733,6 @@ class ActionPanel {
       return this.padButtons(buttons);
     }
 
-    if (building.buildingType === BUILDING_TYPES.BLACKSMITH) {
-      return this.getBlacksmithProductionPreset();
-    }
-
     const trainableUnits = building?.buildingFeatures?.canTrainUnits || [];
     const buttons = trainableUnits.map(unitType => ({
       id: `train-${unitType}`,
@@ -747,6 +743,8 @@ class ActionPanel {
       action: 'train',
       target: unitType
     }));
+
+    buttons.push(...this.getResearchButtonsForBuilding(building.buildingType));
 
     if (this.canSetRallyPoint(building)) {
       buttons.push(this.getSetRallyPointButton());
@@ -803,22 +801,13 @@ class ActionPanel {
   }
 
   hasBuildingProductionPreset(building) {
-    return building?.buildingType === BUILDING_TYPES.BLACKSMITH ||
+    return this.getResearchButtonsForBuilding(building?.buildingType).length > 0 ||
       !!(building?.buildingFeatures?.canTrainUnits?.length) ||
       this.hasGarrisonPanel(building);
   }
 
-  getBlacksmithProductionPreset() {
-    const buttons = this.getResearchButtonsForBuilding(BUILDING_TYPES.BLACKSMITH);
-
-    buttons.push({ id: 'close-production', icon: 'X', name: '关闭', type: 'nav' });
-    return this.padButtons(buttons);
-  }
-
   getResearchButtonsForBuilding(buildingType) {
-    return Object.entries(TECH_CONFIG)
-      .filter(([, tech]) => tech.building === buildingType)
-      .filter(([techType]) => !this.game.player?.hasResearched(techType) && !this.isTechQueued(techType))
+    return this.getNextResearchOptionsForBuilding(buildingType)
       .map(([techType, tech]) => ({
         id: `research-${techType}`,
         icon: tech.icon,
@@ -828,6 +817,31 @@ class ActionPanel {
         action: 'research',
         target: techType
       }));
+  }
+
+  getNextResearchOptionsForBuilding(buildingType) {
+    if (!buildingType) return [];
+
+    const byLine = new Map();
+    for (const [techType, tech] of Object.entries(TECH_CONFIG)) {
+      if (tech.building !== buildingType) continue;
+      const line = tech.line || techType;
+      if (!byLine.has(line)) byLine.set(line, []);
+      byLine.get(line).push([techType, tech]);
+    }
+
+    const nextOptions = [];
+    for (const entries of byLine.values()) {
+      entries.sort((a, b) => (a[1].tier || 1) - (b[1].tier || 1));
+      const next = entries.find(([techType]) => !this.game.player?.hasResearched(techType));
+      if (next && this.isTechQueued(next[0])) continue;
+      if (next) nextOptions.push(next);
+    }
+
+    return nextOptions.sort((a, b) => {
+      if (a[1].building !== b[1].building) return String(a[1].building).localeCompare(String(b[1].building));
+      return (a[1].line || a[0]).localeCompare(b[1].line || b[0]) || ((a[1].tier || 1) - (b[1].tier || 1));
+    });
   }
 
   isTechQueued(techType) {

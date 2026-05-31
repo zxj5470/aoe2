@@ -227,15 +227,6 @@ class HUD {
     // 构建生产项 HTML
     let html = '';
     const unitIcons = { villager: '👤', soldier: '⚔️', knight: '🐴', archer: '🏹', scout: '🏇' };
-    const techIcons = {
-      loom: '织',
-      town_watch: '望',
-      forging: '锻',
-      scale_mail_armor: '甲',
-      scale_barding_armor: '骑',
-      fletching: '羽',
-      padded_archer_armor: '软'
-    };
     const unitNames = { villager: '村民', soldier: '士兵', knight: '骑士', archer: '弓箭手', scout: '侦察兵' };
 
     for (const prod of productions) {
@@ -244,7 +235,7 @@ class HUD {
 
       const icon = item.type === 'unit'
         ? (unitIcons[item.unitType] || '📦')
-        : (techIcons[item.techType] || '📜');
+        : (TECH_CONFIG[item.techType]?.icon || '技');
       const name = item.type === 'unit'
         ? (unitNames[item.unitType] || item.unitType)
         : (TECH_CONFIG[item.techType]?.name || item.techType || '');
@@ -270,9 +261,7 @@ class HUD {
     const civName = this.getCivilizationName(civId);
     const civInitial = civName.slice(0, 2).toUpperCase();
     const researched = this.game.player.researchedTechs || new Set();
-    const allTechs = Object.entries(TECH_CONFIG);
-    const researchedRows = allTechs.filter(([techType]) => researched.has(techType));
-    const lockedRows = allTechs.filter(([techType]) => !researched.has(techType));
+    const techLines = this.getTechnologyLines(researched);
     const signature = `${civId}:${[...researched].sort().join(',')}`;
     if (signature === this.civilizationTechWidgetSignature) return;
 
@@ -280,14 +269,57 @@ class HUD {
       <div class="civilization-tech-icon">${civInitial}</div>
       <div class="civilization-tech-dropdown">
         <div class="civilization-tech-heading">${civName}</div>
-        ${this.renderTechSection('已研发科技', researchedRows, true)}
-        ${this.renderTechSection('未研发科技', lockedRows, false)}
+        ${this.renderTechLineSection('科技树', techLines)}
       </div>
     `;
     this.civilizationTechWidgetSignature = signature;
   }
 
-  renderTechSection(title, rows, researched) {
+  getTechnologyLines(researched) {
+    const lines = new Map();
+
+    for (const [techType, tech] of Object.entries(TECH_CONFIG)) {
+      const lineId = tech.line || techType;
+      if (!lines.has(lineId)) {
+        lines.set(lineId, {
+          id: lineId,
+          name: tech.lineName || tech.name || techType,
+          icon: tech.icon || '',
+          building: tech.building,
+          maxTier: tech.maxTier || 1,
+          researchedTier: 0,
+          entries: []
+        });
+      }
+
+      const line = lines.get(lineId);
+      line.entries.push([techType, tech]);
+      line.maxTier = Math.max(line.maxTier, tech.maxTier || tech.tier || 1);
+      if (researched.has(techType)) {
+        line.researchedTier = Math.max(line.researchedTier, tech.tier || 1);
+      }
+    }
+
+    return [...lines.values()].map(line => {
+      line.entries.sort((a, b) => (a[1].tier || 1) - (b[1].tier || 1));
+      const next = line.entries.find(([techType]) => !researched.has(techType));
+      const latest = line.entries
+        .slice()
+        .reverse()
+        .find(([techType]) => researched.has(techType));
+
+      line.nextTech = next?.[1] || null;
+      line.currentTech = latest?.[1] || null;
+      line.description = line.currentTech?.description || line.nextTech?.description || line.entries[0]?.[1]?.description || '';
+      line.stateText = line.researchedTier >= line.maxTier ? '完成' : `${line.researchedTier}/${line.maxTier}`;
+      return line;
+    }).sort((a, b) => {
+      if (a.building !== b.building) return String(a.building).localeCompare(String(b.building));
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  renderTechLineSection(title, rows) {
     if (!rows.length) {
       return `
         <div class="civilization-tech-section">
@@ -305,14 +337,19 @@ class HUD {
       <div class="civilization-tech-section">
         <div class="civilization-tech-section-title">${title}</div>
         <div class="civilization-tech-list">
-          ${rows.map(([techType, tech]) => `
-            <div class="civilization-tech-row ${researched ? 'researched' : 'locked'}">
-              <span class="civilization-tech-row-icon">${tech.icon || ''}</span>
+          ${rows.map(line => `
+            <div class="civilization-tech-row ${line.researchedTier > 0 ? 'researched' : 'locked'}">
+              <span class="civilization-tech-row-icon">${line.icon || ''}</span>
               <span class="civilization-tech-row-body">
-                <span class="civilization-tech-row-name">${tech.name || techType}</span>
-                <span class="civilization-tech-row-desc">${getBuildingName(tech.building)} · ${tech.description || ''}</span>
+                <span class="civilization-tech-row-name">${line.name}</span>
+                <span class="civilization-tech-row-desc">${getBuildingName(line.building)} · ${line.description}</span>
+                <span class="civilization-tech-progress">
+                  ${Array.from({ length: line.maxTier }, (_, index) =>
+                    `<span class="civilization-tech-progress-box ${index < line.researchedTier ? 'researched' : ''}"></span>`
+                  ).join('')}
+                </span>
               </span>
-              <span class="civilization-tech-row-state">${researched ? '完成' : '未研发'}</span>
+              <span class="civilization-tech-row-state">${line.stateText}</span>
             </div>
           `).join('')}
         </div>
