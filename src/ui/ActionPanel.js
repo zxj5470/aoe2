@@ -24,8 +24,8 @@ class ActionPanel {
     this.buildingPanelPresets = {
       empty: [],
       villager_commands: [
-        { id: 'villager-buildings', icon: 'B', name: '建筑', type: 'category', targetPreset: 'villager_buildings' },
-        { id: 'villager-military-buildings', icon: 'M', name: '军事建筑', type: 'category', targetPreset: 'villager_military_buildings' },
+        { id: 'villager-buildings', icon: 'A', name: '建筑', type: 'category', targetPreset: 'villager_buildings' },
+        { id: 'villager-military-buildings', icon: 'B', name: '军事建筑', type: 'category', targetPreset: 'villager_military_buildings' },
         { id: 'garrison', icon: 'G', name: '驻扎', type: 'garrison' }
       ],
       villager_buildings: [
