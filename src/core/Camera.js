@@ -17,6 +17,7 @@ class Camera {
         this.zoomLevel = 50;
         this.wheelZoomSpeed = 0.035;
         this.moveSpeed = 30;
+        this.dragPanSpeedMultiplier = 0.85;
         this.borderScrollMargin = 20;
         
         // 输入状态
@@ -151,7 +152,7 @@ class Camera {
             const deltaX = this.mouse.x - this.mouse.dragStartX;
             const deltaY = this.mouse.y - this.mouse.dragStartY;
             
-            const moveAmount = this.moveSpeed * deltaTime * 0.5;
+            const moveAmount = this.moveSpeed * deltaTime * this.dragPanSpeedMultiplier;
             
             if (Math.abs(deltaX) > 5) {
                 if (deltaX > 0) {
