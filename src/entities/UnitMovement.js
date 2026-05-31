@@ -10,6 +10,10 @@ class UnitMovement {
 
     moveTo(targetPosition, options = {}) {
         console.log(`[Unit.moveTo] 被调用! targetPosition: (${targetPosition.x}, ${targetPosition.y}, ${targetPosition.z})`);
+        const clampedTarget = targetPosition.clone
+            ? targetPosition.clone()
+            : new THREE.Vector3(targetPosition.x, targetPosition.y || 0, targetPosition.z);
+
         if (!options.preserveBuilding) {
             this.unit.clearBuildingState();
         }
@@ -28,10 +32,10 @@ class UnitMovement {
         const minZ = -mapHeight / 2 + cellSize;
         const maxZ = mapHeight / 2 - cellSize;
         
-        targetPosition.x = Math.max(minX, Math.min(maxX, targetPosition.x));
-        targetPosition.z = Math.max(minZ, Math.min(maxZ, targetPosition.z));
+        clampedTarget.x = Math.max(minX, Math.min(maxX, clampedTarget.x));
+        clampedTarget.z = Math.max(minZ, Math.min(maxZ, clampedTarget.z));
         
-        this.unit.targetPosition = targetPosition.clone();
+        this.unit.targetPosition = clampedTarget.clone();
         this.unit.isMoving = true;
         this.unit.currentAction = options.preserveAttack ? 'attacking' : 'moving';
         if (!options.preserveAttack) {
@@ -40,12 +44,12 @@ class UnitMovement {
         }
         
         if (this.unit.pathfindingSystem) {
-            console.log(`[Unit] 开始寻路: 起点 (${this.unit.position.x.toFixed(1)}, ${this.unit.position.z.toFixed(1)}) → 终点 (${targetPosition.x.toFixed(1)}, ${targetPosition.z.toFixed(1)})`);
+            console.log(`[Unit] 开始寻路: 起点 (${this.unit.position.x.toFixed(1)}, ${this.unit.position.z.toFixed(1)}) → 终点 (${clampedTarget.x.toFixed(1)}, ${clampedTarget.z.toFixed(1)})`);
             const result = this.unit.pathfindingSystem.findPath(
                 this.unit.position.x,
                 this.unit.position.z,
-                targetPosition.x,
-                targetPosition.z
+                clampedTarget.x,
+                clampedTarget.z
             );
             
             if (result.success) {

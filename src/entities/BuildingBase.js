@@ -117,19 +117,19 @@ class BuildingBase extends Entity {
 
     getBuildingFeatures() {
         const features = {
-            [BUILDING_TYPES.HOUSE]: { populationBonus: 5, isResidential: true, garrisonCapacity: 5 },
+            [BUILDING_TYPES.HOUSE]: { populationBonus: 5, isResidential: true, garrisonCapacity: 5, khmerOnlyGarrison: true },
             [BUILDING_TYPES.FARM]: { producesFood: true, isEconomic: true },
             [BUILDING_TYPES.LUMBER_CAMP]: { dropOffResources: ['wood'], isEconomic: true, isDropOff: true },
             [BUILDING_TYPES.MINING_CAMP]: { dropOffResources: ['gold', 'stone'], isEconomic: true, isDropOff: true },
             [BUILDING_TYPES.BARRACKS]: { canTrainUnits: ['soldier', 'knight'], isMilitary: true },
             [BUILDING_TYPES.STABLE]: { canTrainUnits: ['scout'], isMilitary: true },
             [BUILDING_TYPES.ARCHERY_RANGE]: { canTrainUnits: ['archer'], isMilitary: true },
-            [BUILDING_TYPES.CASTLE]: { canTrainUnits: ['elite'], isMilitary: true, isDefensive: true },
+            [BUILDING_TYPES.CASTLE]: { canTrainUnits: ['elite'], isMilitary: true, isDefensive: true, garrisonCapacity: 20 },
             [BUILDING_TYPES.MARKET]: { canTrade: true, isEconomic: true },
             [BUILDING_TYPES.CHURCH]: { canHeal: true, isSpecial: true },
             [BUILDING_TYPES.BLACKSMITH]: { canUpgrade: true, isEconomic: true },
-            [BUILDING_TYPES.WATCH_TOWER]: { canAttack: true, isDefensive: true, attackRange: 6 },
-            [BUILDING_TYPES.TOWN_CENTER]: { canCreateVillagers: true, isEconomic: true, isDropOff: true },
+            [BUILDING_TYPES.WATCH_TOWER]: { canAttack: true, isDefensive: true, attackRange: 6, garrisonCapacity: 5 },
+            [BUILDING_TYPES.TOWN_CENTER]: { canCreateVillagers: true, isEconomic: true, isDropOff: true, garrisonCapacity: 15 },
             gate: { isDefensive: true, isGate: true }
         };
 
@@ -139,13 +139,30 @@ class BuildingBase extends Entity {
     /**
      * 驻扎单位
      */
-    garrison(unit) {
+    canGarrisonUnit(unit) {
+        if (this.isUnderConstruction) return false;
         if (!this.garrisonCapacity || this.garrisonedUnits.length >= this.garrisonCapacity) return false;
-        if (!unit.isAlive || unit.type !== 'unit') return false;
+        if (!unit?.isAlive || unit.type !== 'unit' || unit.isGarrisoned) return false;
+        if (!this.isPlayerOwned() || !unit.isPlayerOwned()) return false;
+        if (this.buildingFeatures.khmerOnlyGarrison) {
+            return Boolean(this._game?.player?.hasCiv('khmer'));
+        }
+        return true;
+    }
+
+    garrison(unit) {
+        if (!this.canGarrisonUnit(unit)) return false;
 
         this.garrisonedUnits.push(unit);
         unit.isGarrisoned = true;
         unit.garrisonedBuilding = this;
+        if (unit.isSelected) {
+            if (this._game?.selectionManager) {
+                this._game.selectionManager.deselectEntity(unit);
+            } else {
+                unit.deselect();
+            }
+        }
         if (unit.mesh) unit.mesh.visible = false;
         if (unit.selectionRing) unit.selectionRing.visible = false;
         unit.stop();
@@ -162,12 +179,15 @@ class BuildingBase extends Entity {
             const unit = this.garrisonedUnits.shift();
             unit.isGarrisoned = false;
             unit.garrisonedBuilding = null;
+            unit.isMoving = false;
+            unit.currentAction = 'idle';
             if (unit.mesh) {
                 unit.mesh.visible = true;
                 unit.mesh.position.copy(this.position);
                 unit.mesh.position.x += (Math.random() - 0.5) * 2;
                 unit.mesh.position.z += (Math.random() - 0.5) * 2;
             }
+            unit.position.copy(unit.mesh ? unit.mesh.position : this.position);
             if (unit.selectionRing) unit.selectionRing.visible = Boolean(unit.isSelected);
             released.push(unit);
         }

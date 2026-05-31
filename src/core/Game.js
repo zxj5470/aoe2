@@ -538,6 +538,12 @@ class Game {
         const now = Date.now();
 
         if (pickedEntity) {
+            if (this.hud?.actionPanel?.isGarrisonCommandActive()) {
+                if (this.hud.actionPanel.executeGarrisonCommand(pickedEntity)) {
+                    return;
+                }
+            }
+
             // 双击同类型村民 → 选择视角内所有村民
             if (pickedEntity.type === 'unit' && pickedEntity.unitType === 'villager' && pickedEntity.isPlayerOwned()) {
                 if (pickedEntity.id === this.lastClickedEntityId &&
@@ -722,11 +728,8 @@ class Game {
                 }
             }
 
-            // 高棉文明：村民右键房屋 → 驻扎
-            if (entity.type === 'building' && entity.buildingType === BUILDING_TYPES.HOUSE &&
-                entity.isPlayerOwned() && selectedVillagers.length > 0 &&
-                this.player.hasCiv('khmer') && entity.buildingFeatures &&
-                entity.garrisonedUnits && entity.garrisonedUnits.length < 5) {
+            // 村民右键可驻扎建筑 → 驻扎
+            if (entity.type === 'building' && selectedVillagers.some(v => entity.canGarrisonUnit?.(v))) {
                 for (const v of selectedVillagers) {
                     v.garrisonTo(entity);
                 }

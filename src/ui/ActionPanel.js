@@ -23,24 +23,29 @@ class ActionPanel {
 
     this.buildingPanelPresets = {
       empty: [],
-      default: [
-        { id: BUILDING_TYPES.HOUSE, icon: 'H', type: 'residential' },
+      villager_commands: [
+        { id: 'villager-buildings', icon: 'B', name: '建筑', type: 'category', targetPreset: 'villager_buildings' },
+        { id: 'villager-military-buildings', icon: 'M', name: '军事建筑', type: 'category', targetPreset: 'villager_military_buildings' },
+        { id: 'garrison', icon: 'G', name: '驻扎', type: 'garrison' }
+      ],
+      villager_buildings: [
+        { id: BUILDING_TYPES.HOUSE, icon: 'A', type: 'residential' },
         { id: '', icon: '', type: 'empty' },
         { id: BUILDING_TYPES.FARM, icon: 'F', type: 'economy' },
         { id: BUILDING_TYPES.LUMBER_CAMP, icon: 'L', type: 'economy' },
         { id: BUILDING_TYPES.MINING_CAMP, icon: 'M', type: 'economy' },
-        { id: BUILDING_TYPES.WATCH_TOWER, icon: 'T', type: 'defense' },
-        { id: BUILDING_TYPES.STABLE, icon: 'St', type: 'military' },
-        { id: BUILDING_TYPES.ARCHERY_RANGE, icon: 'A', type: 'military' },
-        { id: BUILDING_TYPES.CASTLE, icon: 'C', type: 'defense' },
         { id: BUILDING_TYPES.WALL, icon: 'W', type: 'defense' },
         { id: BUILDING_TYPES.GATE, icon: 'G', type: 'defense' },
         { id: BUILDING_TYPES.BLACKSMITH, icon: 'B', type: 'economy' },
         { id: BUILDING_TYPES.MARKET, icon: 'Mk', type: 'economy' },
         { id: BUILDING_TYPES.DOCK, icon: 'D', type: 'economy' },
-        { id: BUILDING_TYPES.CHURCH, icon: 'Ch', type: 'special' }
+        { id: BUILDING_TYPES.CHURCH, icon: 'Ch', type: 'special' },
+        { id: '', icon: '', type: 'empty' },
+        { id: '', icon: '', type: 'empty' },
+        { id: '', icon: '', type: 'empty' },
+        { id: 'back-villager-commands', icon: '<', name: '返回', type: 'nav', targetPreset: 'villager_commands' }
       ],
-      military: [
+      villager_military_buildings: [
         { id: BUILDING_TYPES.BARRACKS, icon: 'B', type: 'military' },
         { id: BUILDING_TYPES.ARCHERY_RANGE, icon: 'A', type: 'military' },
         { id: BUILDING_TYPES.STABLE, icon: 'St', type: 'military' },
@@ -54,30 +59,15 @@ class ActionPanel {
         { id: '', icon: '', type: 'empty' },
         { id: '', icon: '', type: 'empty' },
         { id: BUILDING_TYPES.CASTLE, icon: 'C', type: 'defense' },
-        { id: 'next', icon: '>', type: 'nav' },
-        { id: 'close', icon: 'X', type: 'nav' }
-      ],
-      khmer_villager: [
-        { id: 'garrison', icon: 'G', type: 'garrison' },
-        { id: BUILDING_TYPES.HOUSE, icon: 'H', type: 'residential' },
         { id: '', icon: '', type: 'empty' },
-        { id: BUILDING_TYPES.FARM, icon: 'F', type: 'economy' },
-        { id: BUILDING_TYPES.LUMBER_CAMP, icon: 'L', type: 'economy' },
-        { id: BUILDING_TYPES.MINING_CAMP, icon: 'M', type: 'economy' },
-        { id: BUILDING_TYPES.WATCH_TOWER, icon: 'T', type: 'defense' },
-        { id: BUILDING_TYPES.STABLE, icon: 'St', type: 'military' },
-        { id: BUILDING_TYPES.ARCHERY_RANGE, icon: 'A', type: 'military' },
-        { id: BUILDING_TYPES.CASTLE, icon: 'C', type: 'defense' },
-        { id: BUILDING_TYPES.WALL, icon: 'W', type: 'defense' },
-        { id: BUILDING_TYPES.GATE, icon: 'G', type: 'defense' },
-        { id: BUILDING_TYPES.BLACKSMITH, icon: 'B', type: 'economy' },
-        { id: BUILDING_TYPES.MARKET, icon: 'Mk', type: 'economy' },
-        { id: BUILDING_TYPES.CHURCH, icon: 'Ch', type: 'special' }
-      ]
+        { id: 'back-villager-commands', icon: '<', name: '返回', type: 'nav', targetPreset: 'villager_commands' }
+      ],
+      default: []
     };
 
     this.currentPreset = 'default';
     this.currentSelectedBuilding = null;
+    this.garrisonCommandActive = false;
   }
 
   init() {
@@ -159,13 +149,21 @@ class ActionPanel {
         btn.classList.add('building-btn-nav');
       }
 
+      if (button.type === 'category') {
+        btn.classList.add('building-btn-category');
+      }
+
+      if (button.type === 'garrison') {
+        btn.classList.add('building-btn-garrison');
+      }
+
       const icon = document.createElement('span');
       icon.className = 'building-btn-icon';
       icon.textContent = button.icon || '';
 
       const text = document.createElement('span');
       text.className = 'building-btn-text';
-      text.textContent = button.id ? getBuildingName(button.id) : '';
+      text.textContent = button.name || (button.id ? getBuildingName(button.id) : '');
 
       btn.appendChild(icon);
       btn.appendChild(text);
@@ -233,8 +231,18 @@ class ActionPanel {
   handleBuildingClick(buildingType, button) {
     const normalizedType = this.normalizeBuildingType(buildingType);
 
+    const currentButtonConfig = this.buildingPanelConfig.buttons.find(
+      btn => this.normalizeBuildingType(btn.id) === normalizedType
+    );
+
     if (buildingType === 'next') {
       this.nextPreset();
+      return;
+    }
+
+    if (currentButtonConfig?.targetPreset && (currentButtonConfig.type === 'category' || currentButtonConfig.type === 'nav')) {
+      this.cancelGarrisonCommand();
+      this.switchToPreset(currentButtonConfig.targetPreset);
       return;
     }
 
@@ -251,10 +259,6 @@ class ActionPanel {
       return;
     }
 
-    const currentButtonConfig = this.buildingPanelConfig.buttons.find(
-      btn => this.normalizeBuildingType(btn.id) === normalizedType
-    );
-
     if (currentButtonConfig?.type === 'age_upgrade') {
       this.handleAgeUpgrade(currentButtonConfig);
       return;
@@ -262,6 +266,11 @@ class ActionPanel {
 
     if (currentButtonConfig?.type === 'production' || currentButtonConfig?.type === 'research') {
       this.handleProductionCommand(currentButtonConfig);
+      return;
+    }
+
+    if (currentButtonConfig?.type === 'garrison') {
+      this.activateGarrisonCommand(button);
       return;
     }
 
@@ -330,6 +339,52 @@ class ActionPanel {
     }
   }
 
+  activateGarrisonCommand(button) {
+    const selectedVillagers = this.getSelectedVillagers();
+    if (selectedVillagers.length === 0) {
+      if (this.game.hud) {
+        this.game.hud.showNotification('请选择村民后再驻扎', 2000);
+      }
+      return;
+    }
+
+    this.garrisonCommandActive = true;
+    this.clearActiveBuildingButton();
+    if (button) button.classList.add('active');
+
+    if (this.game.hud) {
+      this.game.hud.showNotification('点击可驻扎建筑驻扎村民', 2000);
+    }
+  }
+
+  cancelGarrisonCommand() {
+    this.garrisonCommandActive = false;
+  }
+
+  isGarrisonCommandActive() {
+    return this.garrisonCommandActive;
+  }
+
+  executeGarrisonCommand(building) {
+    if (!this.garrisonCommandActive) return false;
+
+    if (!building || building.type !== 'building' ||
+        !this.getSelectedVillagers().some(villager => building.canGarrisonUnit?.(villager))) {
+      if (this.game.hud) {
+        this.game.hud.showNotification('请选择可驻扎建筑', 1600);
+      }
+      return true;
+    }
+
+    for (const villager of this.getSelectedVillagers()) {
+      villager.garrisonTo(building);
+    }
+
+    this.cancelGarrisonCommand();
+    this.clearActiveBuildingButton();
+    return true;
+  }
+
   handleAgeUpgrade(command) {
     if (!this.game.player) return;
 
@@ -378,8 +433,19 @@ class ActionPanel {
       case 'research':
         this.researchTechnology(command.target);
         break;
+      case 'ungarrison':
+        this.handleUngarrisonCommand(command.count || 1);
+        break;
       default:
         console.warn('[ActionPanel] Unknown command:', command.action);
+    }
+  }
+
+  handleUngarrisonCommand(count = 1) {
+    if (!this.currentSelectedBuilding?.ungarrison) return;
+    const released = this.currentSelectedBuilding.ungarrison(count);
+    if (this.game.hud && released.length === 0) {
+      this.game.hud.showNotification('没有驻扎单位', 1600);
     }
   }
 
@@ -441,14 +507,8 @@ class ActionPanel {
 
     if (allVillagers) {
       this.currentSelectedBuilding = null;
-
-      // 高棉文明：村民可驻扎进房屋
-      if (this.game.player && this.game.player.hasCiv('khmer')) {
-        this.switchToPreset('khmer_villager');
-        return;
-      }
-
-      this.switchToPreset('default');
+      this.cancelGarrisonCommand();
+      this.switchToPreset('villager_commands');
       return;
     }
 
@@ -460,7 +520,8 @@ class ActionPanel {
         const productionPresetName = `${normalizedType}_production`;
         const hasPreset = productionPresetName === `${BUILDING_TYPES.TOWN_CENTER}_production` ||
           this.buildingPanelPresets[productionPresetName] ||
-          this.hasBuildingProductionPreset(entity);
+          this.hasBuildingProductionPreset(entity) ||
+          this.hasGarrisonPanel(entity);
 
         if (hasPreset) {
           this.currentSelectedBuilding = entity;
@@ -475,6 +536,7 @@ class ActionPanel {
 
   showEmptyPanel() {
     this.currentSelectedBuilding = null;
+    this.cancelGarrisonCommand();
     this.switchToPreset('empty');
   }
 
@@ -525,6 +587,13 @@ class ActionPanel {
     });
   }
 
+  getSelectedVillagers() {
+    return this.game.selectionManager ?
+      this.game.selectionManager.selectedEntities.filter(
+        entity => entity.isAlive && entity.type === 'unit' && entity.unitType === 'villager' && entity.isPlayerOwned()
+      ) : [];
+  }
+
   nextPreset() {
     const presetNames = Object.keys(this.buildingPanelPresets);
     const currentIndex = presetNames.indexOf(this.currentPreset);
@@ -536,20 +605,32 @@ class ActionPanel {
     return this.currentPreset;
   }
   /**
-   * 通过快捷键触发命令面板按钮（A→0, S→1, D→2, F→3）
-   * @param {number} index - 按钮索引 0-14
+   * 通过快捷键触发命令面板按钮
+   * @param {number} index - 按钮索引
    */
   triggerHotButton(index) {
     const buttonConfig = this.buildingPanelConfig.buttons[index];
     if (!buttonConfig || !buttonConfig.id) {
       console.warn(`[ActionPanel] triggerHotButton(${index}): 无按钮配置`);
-      return;
+      return false;
     }
     if (buttonConfig.type === 'empty' || buttonConfig.type === 'nav') {
       console.warn(`[ActionPanel] triggerHotButton(${index}): 按钮类型为 ${buttonConfig.type}, 跳过`);
-      return;
+      return false;
     }
     this.handleBuildingClick(buttonConfig.id);
+    return true;
+  }
+
+  triggerHotButtonByKey(key) {
+    const normalizedKey = key.toUpperCase();
+    const buttonIndex = this.buildingPanelConfig.buttons.findIndex(button => {
+      if (!button || !button.id || button.type === 'empty') return false;
+      return (button.icon || '').toUpperCase() === normalizedKey;
+    });
+
+    if (buttonIndex === -1) return false;
+    return this.triggerHotButton(buttonIndex);
   }
   addPreset(name, buttons) {
     this.buildingPanelPresets[name] = buttons.map(button => ({ ...button }));
@@ -561,13 +642,19 @@ class ActionPanel {
     const upgradeCost = canUpgrade ? this.ageUpgradeCosts[ageLevel] : null;
     const nextAgeName = canUpgrade ? getAgeName(ageLevel) : null;
 
-    return this.padButtons([
+    const buttons = [
       { id: TOWN_CENTER_ACTIONS.PRODUCE_VILLAGER, icon: 'V', type: 'production', cost: { food: 50 }, action: 'produce', target: 'villager' },
       { id: TOWN_CENTER_ACTIONS.RESEARCH_LOOM, icon: 'Lm', type: 'research', cost: { gold: 50 }, action: 'research', target: 'loom' },
       { id: TOWN_CENTER_ACTIONS.RESEARCH_TOWN_WATCH, icon: 'Tw', type: 'research', cost: { gold: 100 }, action: 'research', target: 'town_watch' },
-      { id: canUpgrade ? 'age-up' : '', icon: canUpgrade ? '^' : '', name: canUpgrade ? nextAgeName : '', type: canUpgrade ? 'age_upgrade' : 'empty', cost: upgradeCost, action: canUpgrade ? 'age_up' : '', target: canUpgrade ? 'next_age' : '' },
-      { id: 'close-production', icon: 'X', type: 'nav' }
-    ]);
+      { id: canUpgrade ? 'age-up' : '', icon: canUpgrade ? '^' : '', name: canUpgrade ? nextAgeName : '', type: canUpgrade ? 'age_upgrade' : 'empty', cost: upgradeCost, action: canUpgrade ? 'age_up' : '', target: canUpgrade ? 'next_age' : '' }
+    ];
+
+    if (this.hasGarrisonPanel(this.currentSelectedBuilding)) {
+      buttons.push(this.getUngarrisonButton());
+    }
+
+    buttons.push({ id: 'close-production', icon: 'X', type: 'nav' });
+    return this.padButtons(buttons);
   }
 
   getBuildingProductionPreset(building) {
@@ -596,8 +683,31 @@ class ActionPanel {
       target: unitType
     }));
 
+    if (this.hasGarrisonPanel(building)) {
+      buttons.push(this.getUngarrisonButton());
+    }
+
     buttons.push({ id: 'close-production', icon: 'X', name: 'Close', type: 'nav' });
     return this.padButtons(buttons);
+  }
+
+  hasGarrisonPanel(building) {
+    if (!building?.garrisonCapacity) return false;
+    if (building.buildingFeatures?.khmerOnlyGarrison) {
+      return Boolean(this.game.player?.hasCiv('khmer'));
+    }
+    return true;
+  }
+
+  getUngarrisonButton() {
+    return {
+      id: 'ungarrison',
+      icon: 'U',
+      name: '取消驻扎',
+      type: 'production',
+      action: 'ungarrison',
+      count: 1
+    };
   }
 
   padButtons(buttons) {
@@ -610,7 +720,7 @@ class ActionPanel {
   }
 
   hasBuildingProductionPreset(building) {
-    return !!(building?.buildingFeatures?.canTrainUnits?.length);
+    return !!(building?.buildingFeatures?.canTrainUnits?.length) || this.hasGarrisonPanel(building);
   }
 
   getUnitTrainingTime(unitType) {

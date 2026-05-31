@@ -161,12 +161,15 @@ class EventManager {
             this.game.entityManager.toggleCollisionVisuals();
         }
 
-        // A/S/D/F → 命令面板按钮 0/1/2/3
-        const hotkeyMap = { 'a': 0, 'A': 0, 's': 1, 'S': 1, 'd': 2, 'D': 2, 'f': 3, 'F': 3 };
-        if (event.key in hotkeyMap) {
+        // 命令面板按钮上的大写字母 → 对应命令
+        if (/^[a-zA-Z]$/.test(event.key)) {
             const hud = this.game.hud;
             if (hud && hud.actionPanel && hud.actionPanel.getCurrentPreset() !== 'empty') {
-                hud.actionPanel.triggerHotButton(hotkeyMap[event.key]);
+                const handled = hud.actionPanel.triggerHotButtonByKey(event.key);
+                if (handled) {
+                    event.preventDefault();
+                    return;
+                }
             }
         }
 
