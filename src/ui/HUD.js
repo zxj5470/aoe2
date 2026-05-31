@@ -227,8 +227,16 @@ class HUD {
     // 构建生产项 HTML
     let html = '';
     const unitIcons = { villager: '👤', soldier: '⚔️', knight: '🐴', archer: '🏹', scout: '🏇' };
-    const techIcons = { loom: '🧵', town_watch: '👁️', forging: '🔨', barding: '🛡️', fletching: '🏹' };
-    const unitNames = { villager: '村民', soldier: '士兵', knight: '骑士', archer: '弓手', scout: '侦察' };
+    const techIcons = {
+      loom: '织',
+      town_watch: '望',
+      forging: '锻',
+      scale_mail_armor: '甲',
+      scale_barding_armor: '骑',
+      fletching: '羽',
+      padded_archer_armor: '软'
+    };
+    const unitNames = { villager: '村民', soldier: '士兵', knight: '骑士', archer: '弓箭手', scout: '侦察兵' };
 
     for (const prod of productions) {
       const item = prod.current;
@@ -239,7 +247,7 @@ class HUD {
         : (techIcons[item.techType] || '📜');
       const name = item.type === 'unit'
         ? (unitNames[item.unitType] || item.unitType)
-        : (item.techType || '');
+        : (TECH_CONFIG[item.techType]?.name || item.techType || '');
       const progress = Math.min(prod.progress, 100);
 
       html += `<div class="production-item">`;
@@ -262,10 +270,9 @@ class HUD {
     const civName = this.getCivilizationName(civId);
     const civInitial = civName.slice(0, 2).toUpperCase();
     const researched = this.game.player.researchedTechs || new Set();
-    const blacksmithTechs = Object.entries(TECH_CONFIG)
-      .filter(([, tech]) => tech.building === 'blacksmith');
-    const researchedRows = blacksmithTechs.filter(([techType]) => researched.has(techType));
-    const lockedRows = blacksmithTechs.filter(([techType]) => !researched.has(techType));
+    const allTechs = Object.entries(TECH_CONFIG);
+    const researchedRows = allTechs.filter(([techType]) => researched.has(techType));
+    const lockedRows = allTechs.filter(([techType]) => !researched.has(techType));
     const signature = `${civId}:${[...researched].sort().join(',')}`;
     if (signature === this.civilizationTechWidgetSignature) return;
 
@@ -301,7 +308,7 @@ class HUD {
           ${rows.map(([techType, tech]) => `
             <div class="civilization-tech-row ${researched ? 'researched' : 'locked'}">
               <span class="civilization-tech-row-icon">${tech.icon || ''}</span>
-              <span>${tech.name || techType}</span>
+              <span title="${tech.description || ''}">${tech.name || techType}</span>
               <span class="civilization-tech-row-state">${researched ? '完成' : '未研发'}</span>
             </div>
           `).join('')}
@@ -312,12 +319,12 @@ class HUD {
 
   getCivilizationName(civId) {
     const names = {
-      franks: 'Franks',
-      spanish: 'Spanish',
-      celts: 'Celts',
-      huns: 'Huns',
-      mongols: 'Mongols',
-      khmer: 'Khmer'
+      franks: '法兰克',
+      spanish: '西班牙',
+      celts: '凯尔特',
+      huns: '匈奴',
+      mongols: '蒙古',
+      khmer: '高棉'
     };
     return names[civId] || civId;
   }

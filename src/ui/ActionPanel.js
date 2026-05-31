@@ -701,9 +701,8 @@ class ActionPanel {
     const nextAgeName = canUpgrade ? getAgeName(ageLevel) : null;
 
     const buttons = [
-      { id: TOWN_CENTER_ACTIONS.PRODUCE_VILLAGER, icon: 'V', type: 'production', cost: { food: 50 }, action: 'produce', target: 'villager' },
-      { id: TOWN_CENTER_ACTIONS.RESEARCH_LOOM, icon: 'Lm', type: 'research', cost: { gold: 50 }, action: 'research', target: 'loom' },
-      { id: TOWN_CENTER_ACTIONS.RESEARCH_TOWN_WATCH, icon: 'Tw', type: 'research', cost: { gold: 100 }, action: 'research', target: 'town_watch' },
+      { id: TOWN_CENTER_ACTIONS.PRODUCE_VILLAGER, icon: 'V', name: '村民', type: 'production', cost: { food: 50 }, action: 'produce', target: 'villager' },
+      ...this.getResearchButtonsForBuilding(BUILDING_TYPES.TOWN_CENTER),
       { id: canUpgrade ? 'age-up' : '', icon: canUpgrade ? '^' : '', name: canUpgrade ? nextAgeName : '', type: canUpgrade ? 'age_upgrade' : 'empty', cost: upgradeCost, action: canUpgrade ? 'age_up' : '', target: canUpgrade ? 'next_age' : '' }
     ];
 
@@ -715,7 +714,7 @@ class ActionPanel {
       buttons.push(this.getSetRallyPointButton());
     }
 
-    buttons.push({ id: 'close-production', icon: 'X', type: 'nav' });
+    buttons.push({ id: 'close-production', icon: 'X', name: '关闭', type: 'nav' });
     return this.padButtons(buttons);
   }
 
@@ -757,7 +756,7 @@ class ActionPanel {
       buttons.push(this.getUngarrisonButton());
     }
 
-    buttons.push({ id: 'close-production', icon: 'X', name: 'Close', type: 'nav' });
+    buttons.push({ id: 'close-production', icon: 'X', name: '关闭', type: 'nav' });
     return this.padButtons(buttons);
   }
 
@@ -810,8 +809,15 @@ class ActionPanel {
   }
 
   getBlacksmithProductionPreset() {
-    const buttons = Object.entries(TECH_CONFIG)
-      .filter(([, tech]) => tech.building === BUILDING_TYPES.BLACKSMITH)
+    const buttons = this.getResearchButtonsForBuilding(BUILDING_TYPES.BLACKSMITH);
+
+    buttons.push({ id: 'close-production', icon: 'X', name: '关闭', type: 'nav' });
+    return this.padButtons(buttons);
+  }
+
+  getResearchButtonsForBuilding(buildingType) {
+    return Object.entries(TECH_CONFIG)
+      .filter(([, tech]) => tech.building === buildingType)
       .filter(([techType]) => !this.game.player?.hasResearched(techType) && !this.isTechQueued(techType))
       .map(([techType, tech]) => ({
         id: `research-${techType}`,
@@ -822,9 +828,6 @@ class ActionPanel {
         action: 'research',
         target: techType
       }));
-
-    buttons.push({ id: 'close-production', icon: 'X', name: 'Close', type: 'nav' });
-    return this.padButtons(buttons);
   }
 
   isTechQueued(techType) {
@@ -871,11 +874,11 @@ class ActionPanel {
 
   getUnitName(unitType) {
     const names = {
-      villager: 'Villager',
-      soldier: 'Soldier',
-      knight: 'Knight',
-      archer: 'Archer',
-      scout: 'Scout'
+      villager: '村民',
+      soldier: '士兵',
+      knight: '骑士',
+      archer: '弓箭手',
+      scout: '侦察兵'
     };
     return names[unitType] || unitType;
   }

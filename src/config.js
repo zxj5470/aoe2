@@ -69,45 +69,61 @@ export const TOWN_CENTER_ACTIONS = Object.freeze({
 });
 
 export const TECH_CONFIG = Object.freeze({
+    loom: {
+        name: '织布机',
+        icon: '织',
+        building: BUILDING_TYPES.TOWN_CENTER,
+        cost: { gold: 50 },
+        time: 30,
+        description: '村民生命值 +15，护甲 +1'
+    },
+    town_watch: {
+        name: '城镇瞭望',
+        icon: '望',
+        building: BUILDING_TYPES.TOWN_CENTER,
+        cost: { gold: 100 },
+        time: 45,
+        description: '建筑视野提升'
+    },
     forging: {
-        name: 'Forging',
-        icon: 'Fg',
+        name: '锻造',
+        icon: '锻',
         building: BUILDING_TYPES.BLACKSMITH,
         cost: { food: 150, gold: 100 },
         time: 40,
-        description: 'Infantry and cavalry attack +1'
+        description: '步兵和骑兵攻击 +1'
     },
     scale_mail_armor: {
-        name: 'Scale Mail',
-        icon: 'Sm',
+        name: '鳞甲',
+        icon: '甲',
         building: BUILDING_TYPES.BLACKSMITH,
         cost: { food: 100, gold: 50 },
         time: 40,
-        description: 'Infantry armor +1'
+        description: '步兵护甲 +1'
     },
     scale_barding_armor: {
-        name: 'Barding',
-        icon: 'Bd',
+        name: '骑兵鳞甲',
+        icon: '骑',
         building: BUILDING_TYPES.BLACKSMITH,
         cost: { food: 150, gold: 100 },
         time: 45,
-        description: 'Cavalry armor +1'
+        description: '骑兵护甲 +1'
     },
     fletching: {
-        name: 'Fletching',
-        icon: 'Fl',
+        name: '箭羽',
+        icon: '羽',
         building: BUILDING_TYPES.BLACKSMITH,
         cost: { food: 100, gold: 50 },
         time: 35,
-        description: 'Archers attack and range +1'
+        description: '弓箭手攻击和射程 +1'
     },
     padded_archer_armor: {
-        name: 'Padded Armor',
-        icon: 'Pa',
+        name: '弓兵软甲',
+        icon: '软',
         building: BUILDING_TYPES.BLACKSMITH,
         cost: { food: 100, gold: 50 },
         time: 40,
-        description: 'Archers armor +1'
+        description: '弓箭手护甲 +1'
     }
 });
 
