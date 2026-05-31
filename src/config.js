@@ -402,7 +402,7 @@ export const TECH_CONFIG = Object.freeze({
 export const BUILDING_CONFIG = Object.freeze({
     [BUILDING_TYPES.HOUSE]: {
         name: 'House', width: 2, depth: 2, height: 2,
-        cost: { wood: 50 }, health: 500, buildTime: 25,
+        cost: { wood: 25 }, health: 500, buildTime: 25,
         description: 'Provides population space'
     },
     [BUILDING_TYPES.FARM]: {
