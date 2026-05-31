@@ -663,6 +663,10 @@ class Game {
 
         console.log('[handleRightClick] worldPos:', worldPos, 'selectedEntities:', this.selectionManager.selectedEntities.length, 'type:', this.selectionManager.selectionType);
 
+        if (this.trySetSelectedBuildingRallyPoint(worldPos)) {
+            return;
+        }
+
         const nearbyEntities = this.spatialIndex
             .queryPoint(worldPos.x, worldPos.z, 1.5)
             .filter(entity => !this.fogOfWarSystem || this.fogOfWarSystem.isEntitySelectable(entity));
@@ -717,10 +721,7 @@ class Game {
                         if (entity.sheepState === 'owned' && entity.isPlayerOwned()) {
                             if (entity.showGatherIndicator) entity.showGatherIndicator();
                             entity.startSlaughter();
-                            const townCenter = this.entityManager.getEntities().find(e =>
-                                e.type === 'building' && e.buildingType === BUILDING_TYPES.TOWN_CENTER && e.isAlive
-                            );
-                            this.selectionManager.issueCommand('gather', entity, townCenter);
+                            this.selectionManager.issueCommand('gather', entity);
                         }
                         return;
                     }
@@ -734,19 +735,13 @@ class Game {
                 if (entity.sheepState === 'owned' && entity.isPlayerOwned()) {
                     if (entity.showGatherIndicator) entity.showGatherIndicator();
                     entity.startSlaughter();
-                    const townCenter = this.entityManager.getEntities().find(e =>
-                        e.type === 'building' && e.buildingType === BUILDING_TYPES.TOWN_CENTER && e.isAlive
-                    );
-                    this.selectionManager.issueCommand('gather', entity, townCenter);
+                    this.selectionManager.issueCommand('gather', entity);
                     return;
                 }
                 // 绵羊已在宰杀中：直接下达采集命令
                 if (entity.sheepState === 'slaughtering') {
                     if (entity.showGatherIndicator) entity.showGatherIndicator();
-                    const townCenter = this.entityManager.getEntities().find(e =>
-                        e.type === 'building' && e.buildingType === BUILDING_TYPES.TOWN_CENTER && e.isAlive
-                    );
-                    this.selectionManager.issueCommand('gather', entity, townCenter);
+                    this.selectionManager.issueCommand('gather', entity);
                     return;
                 }
             }
@@ -762,10 +757,7 @@ class Game {
             // 资源采集（排除已捕获的绵羊 - 它们不是普通资源）
             if (entity.type === 'resource' && !entity.isSheep) {
                 if (entity.showGatherIndicator) entity.showGatherIndicator();
-                const townCenter = this.entityManager.getEntities().find(e =>
-                    e.type === 'building' && e.buildingType === BUILDING_TYPES.TOWN_CENTER && e.isAlive
-                );
-                this.selectionManager.issueCommand('gather', entity, townCenter);
+                this.selectionManager.issueCommand('gather', entity);
                 return;
             }
         }
@@ -780,6 +772,24 @@ class Game {
         }
 
         this.selectionManager.issueMoveCommand(new THREE.Vector3(worldPos.x, 0, worldPos.z));
+    }
+
+    trySetSelectedBuildingRallyPoint(worldPos) {
+        const selected = this.selectionManager?.selectedEntities || [];
+        if (selected.length !== 1) return false;
+
+        const building = selected[0];
+        if (building.type !== 'building' || !building.isPlayerOwned?.() || !building.setRallyPoint) {
+            return false;
+        }
+
+        const canSetRallyPoint = building.buildingType === BUILDING_TYPES.TOWN_CENTER ||
+            Boolean(building.buildingFeatures?.isMilitary);
+        if (!canSetRallyPoint) return false;
+
+        building.setRallyPoint(new THREE.Vector3(worldPos.x, 0, worldPos.z));
+        this.hud?.showNotification('集结点已设置', 1200);
+        return true;
     }
     
     handleDragSelection(event) {

@@ -44,6 +44,10 @@ class EntityManager {
             this.game.combatSystem.registerCombatant(entity);
         }
 
+        if (entity.type === 'building' && !entity.isUnderConstruction) {
+            this.registerDropOffPoint(entity);
+        }
+
         // 建筑/资源新增时，使受影响的缓存路径失效
         if (entity.type === 'building' || entity.type === 'resource') {
             this.invalidatePathCacheForEntity(entity);
@@ -88,6 +92,10 @@ class EntityManager {
                 }
             }
 
+            if (entity.type === 'building') {
+                this.unregisterDropOffPoint(entity);
+            }
+
             // 建筑/资源移除时，刷新网格占用并使缓存路径失效
             if (entity.type === 'building' || entity.type === 'resource') {
                 this.invalidatePathCacheForEntity(entity);
@@ -116,6 +124,22 @@ class EntityManager {
         for (const cell of cells) {
             this.game.pathfinding.invalidateCacheForCell(cell.x, cell.z);
         }
+    }
+
+    registerDropOffPoint(building) {
+        if (!this.game.resourceGatheringSystem) return;
+        if (!building?.isPlayerOwned?.()) return;
+        if (!building.buildingFeatures?.isDropOff) return;
+
+        const resourceTypes = building.buildingFeatures.dropOffResources?.length
+            ? building.buildingFeatures.dropOffResources
+            : ['wood', 'food', 'gold', 'stone'];
+        this.game.resourceGatheringSystem.addDropOffPoint(building, resourceTypes);
+    }
+
+    unregisterDropOffPoint(building) {
+        if (!this.game.resourceGatheringSystem) return;
+        this.game.resourceGatheringSystem.removeDropOffPoint(building);
     }
 
     updateEntities(deltaTime) {
@@ -222,12 +246,6 @@ class EntityManager {
             if (tcMesh) {
                 console.log(`[EntityManager] 创建城镇中心: ${townCenter.name}, owner: ${townCenter.owner}, isPlayerOwned: ${townCenter.isPlayerOwned()}`);
                 this.addEntity(townCenter);
-                // 将城镇中心注册为资源投放点
-                if (this.game.resourceGatheringSystem) {
-                    this.game.resourceGatheringSystem.addDropOffPoint(
-                        townCenter, ['wood', 'food', 'gold', 'stone']
-                    );
-                }
             }
         }
 
@@ -632,10 +650,7 @@ class EntityManager {
             this.addEntity(townCenter);
         }
 
-        if (this.game.resourceGatheringSystem) {
-            this.game.resourceGatheringSystem.addDropOffPoint(townCenter, ['wood', 'food', 'gold', 'stone']);
-            console.log('已创建城镇中心并添加为资源存储点');
-        }
+        console.log('已创建城镇中心并添加为资源存储点');
     }
 
     registerUnitsToGatheringSystem() {

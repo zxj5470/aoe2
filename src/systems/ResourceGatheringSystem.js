@@ -60,6 +60,7 @@ class ResourceGatheringSystem {
     }
 
     addDropOffPoint(building, resourceTypes) {
+        this.removeDropOffPoint(building);
         this.dropOffPoints.push({
             building: building,
             resourceTypes: resourceTypes,
@@ -215,14 +216,19 @@ class ResourceGatheringSystem {
     returnToDropOff(gatherer) {
         if (!gatherer.carryType || gatherer.carryAmount <= 0) return;
 
-        const dropOffPoint = this.findNearestDropOff(gatherer, gatherer.carryType);
+        const dropOffPoint = gatherer.dropOffPoint &&
+            gatherer.dropOffPoint.isAlive &&
+            this.canDropOffResource(gatherer.dropOffPoint, gatherer.carryType)
+                ? {
+                    building: gatherer.dropOffPoint,
+                    resourceTypes: this.getDropOffResourceTypes(gatherer.dropOffPoint),
+                    position: gatherer.dropOffPoint.getPosition()
+                }
+                : this.findNearestDropOff(gatherer, gatherer.carryType);
 
         if (!dropOffPoint) return;
 
-        // 曼哈顿距离判断是否已到达投放点边缘
-        const dx = Math.abs(gatherer.position.x - dropOffPoint.position.x);
-        const dz = Math.abs(gatherer.position.z - dropOffPoint.position.z);
-        const isAtDropOffPoint = (dx + dz) <= 2;
+        const isAtDropOffPoint = this.isAtDropOffPoint(gatherer, dropOffPoint);
 
         if (isAtDropOffPoint) {
             // 投放资源
@@ -297,6 +303,27 @@ class ResourceGatheringSystem {
         }
         
         return nearestPoint;
+    }
+
+    getDropOffResourceTypes(building) {
+        if (!building?.buildingFeatures?.isDropOff) return [];
+        if (building.buildingFeatures.dropOffResources?.length) {
+            return building.buildingFeatures.dropOffResources;
+        }
+        return ['wood', 'food', 'gold', 'stone'];
+    }
+
+    canDropOffResource(building, resourceType) {
+        return this.getDropOffResourceTypes(building).includes(resourceType);
+    }
+
+    isAtDropOffPoint(gatherer, dropOffPoint) {
+        const building = dropOffPoint.building;
+        const halfX = Math.max(1, (building?.gridSizeX || building?.width || 2) / 2);
+        const halfZ = Math.max(1, (building?.gridSizeZ || building?.depth || 2) / 2);
+        const dx = Math.max(0, Math.abs(gatherer.position.x - dropOffPoint.position.x) - halfX);
+        const dz = Math.max(0, Math.abs(gatherer.position.z - dropOffPoint.position.z) - halfZ);
+        return Math.sqrt(dx * dx + dz * dz) <= 1.5;
     }
 
     findNearestResource(gatherer, resourceType, maxDistance = 50) {

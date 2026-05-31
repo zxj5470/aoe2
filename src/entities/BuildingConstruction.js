@@ -1,4 +1,4 @@
-import { BUILDING_TYPES, BUILDING_CONFIG } from '../config.js';
+import { BUILDING_CONFIG } from '../config.js';
 
 class BuildingConstruction {
     constructor(building) {
@@ -77,8 +77,8 @@ class BuildingConstruction {
             console.log(`[建造] onBuildingChange 完成, 新人口: ${this.building._game.player.population.current}/${this.building._game.player.population.max}`);
         }
 
-        if (this.building.buildingType === BUILDING_TYPES.TOWN_CENTER && this.building._game && this.building._game.resourceGatheringSystem) {
-            this.building._game.resourceGatheringSystem.addDropOffPoint(this.building, ['wood', 'food', 'gold', 'stone']);
+        if (this.building._game?.entityManager && this.building.buildingFeatures?.isDropOff) {
+            this.building._game.entityManager.registerDropOffPoint(this.building);
         }
     }
 

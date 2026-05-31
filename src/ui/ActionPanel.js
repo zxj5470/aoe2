@@ -701,7 +701,7 @@ class ActionPanel {
     const nextAgeName = canUpgrade ? getAgeName(ageLevel) : null;
 
     const buttons = [
-      { id: TOWN_CENTER_ACTIONS.PRODUCE_VILLAGER, icon: 'V', name: '村民', type: 'production', cost: { food: 50 }, action: 'produce', target: 'villager' },
+      { id: TOWN_CENTER_ACTIONS.PRODUCE_VILLAGER, icon: 'A', name: '村民', type: 'production', cost: { food: 50 }, action: 'produce', target: 'villager' },
       ...this.getResearchButtonsForBuilding(BUILDING_TYPES.TOWN_CENTER),
       { id: canUpgrade ? 'age-up' : '', icon: canUpgrade ? '^' : '', name: canUpgrade ? nextAgeName : '', type: canUpgrade ? 'age_upgrade' : 'empty', cost: upgradeCost, action: canUpgrade ? 'age_up' : '', target: canUpgrade ? 'next_age' : '' }
     ];

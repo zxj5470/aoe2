@@ -125,6 +125,8 @@ class UnitGathering {
         
         if (dropOffPoint) {
             this.unit.dropOffPoint = dropOffPoint;
+        } else {
+            this.unit.dropOffPoint = null;
         }
         
         console.log(`[村民采集] 开始采集 ${this.unit.carryType}，投放点: ${this.unit.dropOffPoint ? '已设置' : '未设置'}`);
