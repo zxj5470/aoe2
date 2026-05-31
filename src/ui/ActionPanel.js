@@ -238,6 +238,11 @@ class ActionPanel {
       return;
     }
 
+    if (!this.canUseBuildingButton(normalizedType)) {
+      console.warn('[ActionPanel] Building is unavailable for current civilization:', normalizedType);
+      return;
+    }
+
     if (buildingType === 'close' || buildingType === 'close-production') {
       if (this.game.selectionManager) {
         this.game.selectionManager.deselectAll();
@@ -494,8 +499,24 @@ class ActionPanel {
     }
 
     this.currentPreset = presetName;
-    this.buildingPanelConfig.buttons = preset.map(button => ({ ...button }));
+    this.buildingPanelConfig.buttons = this.filterPresetForCivilization(preset).map(button => ({ ...button }));
     this.initBuildingButtons();
+  }
+
+  filterPresetForCivilization(preset) {
+    return preset.map(button => {
+      const normalizedId = this.normalizeBuildingType(button.id);
+      if (!this.canUseBuildingButton(normalizedId)) {
+        return { id: '', icon: '', name: '', type: 'empty' };
+      }
+      return button;
+    });
+  }
+
+  canUseBuildingButton(buildingType) {
+    if (!buildingType) return true;
+    if (!this.game.player || !this.game.player.hasCiv('huns')) return true;
+    return buildingType !== BUILDING_TYPES.HOUSE;
   }
 
   clearActiveBuildingButton() {
@@ -600,7 +621,11 @@ class ActionPanel {
       archer: 25,
       scout: 30
     };
-    return times[unitType] || 30;
+    let trainingTime = times[unitType] || 30;
+    if (this.currentSelectedBuilding?.buildingType === BUILDING_TYPES.STABLE && this.game.player) {
+      trainingTime /= this.game.player.getBonus('stableTrainingSpeed', 1.0);
+    }
+    return trainingTime;
   }
 
   getUnitCost(unitType) {

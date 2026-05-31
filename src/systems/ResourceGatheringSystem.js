@@ -176,7 +176,11 @@ class ResourceGatheringSystem {
         if (gatherer.isMoving) return;
 
         // 到达目标格子后开始采集
-        const gatherRate = resourceNode.gatherSpeed || this.gatherRates[resourceNode.userData.resourceType] || 0.5;
+        let gatherRate = resourceNode.gatherSpeed || this.gatherRates[resourceNode.userData.resourceType] || 0.5;
+        if (resourceNode.userData.resourceType === 'food' && resourceNode.resourceType === 'food' &&
+            !resourceNode.isSheep && gatherer.game?.player) {
+            gatherRate *= gatherer.game.player.getBonus('berryGatherRate', 1.0);
+        }
         const gatherAmount = gatherRate * deltaTime;
 
         const availableAmount = Math.min(

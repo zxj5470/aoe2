@@ -157,6 +157,15 @@ export const BUILDING_CONFIG = Object.freeze({
 // 加成类型 op：'multiply'（乘算）、'add'（加算）、'set'（覆写）
 // 多个文明加成按 activeCivs 数组顺序叠加
 export const CIV_BONUSES = Object.freeze({
+    franks: {
+        castleCostMultiplier: { op: 'multiply', value: 0.75 },      // 城堡便宜 25%
+        cavalryHealthMultiplierFromFeudal: { op: 'multiply', value: 1.2 }, // 封建时代起骑兵生命值 +20%
+        berryGatherRate: { op: 'multiply', value: 1.25 },           // 浆果采集效率 +25%
+        stableTrainingSpeed: { op: 'multiply', value: 1.4 },        // 骑士精神：马厩训练快 40%
+        knightSightBonus: { op: 'add', value: 2 },                  // 骑士视野 +2
+        farmUpgradesFree: { op: 'set', value: 1.0 },                // 农田升级免费（需要磨坊，待科技系统接入）
+        throwingAxemanRangeBonus: { op: 'add', value: 1 },          // 芒刺斧：掷斧兵攻击距离 +1（待掷斧兵接入）
+    },
     spanish: {
         builderEfficiency: { op: 'multiply', value: 1.25 },  // 村民建造速度 ×1.25
     },
@@ -173,8 +182,6 @@ export const CIV_BONUSES = Object.freeze({
     khmer: {
         villagerGarrisonHouse: { op: 'set', value: 1.0 },     // 村民可驻扎进房屋
     },
-    // 通用文明加成（默认值，不提供任何加成）
-    generic: {},
 });
 
 // 建筑名称多语言配置

@@ -64,7 +64,8 @@ class Game {
         this.mapGenerator = null;
         this.mapSelectionPanel = null;
         this.selectedMapType = 'arabia';
-        this.selectedCivilization = 'generic';
+        this.selectedCivilization = 'franks';
+        this.selectedPlayers = [];
 
         this.spatialIndex = null;
 
@@ -226,10 +227,11 @@ class Game {
         this.mapGenerator = new MapGenerator();
         this.mapSelectionPanel = new MapSelectionPanel(this);
         
-        this.mapSelectionPanel.setOnMapSelected((mapType, civilization) => {
+        this.mapSelectionPanel.setOnMapSelected((mapType, civilization, players = []) => {
             this.selectedMapType = mapType;
             this.selectedCivilization = civilization || this.selectedCivilization;
-            console.log(`地图选择完成: ${mapType}, 文明: ${this.selectedCivilization}`);
+            this.selectedPlayers = players;
+            console.log(`地图选择完成: ${mapType}, 文明: ${this.selectedCivilization}, 玩家数: ${players.length || 1}`);
         });
     }
 
@@ -237,10 +239,11 @@ class Game {
         return new Promise((resolve) => {
             this.mapSelectionPanel.show();
             
-            this.mapSelectionPanel.setOnMapSelected((mapType, civilization) => {
+            this.mapSelectionPanel.setOnMapSelected((mapType, civilization, players = []) => {
                 this.selectedMapType = mapType;
                 this.selectedCivilization = civilization || this.selectedCivilization;
-                console.log(`已选择地图: ${mapType}, 文明: ${this.selectedCivilization}`);
+                this.selectedPlayers = players;
+                console.log(`已选择地图: ${mapType}, 文明: ${this.selectedCivilization}, 玩家数: ${players.length || 1}`);
                 resolve();
             });
         });
@@ -292,6 +295,7 @@ class Game {
         console.log('[Game] initEntities 开始');
 
         // 初始化玩家
+        const humanPlayerConfig = this.selectedPlayers[0] || { civilization: this.selectedCivilization };
         this.player = new Player({
             id: HUMAN_OWNER,
             name: '玩家',
@@ -299,7 +303,7 @@ class Game {
             wood: 200,    // 初始给一些资源用于测试
             food: 200,
             stone: 100,
-            civilization: this.selectedCivilization,
+            civilization: humanPlayerConfig.civilization || this.selectedCivilization,
             maxPopulation: 0  // 由建筑数量计算得出
         });
 
@@ -950,7 +954,14 @@ class Game {
             archer:    { health: 30, speed: 4, attackDamage: 5,  attackRange: 5, attackSpeed: 1.2, armor: 0, sightRange: 6 },
             scout:     { health: 35, speed: 8, attackDamage: 3,  attackRange: 1, attackSpeed: 1.5, armor: 0, sightRange: 6 }
         };
-        return configs[unitType] || configs.soldier;
+        const config = { ...(configs[unitType] || configs.soldier) };
+        if (this.player && (unitType === 'knight' || unitType === 'scout') && this.player.getAgeLevel() >= 2) {
+            config.health = Math.round(config.health * this.player.getBonus('cavalryHealthMultiplierFromFeudal', 1.0));
+            if (unitType === 'knight') {
+                config.sightRange += this.player.getBonus('knightSightBonus', 0);
+            }
+        }
+        return config;
     }
 
     applyResearch(building, techType) {

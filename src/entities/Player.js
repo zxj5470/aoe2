@@ -15,7 +15,7 @@ class Player {
         this.ageLevel = config.ageLevel || 1;
         this.activeCivs = config.civs && config.civs.length > 0
             ? [...config.civs]
-            : (config.civilization ? [config.civilization] : ['generic']);
+            : (config.civilization ? [config.civilization] : ['franks']);
 
         this.resourceManager = new ResourceManager();
         if (config.gold) this.resourceManager.addResource('gold', config.gold);
@@ -102,7 +102,7 @@ class Player {
      * 向后兼容：返回第一个文明名称
      */
     get civilization() {
-        return this.activeCivs[0] || 'generic';
+        return this.activeCivs[0] || 'franks';
     }
 
     /**

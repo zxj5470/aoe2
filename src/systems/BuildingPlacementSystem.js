@@ -85,9 +85,14 @@ class BuildingPlacementSystem {
             console.warn(`Unknown building type: ${buildingType}`);
             return false;
         }
+
+        if (!this.canPlaceForCivilization(normalizedType)) {
+            console.warn(`[BuildingPlacement] 当前文明不能建造 ${normalizedType}`);
+            return false;
+        }
         
         this.currentBuildingType = normalizedType;
-        this.requiredResources = buildingConfig.cost;
+        this.requiredResources = this.getCivilizationAdjustedCost(normalizedType, buildingConfig.cost);
         
         // 检查资源是否足够
         if (!resourceManager.hasEnoughResources(this.requiredResources)) {
@@ -288,6 +293,14 @@ class BuildingPlacementSystem {
     togglePlacement(buildingType) {
         const normalizedType = normalizeBuildingType(buildingType);
 
+        if (!this.canPlaceForCivilization(normalizedType)) {
+            console.warn(`[BuildingPlacement] 当前文明不能建造 ${normalizedType}`);
+            if (this.game.hud) {
+                this.game.hud.showNotification('当前文明不能建造该建筑', 2000);
+            }
+            return;
+        }
+
         if (this.isPlacing && this.currentBuildingType === normalizedType) {
             this.cancelPlacement();
             return;
@@ -297,9 +310,10 @@ class BuildingPlacementSystem {
 
         if (this.buildingTypes[normalizedType]) {
             const config = this.buildingTypes[normalizedType];
+            const adjustedCost = this.getCivilizationAdjustedCost(normalizedType, config.cost);
 
             // 检查资源是否足够
-            if (this.game.resourceManager && !this.game.resourceManager.hasEnoughResources(config.cost)) {
+            if (this.game.resourceManager && !this.game.resourceManager.hasEnoughResources(adjustedCost)) {
                 console.warn(`[BuildingPlacement] 资源不足，无法建造 ${normalizedType}`);
                 if (this.game.hud) {
                     this.game.hud.showNotification('资源不足', 2000);
@@ -308,7 +322,7 @@ class BuildingPlacementSystem {
             }
 
             this.currentBuildingType = normalizedType;
-            this.requiredResources = config.cost;
+            this.requiredResources = adjustedCost;
             this.isPlacing = true;
 
             // 墙壁使用拖拽模式
@@ -632,12 +646,29 @@ class BuildingPlacementSystem {
 
     getBuildingCost(buildingType) {
         const config = this.getBuildingConfig(buildingType);
-        return config ? config.cost : null;
+        return config ? this.getCivilizationAdjustedCost(normalizeBuildingType(buildingType), config.cost) : null;
     }
 
     canAfford(buildingType, resourceManager) {
         const cost = this.getBuildingCost(buildingType);
         return cost && resourceManager.hasEnoughResources(cost);
+    }
+
+    canPlaceForCivilization(buildingType) {
+        if (!this.game?.player?.hasCiv('huns')) return true;
+        return buildingType !== BUILDING_TYPES.HOUSE;
+    }
+
+    getCivilizationAdjustedCost(buildingType, baseCost = {}) {
+        const costMultiplier = buildingType === BUILDING_TYPES.CASTLE
+            ? this.game?.player?.getBonus('castleCostMultiplier', 1.0) || 1.0
+            : 1.0;
+
+        const adjustedCost = {};
+        for (const [resource, amount] of Object.entries(baseCost || {})) {
+            adjustedCost[resource] = Math.floor(amount * costMultiplier);
+        }
+        return adjustedCost;
     }
 }
 
