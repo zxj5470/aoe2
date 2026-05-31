@@ -61,6 +61,9 @@ class EntityManager {
     removeEntity(entity) {
         const index = this.entities.indexOf(entity);
         if (index > -1) {
+            if (entity.clearRallyPoint) {
+                entity.clearRallyPoint();
+            }
             this.entities.splice(index, 1);
             this.game.scene.removeEntity(entity);
 
@@ -715,6 +718,9 @@ class EntityManager {
         if (mesh) {
             console.log(`[EntityManager] 单位已创建: ${unit.name}, isPlayerOwned: ${unit.isPlayerOwned()}`);
             this.addEntity(unit);
+            if (building.rallyPoint) {
+                unit.moveTo(building.rallyPoint);
+            }
             // addEntity 已经调用了 addUnit，无需重复调用
             if (this.game.resourceGatheringSystem && unit.unitType === 'villager') {
                 this.game.resourceGatheringSystem.registerGatherer(unit);

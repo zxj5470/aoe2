@@ -495,6 +495,12 @@ class Game {
     handleLeftClick(event) {
         if (!this.inputHandler || !this.selectionManager) return;
 
+        if (this.hud?.actionPanel?.isSettingRallyPoint()) {
+            const worldPos = this.inputHandler.getWorldPosition();
+            this.hud.actionPanel.setRallyPoint(new THREE.Vector3(worldPos.x, 0, worldPos.z));
+            return;
+        }
+
         if (this.buildingPlacementSystem && this.buildingPlacementSystem.isPlacing) {
             const worldPos = this.inputHandler.getWorldPosition();
             const result = this.buildingPlacementSystem.placeBuilding(

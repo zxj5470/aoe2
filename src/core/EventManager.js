@@ -69,6 +69,12 @@ class EventManager {
 
         // Escape 键取消建筑放置
         if (event.key === 'Escape') {
+            if (this.game.hud?.actionPanel?.isSettingRallyPoint()) {
+                this.game.hud.actionPanel.cancelRallyPointMode();
+                event.preventDefault();
+                return;
+            }
+
             if (this.game.buildingPlacementSystem && this.game.buildingPlacementSystem.isPlacing) {
                 this.game.buildingPlacementSystem.cancelPlacement();
                 if (this.game.hud && this.game.hud.actionPanel) {

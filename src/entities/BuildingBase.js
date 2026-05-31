@@ -55,6 +55,8 @@ class BuildingBase extends Entity {
         // 驻军系统
         this.garrisonedUnits = [];
         this.garrisonCapacity = this.buildingFeatures.garrisonCapacity || 0;
+        this.rallyPoint = config.rallyPoint ? config.rallyPoint.clone() : null;
+        this.rallyFlag = null;
 
         // 防御建筑攻击属性
         if (this.buildingFeatures.canAttack) {
@@ -170,6 +172,67 @@ class BuildingBase extends Entity {
         return true;
     }
 
+    setRallyPoint(position) {
+        if (!position) return;
+
+        this.rallyPoint = position.clone();
+        this.rallyPoint.y = 0;
+        this.updateRallyFlag();
+    }
+
+    clearRallyPoint() {
+        this.rallyPoint = null;
+        if (this.rallyFlag && this.rallyFlag.parent) {
+            this.rallyFlag.parent.remove(this.rallyFlag);
+        }
+        this.rallyFlag = null;
+    }
+
+    updateRallyFlag() {
+        if (!this._game?.scene?.getScene || !this.rallyPoint) return;
+
+        if (!this.rallyFlag) {
+            const group = new THREE.Group();
+            group.name = `rally-flag-${this.id}`;
+
+            const pole = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.04, 0.04, 1.4, 8),
+                new THREE.MeshBasicMaterial({ color: 0x2b1a0f })
+            );
+            pole.position.y = 0.7;
+            group.add(pole);
+
+            const flag = new THREE.Mesh(
+                new THREE.PlaneGeometry(0.85, 0.45),
+                new THREE.MeshBasicMaterial({ color: 0xffd700, side: THREE.DoubleSide })
+            );
+            flag.position.set(0.42, 1.15, 0);
+            group.add(flag);
+
+            this.rallyFlag = group;
+            this._game.scene.getScene().add(this.rallyFlag);
+        }
+
+        this.rallyFlag.position.copy(this.rallyPoint);
+        this.rallyFlag.position.y = 0.05;
+    }
+
+    getReleasePosition(index = 0) {
+        const base = this.rallyPoint || new THREE.Vector3(
+            this.position.x + (this.gridSizeX || 2) / 2 + 1,
+            0,
+            this.position.z
+        );
+        const angle = index * Math.PI * 0.65;
+        const radius = index === 0 ? 0 : 0.8;
+
+        return new THREE.Vector3(
+            base.x + Math.cos(angle) * radius,
+            0,
+            base.z + Math.sin(angle) * radius
+        );
+    }
+
     /**
      * 放出指定数量的驻扎单位
      */
@@ -177,17 +240,15 @@ class BuildingBase extends Entity {
         const released = [];
         for (let i = 0; i < Math.min(count, this.garrisonedUnits.length); i++) {
             const unit = this.garrisonedUnits.shift();
+            const releasePosition = this.getReleasePosition(i);
             unit.isGarrisoned = false;
             unit.garrisonedBuilding = null;
             unit.isMoving = false;
             unit.currentAction = 'idle';
             if (unit.mesh) {
                 unit.mesh.visible = true;
-                unit.mesh.position.copy(this.position);
-                unit.mesh.position.x += (Math.random() - 0.5) * 2;
-                unit.mesh.position.z += (Math.random() - 0.5) * 2;
             }
-            unit.position.copy(unit.mesh ? unit.mesh.position : this.position);
+            unit.setPosition(releasePosition.x, releasePosition.y, releasePosition.z);
             if (unit.selectionRing) unit.selectionRing.visible = Boolean(unit.isSelected);
             released.push(unit);
         }

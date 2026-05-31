@@ -68,6 +68,7 @@ class ActionPanel {
     this.currentPreset = 'default';
     this.currentSelectedBuilding = null;
     this.garrisonCommandActive = false;
+    this.rallyPointModeActive = false;
   }
 
   init() {
@@ -274,6 +275,11 @@ class ActionPanel {
       return;
     }
 
+    if (currentButtonConfig?.type === 'rally') {
+      this.activateRallyPointMode(button);
+      return;
+    }
+
     if (currentButtonConfig?.type === 'cancel' && currentButtonConfig?.action === 'cancel_construction') {
       this.handleCancelConstruction();
       return;
@@ -449,6 +455,41 @@ class ActionPanel {
     }
   }
 
+  activateRallyPointMode(button) {
+    if (!this.currentSelectedBuilding?.setRallyPoint) return;
+
+    this.cancelGarrisonCommand();
+    this.rallyPointModeActive = true;
+    this.clearActiveBuildingButton();
+    if (button) button.classList.add('active');
+
+    if (this.game.hud) {
+      this.game.hud.showNotification('点击地图设置集结点，按 ESC 取消', 2000);
+    }
+  }
+
+  cancelRallyPointMode() {
+    this.rallyPointModeActive = false;
+    this.clearActiveBuildingButton();
+  }
+
+  isSettingRallyPoint() {
+    return this.rallyPointModeActive;
+  }
+
+  setRallyPoint(position) {
+    if (!this.rallyPointModeActive || !this.currentSelectedBuilding?.setRallyPoint) return false;
+
+    this.currentSelectedBuilding.setRallyPoint(position);
+    this.cancelRallyPointMode();
+
+    if (this.game.hud) {
+      this.game.hud.showNotification('集结点已设置', 1600);
+    }
+
+    return true;
+  }
+
   canStartProductionCommand(command) {
     if (command.action !== 'produce' && command.action !== 'train') return true;
 
@@ -508,6 +549,7 @@ class ActionPanel {
     if (allVillagers) {
       this.currentSelectedBuilding = null;
       this.cancelGarrisonCommand();
+      this.cancelRallyPointMode();
       this.switchToPreset('villager_commands');
       return;
     }
@@ -537,6 +579,7 @@ class ActionPanel {
   showEmptyPanel() {
     this.currentSelectedBuilding = null;
     this.cancelGarrisonCommand();
+    this.cancelRallyPointMode();
     this.switchToPreset('empty');
   }
 
@@ -653,6 +696,10 @@ class ActionPanel {
       buttons.push(this.getUngarrisonButton());
     }
 
+    if (this.canSetRallyPoint(this.currentSelectedBuilding)) {
+      buttons.push(this.getSetRallyPointButton());
+    }
+
     buttons.push({ id: 'close-production', icon: 'X', type: 'nav' });
     return this.padButtons(buttons);
   }
@@ -683,6 +730,10 @@ class ActionPanel {
       target: unitType
     }));
 
+    if (this.canSetRallyPoint(building)) {
+      buttons.push(this.getSetRallyPointButton());
+    }
+
     if (this.hasGarrisonPanel(building)) {
       buttons.push(this.getUngarrisonButton());
     }
@@ -707,6 +758,20 @@ class ActionPanel {
       type: 'production',
       action: 'ungarrison',
       count: 1
+    };
+  }
+
+  canSetRallyPoint(building) {
+    return Boolean(building?.buildingFeatures?.canTrainUnits?.length || building?.buildingFeatures?.canCreateVillagers);
+  }
+
+  getSetRallyPointButton() {
+    return {
+      id: 'set-rally-point',
+      icon: 'R',
+      name: '设置集结点',
+      type: 'rally',
+      action: 'set_rally_point'
     };
   }
 
