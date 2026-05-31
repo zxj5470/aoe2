@@ -206,6 +206,29 @@
             color: inherit;
         }
 
+        .civilization-tech-row-body {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .civilization-tech-row-name,
+        .civilization-tech-row-desc {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .civilization-tech-row-name {
+            color: inherit;
+        }
+
+        .civilization-tech-row-desc {
+            font-size: 10px;
+            color: #b9965f;
+        }
+
         #production-queue-bar {
             position: absolute;
             top: 32px;

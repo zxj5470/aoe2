@@ -3,7 +3,7 @@ import ResourceDisplay from './ResourceDisplay.js';
 import Minimap from './Minimap.js';
 import ActionPanel from './ActionPanel.js';
 import InfoPanel from './InfoPanel.js';
-import { TECH_CONFIG } from '../config.js';
+import { TECH_CONFIG, getBuildingName } from '../config.js';
 
 class HUD {
   constructor(game) {
@@ -308,7 +308,10 @@ class HUD {
           ${rows.map(([techType, tech]) => `
             <div class="civilization-tech-row ${researched ? 'researched' : 'locked'}">
               <span class="civilization-tech-row-icon">${tech.icon || ''}</span>
-              <span title="${tech.description || ''}">${tech.name || techType}</span>
+              <span class="civilization-tech-row-body">
+                <span class="civilization-tech-row-name">${tech.name || techType}</span>
+                <span class="civilization-tech-row-desc">${getBuildingName(tech.building)} · ${tech.description || ''}</span>
+              </span>
               <span class="civilization-tech-row-state">${researched ? '完成' : '未研发'}</span>
             </div>
           `).join('')}
