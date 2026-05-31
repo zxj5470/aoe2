@@ -136,6 +136,7 @@ class Player {
 
     addUnit(unit) {
         if (!this.units.includes(unit)) {
+            this.applyResearchedTechsToUnit(unit);
             this.units.push(unit);
             const oldPopulation = this.population.current;
             this.population.current++;
@@ -261,6 +262,15 @@ class Player {
                 break;
             case 'town_watch':
                 break;
+            case 'forging':
+            case 'scale_mail_armor':
+            case 'scale_barding_armor':
+            case 'fletching':
+            case 'padded_archer_armor':
+                for (const unit of this.units) {
+                    this.applyTechEffectToUnit(unit, techType);
+                }
+                break;
             case 'mongol_unique_tech': // 蒙古银冠科技：锁定最大人口
                 if (this.hasCiv('mongols')) {
                     this.lockPopulation();
@@ -269,6 +279,54 @@ class Player {
                 break;
             default:
                 console.log(`[Player] 科技 ${techType} 效果已应用`);
+                break;
+        }
+    }
+
+    applyResearchedTechsToUnit(unit) {
+        for (const techType of this.researchedTechs) {
+            this.applyTechEffectToUnit(unit, techType);
+        }
+    }
+
+    applyTechEffectToUnit(unit, techType) {
+        if (!unit || unit.appliedTechs?.has(techType)) return;
+
+        if (!unit.appliedTechs) {
+            unit.appliedTechs = new Set();
+        }
+
+        switch (techType) {
+            case 'forging':
+                if (unit.unitType === 'soldier' || unit.unitType === 'knight' || unit.unitType === 'scout') {
+                    unit.attackDamage += 1;
+                    unit.appliedTechs.add(techType);
+                }
+                break;
+            case 'scale_mail_armor':
+                if (unit.unitType === 'soldier') {
+                    unit.armor += 1;
+                    unit.appliedTechs.add(techType);
+                }
+                break;
+            case 'scale_barding_armor':
+                if (unit.unitType === 'knight' || unit.unitType === 'scout') {
+                    unit.armor += 1;
+                    unit.appliedTechs.add(techType);
+                }
+                break;
+            case 'fletching':
+                if (unit.unitType === 'archer') {
+                    unit.attackDamage += 1;
+                    unit.attackRange += 1;
+                    unit.appliedTechs.add(techType);
+                }
+                break;
+            case 'padded_archer_armor':
+                if (unit.unitType === 'archer') {
+                    unit.armor += 1;
+                    unit.appliedTechs.add(techType);
+                }
                 break;
         }
     }

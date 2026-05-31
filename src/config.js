@@ -68,6 +68,49 @@ export const TOWN_CENTER_ACTIONS = Object.freeze({
     RESEARCH_TOWN_WATCH: 'research-town-watch',
 });
 
+export const TECH_CONFIG = Object.freeze({
+    forging: {
+        name: 'Forging',
+        icon: 'Fg',
+        building: BUILDING_TYPES.BLACKSMITH,
+        cost: { food: 150, gold: 100 },
+        time: 40,
+        description: 'Infantry and cavalry attack +1'
+    },
+    scale_mail_armor: {
+        name: 'Scale Mail',
+        icon: 'Sm',
+        building: BUILDING_TYPES.BLACKSMITH,
+        cost: { food: 100, gold: 50 },
+        time: 40,
+        description: 'Infantry armor +1'
+    },
+    scale_barding_armor: {
+        name: 'Barding',
+        icon: 'Bd',
+        building: BUILDING_TYPES.BLACKSMITH,
+        cost: { food: 150, gold: 100 },
+        time: 45,
+        description: 'Cavalry armor +1'
+    },
+    fletching: {
+        name: 'Fletching',
+        icon: 'Fl',
+        building: BUILDING_TYPES.BLACKSMITH,
+        cost: { food: 100, gold: 50 },
+        time: 35,
+        description: 'Archers attack and range +1'
+    },
+    padded_archer_armor: {
+        name: 'Padded Armor',
+        icon: 'Pa',
+        building: BUILDING_TYPES.BLACKSMITH,
+        cost: { food: 100, gold: 50 },
+        time: 40,
+        description: 'Archers armor +1'
+    }
+});
+
 // 建筑统一配置（单一数据源）
 // width - 占地宽度（X轴格子数）
 // depth - 占地纵深（Z轴格子数）
@@ -393,7 +436,7 @@ export const MAP_CONFIG = {
 // 游戏配置
 export const GAME_CONFIG = {
     defaultResources: {
-        gold: 0,
+        gold: 200,
         wood: 0,
         food: 0,
         stone: 0

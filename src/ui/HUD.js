@@ -3,6 +3,7 @@ import ResourceDisplay from './ResourceDisplay.js';
 import Minimap from './Minimap.js';
 import ActionPanel from './ActionPanel.js';
 import InfoPanel from './InfoPanel.js';
+import { TECH_CONFIG } from '../config.js';
 
 class HUD {
   constructor(game) {
@@ -13,6 +14,8 @@ class HUD {
     this.minimap = new Minimap(game);
     this.actionPanel = new ActionPanel(game);
     this.infoPanel = new InfoPanel(game);
+    this.civilizationTechWidget = document.getElementById('civilization-tech-widget');
+    this.civilizationTechWidgetSignature = '';
     
     this.selectionListenerBound = false;
     this.ageDisplayCameraControl = null;
@@ -29,6 +32,7 @@ class HUD {
     this.setupEventListeners();
     this.setupMouseTracking();
     this.setupAgeDisplayCameraControl();
+    this.updateCivilizationTechWidget();
   }
 
   setupEventListeners() {
@@ -107,6 +111,7 @@ class HUD {
     this.infoPanel.updateDebugPanel(this.actionPanel.getBuildingPanelConfig());
     this.updateAgeDisplayCameraControl(deltaTime);
     this.updateProductionProgressUI();
+    this.updateCivilizationTechWidget();
   }
 
   updateUnitInfoPanel() {
@@ -248,6 +253,73 @@ class HUD {
     }
 
     container.innerHTML = html;
+  }
+
+  updateCivilizationTechWidget() {
+    if (!this.civilizationTechWidget || !this.game.player) return;
+
+    const civId = this.game.player.civilization || this.game.selectedCivilization || 'franks';
+    const civName = this.getCivilizationName(civId);
+    const civInitial = civName.slice(0, 2).toUpperCase();
+    const researched = this.game.player.researchedTechs || new Set();
+    const blacksmithTechs = Object.entries(TECH_CONFIG)
+      .filter(([, tech]) => tech.building === 'blacksmith');
+    const researchedRows = blacksmithTechs.filter(([techType]) => researched.has(techType));
+    const lockedRows = blacksmithTechs.filter(([techType]) => !researched.has(techType));
+    const signature = `${civId}:${[...researched].sort().join(',')}`;
+    if (signature === this.civilizationTechWidgetSignature) return;
+
+    this.civilizationTechWidget.innerHTML = `
+      <div class="civilization-tech-icon">${civInitial}</div>
+      <div class="civilization-tech-dropdown">
+        <div class="civilization-tech-heading">${civName}</div>
+        ${this.renderTechSection('已研发科技', researchedRows, true)}
+        ${this.renderTechSection('未研发科技', lockedRows, false)}
+      </div>
+    `;
+    this.civilizationTechWidgetSignature = signature;
+  }
+
+  renderTechSection(title, rows, researched) {
+    if (!rows.length) {
+      return `
+        <div class="civilization-tech-section">
+          <div class="civilization-tech-section-title">${title}</div>
+          <div class="civilization-tech-row locked">
+            <span class="civilization-tech-row-icon">-</span>
+            <span>无</span>
+            <span class="civilization-tech-row-state"></span>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="civilization-tech-section">
+        <div class="civilization-tech-section-title">${title}</div>
+        <div class="civilization-tech-list">
+          ${rows.map(([techType, tech]) => `
+            <div class="civilization-tech-row ${researched ? 'researched' : 'locked'}">
+              <span class="civilization-tech-row-icon">${tech.icon || ''}</span>
+              <span>${tech.name || techType}</span>
+              <span class="civilization-tech-row-state">${researched ? '完成' : '未研发'}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  getCivilizationName(civId) {
+    const names = {
+      franks: 'Franks',
+      spanish: 'Spanish',
+      celts: 'Celts',
+      huns: 'Huns',
+      mongols: 'Mongols',
+      khmer: 'Khmer'
+    };
+    return names[civId] || civId;
   }
 }
 

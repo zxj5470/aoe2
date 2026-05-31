@@ -1,4 +1,4 @@
-import { BUILDING_TYPES, BUILDING_CONFIG, TOWN_CENTER_ACTIONS, normalizeBuildingType, getBuildingName, getBuildingDesc, getAgeName } from '../config.js';
+import { BUILDING_TYPES, BUILDING_CONFIG, TOWN_CENTER_ACTIONS, TECH_CONFIG, normalizeBuildingType, getBuildingName, getBuildingDesc, getAgeName } from '../config.js';
 
 class ActionPanel {
   constructor(game) {
@@ -491,12 +491,27 @@ class ActionPanel {
   }
 
   canStartProductionCommand(command) {
-    if (command.action !== 'produce' && command.action !== 'train') return true;
-
     if (this.currentSelectedBuilding.isUnderConstruction) {
       console.warn('[ActionPanel] Building is still under construction');
       return false;
     }
+
+    if (command.action === 'research') {
+      if (this.game.player?.hasResearched(command.target)) {
+        console.warn('[ActionPanel] Technology already researched:', command.target);
+        return false;
+      }
+
+      if (this.currentSelectedBuilding.currentProduction?.techType === command.target ||
+          this.currentSelectedBuilding.productionQueue?.some(item => item.techType === command.target)) {
+        console.warn('[ActionPanel] Technology is already queued:', command.target);
+        return false;
+      }
+
+      return true;
+    }
+
+    if (command.action !== 'produce' && command.action !== 'train') return true;
 
     if (this.game.player && !this.game.player.canTrainUnit()) {
       console.warn('[ActionPanel] Population is full');
@@ -719,6 +734,10 @@ class ActionPanel {
       return this.padButtons(buttons);
     }
 
+    if (building.buildingType === BUILDING_TYPES.BLACKSMITH) {
+      return this.getBlacksmithProductionPreset();
+    }
+
     const trainableUnits = building?.buildingFeatures?.canTrainUnits || [];
     const buttons = trainableUnits.map(unitType => ({
       id: `train-${unitType}`,
@@ -785,7 +804,32 @@ class ActionPanel {
   }
 
   hasBuildingProductionPreset(building) {
-    return !!(building?.buildingFeatures?.canTrainUnits?.length) || this.hasGarrisonPanel(building);
+    return building?.buildingType === BUILDING_TYPES.BLACKSMITH ||
+      !!(building?.buildingFeatures?.canTrainUnits?.length) ||
+      this.hasGarrisonPanel(building);
+  }
+
+  getBlacksmithProductionPreset() {
+    const buttons = Object.entries(TECH_CONFIG)
+      .filter(([, tech]) => tech.building === BUILDING_TYPES.BLACKSMITH)
+      .filter(([techType]) => !this.game.player?.hasResearched(techType) && !this.isTechQueued(techType))
+      .map(([techType, tech]) => ({
+        id: `research-${techType}`,
+        icon: tech.icon,
+        name: tech.name,
+        type: 'research',
+        cost: tech.cost,
+        action: 'research',
+        target: techType
+      }));
+
+    buttons.push({ id: 'close-production', icon: 'X', name: 'Close', type: 'nav' });
+    return this.padButtons(buttons);
+  }
+
+  isTechQueued(techType) {
+    return this.currentSelectedBuilding?.currentProduction?.techType === techType ||
+      this.currentSelectedBuilding?.productionQueue?.some(item => item.techType === techType);
   }
 
   getUnitTrainingTime(unitType) {
@@ -837,6 +881,8 @@ class ActionPanel {
   }
 
   getResearchTime(techType) {
+    if (TECH_CONFIG[techType]) return TECH_CONFIG[techType].time;
+
     const times = {
       loom: 30,
       town_watch: 45,

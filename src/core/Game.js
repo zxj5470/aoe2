@@ -309,7 +309,7 @@ class Game {
         this.player = new Player({
             id: HUMAN_OWNER,
             name: '玩家',
-            gold: 0,
+            gold: 200,
             wood: 200,    // 初始给一些资源用于测试
             food: 200,
             stone: 100,
@@ -995,6 +995,9 @@ class Game {
     applyResearch(building, techType) {
         if (this.player) {
             this.player.completeResearch(techType);
+        }
+        if (this.hud?.actionPanel?.currentSelectedBuilding === building) {
+            this.hud.actionPanel.switchToPreset(`${building.buildingType}_production`);
         }
         console.log(`[Game] 科技研究完成: ${techType}`);
     }
