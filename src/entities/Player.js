@@ -281,6 +281,7 @@ class Player {
             case 'man_at_arms_upgrade':
             case 'longsword_upgrade':
             case 'supplies':
+            case 'gambesons':
             case 'arson':
             case 'light_cavalry_upgrade':
             case 'hussar_upgrade':
@@ -368,8 +369,10 @@ class Player {
                 }
                 break;
             case 'supplies':
+            case 'gambesons':
                 if (unit.unitType === 'soldier') {
                     unit.maxHealth += 5;
+                    unit.armor += techType === 'gambesons' ? 1 : 0;
                     unit.health = Math.min(unit.health + 5, unit.maxHealth);
                     unit.appliedTechs.add(techType);
                 }

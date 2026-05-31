@@ -16,6 +16,7 @@ class HUD {
     this.infoPanel = new InfoPanel(game);
     this.civilizationTechWidget = document.getElementById('civilization-tech-widget');
     this.civilizationTechWidgetSignature = '';
+    this.civilizationTechHideTimer = null;
     
     this.selectionListenerBound = false;
     this.ageDisplayCameraControl = null;
@@ -273,6 +274,38 @@ class HUD {
       </div>
     `;
     this.civilizationTechWidgetSignature = signature;
+    this.setupCivilizationTechHover();
+  }
+
+  setupCivilizationTechHover() {
+    if (!this.civilizationTechWidget) return;
+
+    this.civilizationTechWidget.onmouseenter = () => {
+      this.showCivilizationTechWidget();
+    };
+    this.civilizationTechWidget.onmouseleave = () => {
+      this.scheduleHideCivilizationTechWidget();
+    };
+  }
+
+  showCivilizationTechWidget() {
+    if (!this.civilizationTechWidget) return;
+    if (this.civilizationTechHideTimer) {
+      clearTimeout(this.civilizationTechHideTimer);
+      this.civilizationTechHideTimer = null;
+    }
+    this.civilizationTechWidget.classList.add('open');
+  }
+
+  scheduleHideCivilizationTechWidget() {
+    if (!this.civilizationTechWidget) return;
+    if (this.civilizationTechHideTimer) {
+      clearTimeout(this.civilizationTechHideTimer);
+    }
+    this.civilizationTechHideTimer = setTimeout(() => {
+      this.civilizationTechWidget.classList.remove('open');
+      this.civilizationTechHideTimer = null;
+    }, 2000);
   }
 
   getTechnologyLines(researched) {

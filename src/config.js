@@ -321,6 +321,18 @@ export const TECH_CONFIG = Object.freeze({
         time: 35,
         description: '降低步兵训练消耗'
     },
+    gambesons: {
+        name: '布甲',
+        icon: '布',
+        building: BUILDING_TYPES.BARRACKS,
+        line: 'infantry_pierce_armor',
+        lineName: '步兵布甲',
+        tier: 1,
+        maxTier: 1,
+        cost: { food: 100, gold: 100 },
+        time: 40,
+        description: '步兵护甲提高'
+    },
     arson: {
         name: '纵火',
         icon: '火',
