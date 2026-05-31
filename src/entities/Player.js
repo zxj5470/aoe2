@@ -203,6 +203,7 @@ class Player {
         // 匈奴：固定最大人口，不需要房屋
         if (this.hasCiv('huns')) {
             console.log(`[Player] 匈奴文明，跳过人口计算`);
+            this.setMaxPopulation(200);
             return;
         }
 

@@ -64,6 +64,7 @@ class Game {
         this.mapGenerator = null;
         this.mapSelectionPanel = null;
         this.selectedMapType = 'arabia';
+        this.selectedCivilization = 'generic';
 
         this.spatialIndex = null;
 
@@ -225,9 +226,10 @@ class Game {
         this.mapGenerator = new MapGenerator();
         this.mapSelectionPanel = new MapSelectionPanel(this);
         
-        this.mapSelectionPanel.setOnMapSelected((mapType) => {
+        this.mapSelectionPanel.setOnMapSelected((mapType, civilization) => {
             this.selectedMapType = mapType;
-            console.log(`地图选择完成: ${mapType}`);
+            this.selectedCivilization = civilization || this.selectedCivilization;
+            console.log(`地图选择完成: ${mapType}, 文明: ${this.selectedCivilization}`);
         });
     }
 
@@ -235,9 +237,10 @@ class Game {
         return new Promise((resolve) => {
             this.mapSelectionPanel.show();
             
-            this.mapSelectionPanel.setOnMapSelected((mapType) => {
+            this.mapSelectionPanel.setOnMapSelected((mapType, civilization) => {
                 this.selectedMapType = mapType;
-                console.log(`已选择地图: ${mapType}`);
+                this.selectedCivilization = civilization || this.selectedCivilization;
+                console.log(`已选择地图: ${mapType}, 文明: ${this.selectedCivilization}`);
                 resolve();
             });
         });
@@ -296,6 +299,7 @@ class Game {
             wood: 200,    // 初始给一些资源用于测试
             food: 200,
             stone: 100,
+            civilization: this.selectedCivilization,
             maxPopulation: 0  // 由建筑数量计算得出
         });
 
