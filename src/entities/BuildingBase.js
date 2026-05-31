@@ -215,6 +215,7 @@ class BuildingBase extends Entity {
 
         this.rallyFlag.position.copy(this.rallyPoint);
         this.rallyFlag.position.y = 0.05;
+        this.rallyFlag.visible = Boolean(this.isSelected);
     }
 
     getReleasePosition(index = 0) {
@@ -550,6 +551,9 @@ class BuildingBase extends Entity {
         if (this.selectionRing) {
             this.selectionRing.visible = this.isSelected;
         }
+        if (this.rallyFlag) {
+            this.rallyFlag.visible = this.isSelected;
+        }
     }
     
     takeDamage(amount) {
@@ -584,6 +588,7 @@ class BuildingBase extends Entity {
         if (this.selectionGlow) {
             this.selectionGlow.visible = false;
         }
+        this.clearRallyPoint();
         this.hideHealthBar();
         
         if (this.mesh) {
