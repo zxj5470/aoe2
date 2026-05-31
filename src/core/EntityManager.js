@@ -14,6 +14,9 @@ class EntityManager {
         entity._game = this.game;
         this.entities.push(entity);
         this.game.scene.addEntity(entity);
+        if (this.game.fogOfWarSystem && !this.game.fogOfWarSystem.initialized) {
+            this.game.fogOfWarSystem.prepareEntityForFog(entity);
+        }
 
         if (this.game.collisionSystem) {
             if (entity.type === 'building' || entity.type === 'resource' || entity.type === 'unit') {

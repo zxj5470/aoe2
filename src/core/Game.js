@@ -58,6 +58,7 @@ class Game {
         this.combatSystem = null;
         this.resourceGatheringSystem = null;
         this.collisionSystem = null;
+        this.fogOfWarSystem = null;
         this.aiSystem = null;
         this.hud = null;
 
@@ -81,6 +82,7 @@ class Game {
 
     async init() {
         this.canvas = document.getElementById('canvas');
+        this.canvas.style.visibility = 'hidden';
         
         this.initRenderer();
         
@@ -116,6 +118,7 @@ class Game {
         this.buildingPlacementSystem = this.systemManager.getBuildingPlacementSystem();
         this.resourceGatheringSystem = this.systemManager.getResourceGatheringSystem();
         this.collisionSystem = this.systemManager.getCollisionSystem();
+        this.fogOfWarSystem = this.systemManager.getFogOfWarSystem();
 
         // 【重要修复】在 CollisionSystem 初始化之后生成实体
         // 这样可以确保所有资源节点都能正确注册到碰撞系统
@@ -140,6 +143,12 @@ class Game {
 
         // 相机默认定位到我方城镇中心
         this.centerCameraOnTownCenter();
+        if (this.fogOfWarSystem) {
+            this.fogOfWarSystem.refreshVisibility();
+            this.fogOfWarSystem.redrawFogTexture();
+            this.fogOfWarSystem.updateEntityVisibility();
+            this.fogOfWarSystem.initialized = true;
+        }
         // 初始化资源管理器引用（player 在 initEntities 中创建，ResourceGatheringSystem 在此之前）
         if (this.resourceGatheringSystem) {
             this.resourceGatheringSystem.resourceManager = this.resourceManager;
@@ -157,9 +166,10 @@ class Game {
         // 初始化人口显示（在事件监听器设置之后）
         this.updatePopulationDisplay();
 
-        this.hideLoadingScreen();
-
+        this.render();
+        this.canvas.style.visibility = 'visible';
         this.start();
+        this.hideLoadingScreen();
     }
 
     initRenderer() {
@@ -367,6 +377,7 @@ class Game {
         this.buildingPlacementSystem = this.systemManager.getBuildingPlacementSystem();
         this.resourceGatheringSystem = this.systemManager.getResourceGatheringSystem();
         this.collisionSystem = this.systemManager.getCollisionSystem();
+        this.fogOfWarSystem = this.systemManager.getFogOfWarSystem();
     }
 
     setupEventListeners() {
@@ -613,7 +624,11 @@ class Game {
             
             while (currentObj) {
                 if (currentObj.userData && currentObj.userData.entity) {
-                    return currentObj.userData.entity;
+                    const entity = currentObj.userData.entity;
+                    if (!this.fogOfWarSystem || this.fogOfWarSystem.isEntitySelectable(entity)) {
+                        return entity;
+                    }
+                    break;
                 }
                 currentObj = currentObj.parent;
             }
@@ -648,7 +663,9 @@ class Game {
 
         console.log('[handleRightClick] worldPos:', worldPos, 'selectedEntities:', this.selectionManager.selectedEntities.length, 'type:', this.selectionManager.selectionType);
 
-        const nearbyEntities = this.spatialIndex.queryPoint(worldPos.x, worldPos.z, 1.5);
+        const nearbyEntities = this.spatialIndex
+            .queryPoint(worldPos.x, worldPos.z, 1.5)
+            .filter(entity => !this.fogOfWarSystem || this.fogOfWarSystem.isEntitySelectable(entity));
 
         // 如果选中的是已方绵羊，右键移动它
         if (this.selectionManager.selectionType === 'resource' &&
@@ -793,6 +810,7 @@ class Game {
         for (const entity of this.entityManager.getEntities()) {
             if (!entity.isAlive) continue;
             if (!entity.mesh) continue;
+            if (this.fogOfWarSystem && !this.fogOfWarSystem.isEntitySelectable(entity)) continue;
             
             const entityPosition = entity.getPosition();
             const screenPosition = entityPosition.clone().project(this.camera.getCamera());
@@ -951,6 +969,7 @@ class Game {
         console.log('[handleEntitySelection] actualEntity:', actualEntity, 'isAlive:', actualEntity?.isAlive);
 
         if (!actualEntity || !actualEntity.isAlive) return;
+        if (this.fogOfWarSystem && !this.fogOfWarSystem.isEntitySelectable(actualEntity)) return;
 
         this.selectionManager.selectEntity(actualEntity, addToSelection);
     }

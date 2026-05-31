@@ -43,6 +43,7 @@ class ResourceNode extends Entity {
 
         // 绵羊检测（必须在 getAppearanceConfig 之前）
         this.isSheep = config.name && config.name.startsWith('sheep_');
+        this.visionRange = this.isSheep ? 2 : 0;
 
         // 根据资源类型设置外观配置
         this.appearanceConfig = this.getAppearanceConfig();
@@ -994,6 +995,11 @@ class ResourceNode extends Entity {
     updateVisualBasedOnAmount() {
         if (!this.mesh) return;
 
+        if (!this.isSheep && this.shouldUseFogKnownResourceState()) {
+            this.applyFogKnownResourceVisual();
+            return;
+        }
+
         const remainingRatio = Math.min(this.amount / this.maxAmount, 1);
 
         if (this.isSheep) {
@@ -1006,6 +1012,36 @@ class ResourceNode extends Entity {
 
         // 如果是灌木，减少浆果数量
         if (this.resourceType === 'food' && this.berryMeshes) {
+            const visibleBerryCount = Math.floor(this.berryMeshes.length * remainingRatio);
+            this.berryMeshes.forEach((berry, index) => {
+                berry.visible = index < visibleBerryCount;
+            });
+        }
+    }
+
+    shouldUseFogKnownResourceState() {
+        const fog = this._game?.fogOfWarSystem;
+        return Boolean(
+            fog &&
+            this.fogKnownResourceState &&
+            fog.isPositionExplored(this.position) &&
+            !fog.isPositionVisible(this.position)
+        );
+    }
+
+    applyFogKnownResourceVisual() {
+        const state = this.fogKnownResourceState;
+        if (!state) return;
+
+        if (state.scale) {
+            this.mesh.scale.copy(state.scale);
+        } else if (Number.isFinite(state.amount) && Number.isFinite(state.maxAmount) && state.maxAmount > 0) {
+            const remainingRatio = Math.max(0.2, Math.min(state.amount / state.maxAmount, 1));
+            this.mesh.scale.setScalar(remainingRatio);
+        }
+
+        if (this.resourceType === 'food' && this.berryMeshes && Number.isFinite(state.amount) && Number.isFinite(state.maxAmount)) {
+            const remainingRatio = Math.min(state.amount / state.maxAmount, 1);
             const visibleBerryCount = Math.floor(this.berryMeshes.length * remainingRatio);
             this.berryMeshes.forEach((berry, index) => {
                 berry.visible = index < visibleBerryCount;
@@ -1064,7 +1100,12 @@ class ResourceNode extends Entity {
         
         // 隐藏资源
         if (this.mesh) {
-            this.mesh.visible = false;
+            if (this.shouldUseFogKnownResourceState()) {
+                this.applyFogKnownResourceVisual();
+                this.mesh.visible = true;
+            } else {
+                this.mesh.visible = false;
+            }
         }
         
         console.log(`${this.name} 资源已耗尽`);
@@ -1080,8 +1121,13 @@ class ResourceNode extends Entity {
         
         // 显示资源
         if (this.mesh) {
-            this.mesh.visible = true;
-            this.mesh.scale.setScalar(1);
+            if (this.shouldUseFogKnownResourceState()) {
+                this.applyFogKnownResourceVisual();
+                this.mesh.visible = true;
+            } else {
+                this.mesh.visible = true;
+                this.mesh.scale.setScalar(1);
+            }
         }
         
         // 恢复浆果

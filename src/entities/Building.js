@@ -40,6 +40,12 @@ class Building extends BuildingBase {
 
         // 如果有目标且目标存活，检查是否在攻击范围内
         if (this.targetEntity && this.targetEntity.isAlive) {
+            if (this.isPlayerOwned() && !this._game?.fogOfWarSystem?.isEntityVisible(this.targetEntity)) {
+                this.targetEntity = null;
+                this.isAttacking = false;
+                return;
+            }
+
             const distance = this.position.distanceTo(this.targetEntity.position);
 
             if (distance > this.attackRange) {

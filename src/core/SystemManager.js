@@ -6,6 +6,7 @@ import CombatSystem from '../systems/CombatSystem.js';
 import ResourceGatheringSystem from '../systems/ResourceGatheringSystem.js';
 import CollisionSystem from '../systems/CollisionSystem.js';
 import AISystem from '../systems/AISystem.js';
+import FogOfWarSystem from '../systems/FogOfWarSystem.js';
 import SpatialIndex from './SpatialIndex.js';
 
 class SystemManager {
@@ -21,12 +22,13 @@ class SystemManager {
         this.buildingPlacementSystem = null;
         this.resourceGatheringSystem = null;
         this.collisionSystem = null;
+        this.fogOfWarSystem = null;
     }
 
     initIndependentSystems() {
         this.spatialIndex = new SpatialIndex();
         this.formationSystem = new FormationSystem();
-        this.combatSystem = new CombatSystem();
+        this.combatSystem = new CombatSystem(this.game);
         this.aiSystem = new AISystem(this.game);
     }
 
@@ -50,6 +52,7 @@ class SystemManager {
         );
 
         this.collisionSystem = new CollisionSystem(this.game.map);
+        this.fogOfWarSystem = new FogOfWarSystem(this.game);
     }
 
     update(deltaTime) {
@@ -76,6 +79,10 @@ class SystemManager {
 
         if (this.resourceGatheringSystem) {
             this.resourceGatheringSystem.update(deltaTime);
+        }
+
+        if (this.fogOfWarSystem) {
+            this.fogOfWarSystem.update(deltaTime);
         }
     }
 
@@ -113,6 +120,10 @@ class SystemManager {
 
     getCollisionSystem() {
         return this.collisionSystem;
+    }
+
+    getFogOfWarSystem() {
+        return this.fogOfWarSystem;
     }
 }
 

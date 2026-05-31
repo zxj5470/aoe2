@@ -60,6 +60,7 @@ class Minimap {
 
     for (const entity of this.game.entities) {
       if (!entity.isAlive) continue;
+      if (!this.shouldDrawEntity(entity)) continue;
       
       if (entity.type === 'unit') {
         ctx.fillStyle = getPlayerColor(entity.owner);
@@ -81,9 +82,47 @@ class Minimap {
       }
     }
 
+    this.drawFogOverlay(ctx, mapSize);
     this.drawCameraViewport(ctx);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  shouldDrawEntity(entity) {
+    const fog = this.game.fogOfWarSystem;
+    if (!fog) return true;
+
+    if (entity.isPlayerOwned?.()) return true;
+
+    if (entity.type === 'building') {
+      return fog.isPositionVisible(entity.position) || fog.isPositionExplored(entity.position);
+    }
+
+    if (entity.type === 'resource') {
+      if (entity.isSheep) {
+        return entity.isPlayerOwned?.() || fog.isPositionVisible(entity.position);
+      }
+      return fog.isPositionVisible(entity.position) ||
+        (fog.isPositionExplored(entity.position) && entity.fogKnownResourceState && !entity.fogKnownResourceState.isDepleted);
+    }
+
+    return fog.isPositionVisible(entity.position);
+  }
+
+  drawFogOverlay(ctx, mapSize) {
+    const fog = this.game.fogOfWarSystem;
+    if (!fog?.canvas) return;
+
+    const minX = -mapSize.width / 2;
+    const minZ = -mapSize.height / 2;
+
+    ctx.drawImage(
+      fog.canvas,
+      minX,
+      minZ,
+      mapSize.width,
+      mapSize.height
+    );
   }
 
   drawCameraViewport(ctx) {

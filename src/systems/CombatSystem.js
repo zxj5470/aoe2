@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { OWNER_TO_PLAYER_ID } from '../config.js';
 
 class CombatSystem {
-    constructor() {
+    constructor(game = null) {
+        this.game = game;
         this.combatants = [];
         this.projectiles = [];
         
@@ -74,6 +75,12 @@ class CombatSystem {
         const target = attacker.targetEntity;
         
         if (!target || !target.isAlive) {
+            attacker.isAttacking = false;
+            attacker.targetEntity = null;
+            return;
+        }
+
+        if (!this.canEngageTarget(attacker, target)) {
             attacker.isAttacking = false;
             attacker.targetEntity = null;
             return;
@@ -181,6 +188,7 @@ class CombatSystem {
             const attackerPlayerId = OWNER_TO_PLAYER_ID[attacker.owner];
             const targetPlayerId = OWNER_TO_PLAYER_ID[combatant.owner];
             if (attackerPlayerId === targetPlayerId) continue;
+            if (!this.canEngageTarget(attacker, combatant)) continue;
             
             const distance = attacker.position.distanceTo(combatant.position);
             
@@ -213,6 +221,17 @@ class CombatSystem {
         damage = Math.max(1, damage - target.armor);
         
         return damage;
+    }
+
+    canEngageTarget(attacker, target) {
+        const fog = this.game?.fogOfWarSystem;
+        if (!fog || !attacker || !target) return true;
+
+        if (typeof attacker.isPlayerOwned === 'function' && attacker.isPlayerOwned()) {
+            return fog.isEntityVisible(target);
+        }
+
+        return true;
     }
 
     createProjectile(attacker, target) {
