@@ -194,24 +194,35 @@ class Minimap {
 
   handleClick(event) {
     if (!this.game.map || !this.game.camera) return;
-    
+
     const mapSize = this.game.map.getSize();
     const minX = -mapSize.width / 2;
     const maxX = mapSize.width / 2;
     const minZ = -mapSize.height / 2;
     const maxZ = mapSize.height / 2;
-    
+
     const rect = this.canvas.getBoundingClientRect();
-    const clickX = event.clientX - rect.left;
-    const clickY = event.clientY - rect.top;
+    const scaleX = this.canvas.width / rect.width;
+    const scaleY = this.canvas.height / rect.height;
+    const clickX = (event.clientX - rect.left) * scaleX;
+    const clickY = (event.clientY - rect.top) * scaleY;
+
+    const { x: worldX, z: worldZ } = this.canvasToWorld(clickX, clickY);
     
-    const worldX = minX + (clickX / this.canvas.width) * (maxX - minX);
-    const worldZ = minZ + (clickY / this.canvas.height) * (maxZ - minZ);
-    
-    this.game.camera.target.x = worldX;
-    this.game.camera.target.z = worldZ;
+    this.game.camera.target.x = Math.max(minX, Math.min(maxX, worldX));
+    this.game.camera.target.z = Math.max(minZ, Math.min(maxZ, worldZ));
     this.game.camera.target.y = 0;
     this.game.camera.updateCameraPosition();
+  }
+
+  canvasToWorld(canvasX, canvasY) {
+    const dx = canvasX - 100;
+    const dy = canvasY - 100;
+
+    return {
+      x: dx + dy / 0.75,
+      z: dy / 0.75 - dx
+    };
   }
 }
 
