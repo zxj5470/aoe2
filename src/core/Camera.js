@@ -15,6 +15,7 @@ class Camera {
         this.minZoom = 20;
         this.maxZoom = 150;
         this.zoomLevel = 50;
+        this.wheelZoomSpeed = 0.035;
         this.moveSpeed = 30;
         this.borderScrollMargin = 20;
         
@@ -295,7 +296,7 @@ class Camera {
     }
 
     handleWheel(event) {
-        const zoomAmount = event.deltaY * 0.1;
+        const zoomAmount = event.deltaY * this.wheelZoomSpeed;
         this.zoom(zoomAmount);
     }
 

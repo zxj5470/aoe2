@@ -36,7 +36,6 @@ class InputHandler {
         this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
         this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
         this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
-        this.canvas.addEventListener('wheel', (e) => this.onWheel(e));
         this.canvas.addEventListener('contextmenu', (e) => this.onContextMenu(e));
         
         // 触摸事件（移动设备支持）
@@ -127,8 +126,6 @@ class InputHandler {
 
     onWheel(event) {
         event.preventDefault();
-        const zoomAmount = event.deltaY * 0.1;
-        this.camera.zoom(zoomAmount);
     }
 
     onContextMenu(event) {
