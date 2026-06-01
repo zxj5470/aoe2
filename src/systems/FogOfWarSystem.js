@@ -41,6 +41,8 @@ class FogOfWarSystem {
 
         this.explored = new Uint8Array(this.cellCount);
         this.visible = new Uint8Array(this.cellCount);
+        this.cheatExplored = false;
+        this.cheatVisible = false;
 
         this.updateInterval = 0.2;
         this.updateTimer = this.updateInterval;
@@ -103,6 +105,15 @@ class FogOfWarSystem {
 
     refreshVisibility() {
         this.visible.fill(0);
+
+        if (this.cheatExplored || this.cheatVisible) {
+            this.explored.fill(1);
+        }
+
+        if (this.cheatVisible) {
+            this.visible.fill(1);
+            return;
+        }
 
         for (const entity of this.game.entities) {
             if (!entity?.isAlive || !this.isFriendlyVisionSource(entity)) continue;
@@ -199,6 +210,14 @@ class FogOfWarSystem {
     }
 
     updateEntityVisibility() {
+        if (this.cheatVisible) {
+            for (const entity of this.game.entities) {
+                if (!entity?.mesh || !entity.isAlive) continue;
+                this.setEntityFogVisible(entity, true);
+            }
+            return;
+        }
+
         for (const entity of this.game.entities) {
             if (!entity?.mesh || !entity.isAlive) continue;
 
@@ -235,6 +254,10 @@ class FogOfWarSystem {
         if (entity.isSheep) {
             this.setEntityFogVisible(entity, isVisible || entity.isPlayerOwned?.());
             return;
+        }
+
+        if ((this.cheatExplored || this.cheatVisible) && !entity.fogKnownResourceState) {
+            entity.fogKnownResourceState = this.captureResourceState(entity);
         }
 
         if (isVisible) {
@@ -306,34 +329,75 @@ class FogOfWarSystem {
 
     isEntityVisible(entity) {
         if (!entity || !entity.isAlive) return false;
+        if (this.cheatVisible) return true;
         if (typeof entity.isPlayerOwned === 'function' && entity.isPlayerOwned()) return true;
         return this.isPositionVisible(entity.position);
     }
 
     isEntitySelectable(entity) {
         if (!entity || !entity.isAlive) return false;
+        if (this.cheatVisible) return true;
         if (typeof entity.isPlayerOwned === 'function' && entity.isPlayerOwned()) return true;
         return this.isPositionVisible(entity.position);
     }
 
     isPositionVisible(position) {
+        if (this.cheatVisible) return true;
         const cell = this.worldToCell(position);
         return !!cell && this.isCellVisible(cell.x, cell.y);
     }
 
     isPositionExplored(position) {
+        if (this.cheatExplored || this.cheatVisible) return true;
         const cell = this.worldToCell(position);
         return !!cell && this.isCellExplored(cell.x, cell.y);
     }
 
     isCellVisible(x, y) {
+        if (this.cheatVisible) return true;
         if (!this.isInBounds(x, y)) return false;
         return this.visible[this.getIndex(x, y)] === 1;
     }
 
     isCellExplored(x, y) {
+        if (this.cheatExplored || this.cheatVisible) return true;
         if (!this.isInBounds(x, y)) return false;
         return this.explored[this.getIndex(x, y)] === 1;
+    }
+
+    toggleCheatExplored() {
+        this.cheatExplored = !this.cheatExplored;
+        if (this.cheatExplored) {
+            this.explored.fill(1);
+            this.captureAllExploredMapElements();
+        }
+        this.refreshVisibility();
+        this.redrawFogTexture();
+        this.updateEntityVisibility();
+        return this.cheatExplored;
+    }
+
+    toggleCheatVisible() {
+        this.cheatVisible = !this.cheatVisible;
+        if (this.cheatVisible) {
+            this.cheatExplored = true;
+            this.explored.fill(1);
+            this.visible.fill(1);
+            this.captureAllExploredMapElements();
+        }
+        this.refreshVisibility();
+        this.redrawFogTexture();
+        this.updateEntityVisibility();
+        return this.cheatVisible;
+    }
+
+    captureAllExploredMapElements() {
+        for (const entity of this.game.entities) {
+            if (!entity?.isAlive) continue;
+            if (entity.type === 'resource' && !entity.isSheep) {
+                entity.fogKnownResourceState = this.captureResourceState(entity);
+            }
+        }
     }
 
     worldToCell(position) {

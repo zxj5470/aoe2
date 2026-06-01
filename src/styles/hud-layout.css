@@ -4,7 +4,7 @@
     left: 0;
     right: 0;
     height: 180px;
-    pointer-events: auto;
+    pointer-events: none;
     z-index: 100;
 }
 
@@ -39,6 +39,7 @@
     flex-direction: column;
     background: rgba(232, 240, 159, 0.178);
     padding: 10px;
+    pointer-events: auto;
 }
 
 .hud-panel-center {
@@ -188,6 +189,7 @@
     align-items: center;
     justify-content: center;
     background: rgba(232, 240, 159, 0.178);
+    pointer-events: auto;
 }
 
 /* 标题栏相机控制区域 */

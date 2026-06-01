@@ -39,6 +39,7 @@ class HUD {
     this.ageDisplayCameraControl = null;
     this.centerInfoCollapsed = false;
     this.chatActive = false;
+    this.chatHideTimer = null;
     
     this.init();
   }
@@ -172,14 +173,38 @@ class HUD {
 
     const message = this.chatInput.value.trim();
     if (message) {
-      this.addChatMessage(message);
+      if (!this.executeChatCommand(message)) {
+        this.addChatMessage(message);
+      }
     }
 
     this.closeChatInput();
   }
 
+  executeChatCommand(message) {
+    const command = message.trim().toLowerCase();
+    const fog = this.game.fogOfWarSystem;
+    if (!fog) return false;
+
+    if (command === 'marco') {
+      const enabled = fog.toggleCheatExplored();
+      this.addChatMessage(`marco: ${enabled ? '已探索地图' : '恢复正常探索'}`);
+      return true;
+    }
+
+    if (command === 'polo') {
+      const enabled = fog.toggleCheatVisible();
+      this.addChatMessage(`polo: ${enabled ? '完全可见' : '恢复战争迷雾'}`);
+      return true;
+    }
+
+    return false;
+  }
+
   addChatMessage(message) {
     if (!this.chatMessages) return;
+
+    this.chatMessages.classList.remove('hidden');
 
     const item = document.createElement('div');
     item.className = 'chat-message';
@@ -189,6 +214,22 @@ class HUD {
     while (this.chatMessages.children.length > 6) {
       this.chatMessages.removeChild(this.chatMessages.firstElementChild);
     }
+
+    this.scheduleChatHistoryHide();
+  }
+
+  scheduleChatHistoryHide() {
+    if (!this.chatMessages) return;
+
+    if (this.chatHideTimer) {
+      clearTimeout(this.chatHideTimer);
+    }
+
+    this.chatHideTimer = setTimeout(() => {
+      this.chatMessages.classList.add('hidden');
+      this.chatMessages.innerHTML = '';
+      this.chatHideTimer = null;
+    }, 20000);
   }
 
   toggleCenterInfoPanel() {
