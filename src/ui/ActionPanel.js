@@ -1,5 +1,7 @@
 import { BUILDING_TYPES, BUILDING_CONFIG, TOWN_CENTER_ACTIONS, TECH_CONFIG, normalizeBuildingType, getBuildingName, getBuildingDesc, getAgeName } from '../config.js';
 
+const PANEL_HOTKEY_ORDER = ['A', 'S', 'D', 'F', 'G', 'Q', 'W', 'E', 'R', 'T', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', 'K', 'L', 'P', 'O', 'I', 'Y', 'U', 'J'];
+
 class ActionPanel {
   constructor(game) {
     this.game = game;
@@ -37,18 +39,18 @@ class ActionPanel {
         { id: BUILDING_TYPES.WALL, icon: 'W', type: 'defense' },
         { id: BUILDING_TYPES.GATE, icon: 'G', type: 'defense' },
         { id: BUILDING_TYPES.BLACKSMITH, icon: 'S', type: 'economy' },
-        { id: BUILDING_TYPES.MARKET, icon: 'Mk', type: 'economy' },
+        { id: BUILDING_TYPES.MARKET, icon: 'Mk', hotkey: 'K', type: 'economy' },
         { id: BUILDING_TYPES.DOCK, icon: 'D', type: 'economy' },
-        { id: BUILDING_TYPES.CHURCH, icon: 'Ch', type: 'special' },
+        { id: BUILDING_TYPES.CHURCH, icon: 'Ch', hotkey: 'H', type: 'special' },
         { id: '', icon: '', type: 'empty' },
         { id: '', icon: '', type: 'empty' },
         { id: '', icon: '', type: 'empty' },
-        { id: 'back-villager-commands', icon: '<', name: '返回', type: 'nav', targetPreset: 'villager_commands' }
+        { id: 'back-villager-commands', icon: '<', hotkey: 'Esc', name: '返回', type: 'nav', targetPreset: 'villager_commands' }
       ],
       villager_military_buildings: [
         { id: BUILDING_TYPES.BARRACKS, icon: 'B', type: 'military' },
         { id: BUILDING_TYPES.ARCHERY_RANGE, icon: 'A', type: 'military' },
-        { id: BUILDING_TYPES.STABLE, icon: 'St', type: 'military' },
+        { id: BUILDING_TYPES.STABLE, icon: 'St', hotkey: 'S', type: 'military' },
         { id: '', icon: '', type: 'empty' },
         { id: '', icon: '', type: 'empty' },
         { id: BUILDING_TYPES.WATCH_TOWER, icon: 'T', type: 'defense' },
@@ -60,12 +62,13 @@ class ActionPanel {
         { id: '', icon: '', type: 'empty' },
         { id: BUILDING_TYPES.CASTLE, icon: 'C', type: 'defense' },
         { id: '', icon: '', type: 'empty' },
-        { id: 'back-villager-commands', icon: '<', name: '返回', type: 'nav', targetPreset: 'villager_commands' }
+        { id: 'back-villager-commands', icon: '<', hotkey: 'Esc', name: '返回', type: 'nav', targetPreset: 'villager_commands' }
       ],
       default: []
     };
 
     this.currentPreset = 'default';
+    this.presetHistory = [];
     this.currentSelectedBuilding = null;
     this.garrisonCommandActive = false;
     this.rallyPointModeActive = false;
@@ -158,13 +161,21 @@ class ActionPanel {
         btn.classList.add('building-btn-garrison');
       }
 
+      const buttonLabel = button.name || (button.id ? getBuildingName(button.id) : '');
+      const hotkey = this.getButtonHotkey(button);
+      const shortLabel = this.getButtonShortLabel(buttonLabel || button.id || '');
+
       const icon = document.createElement('span');
       icon.className = 'building-btn-icon';
-      icon.textContent = button.icon || '';
+      icon.textContent = hotkey || button.icon || '';
 
       const text = document.createElement('span');
       text.className = 'building-btn-text';
-      text.textContent = button.name || (button.id ? getBuildingName(button.id) : '');
+      text.textContent = shortLabel;
+
+      if (hotkey) {
+        btn.title = `${buttonLabel || button.id} (${hotkey})`;
+      }
 
       btn.appendChild(icon);
       btn.appendChild(text);
@@ -243,7 +254,13 @@ class ActionPanel {
 
     if (currentButtonConfig?.targetPreset && (currentButtonConfig.type === 'category' || currentButtonConfig.type === 'nav')) {
       this.cancelGarrisonCommand();
-      this.switchToPreset(currentButtonConfig.targetPreset);
+      if (currentButtonConfig.type === 'nav') {
+        if (!this.goBack()) {
+          this.switchToPreset(currentButtonConfig.targetPreset);
+        }
+      } else {
+        this.switchToPresetWithHistory(currentButtonConfig.targetPreset);
+      }
       return;
     }
 
@@ -569,6 +586,7 @@ class ActionPanel {
       this.currentSelectedBuilding = null;
       this.cancelGarrisonCommand();
       this.cancelRallyPointMode();
+      this.presetHistory = [];
       this.switchToPreset('villager_commands');
       return;
     }
@@ -586,6 +604,7 @@ class ActionPanel {
 
         if (hasPreset) {
           this.currentSelectedBuilding = entity;
+          this.presetHistory = [];
           this.switchToPreset(productionPresetName);
           return;
         }
@@ -599,6 +618,7 @@ class ActionPanel {
     this.currentSelectedBuilding = null;
     this.cancelGarrisonCommand();
     this.cancelRallyPointMode();
+    this.presetHistory = [];
     this.switchToPreset('empty');
   }
 
@@ -623,8 +643,33 @@ class ActionPanel {
     }
 
     this.currentPreset = presetName;
-    this.buildingPanelConfig.buttons = this.filterPresetForCivilization(preset).map(button => ({ ...button }));
+    this.buildingPanelConfig.buttons = this.assignPanelHotkeys(
+      this.filterPresetForCivilization(preset).map(button => ({ ...button }))
+    );
     this.initBuildingButtons();
+  }
+
+  assignPanelHotkeys(buttons) {
+    const used = new Set();
+
+    for (const button of buttons) {
+      if (!button || button.type === 'empty') continue;
+      const hotkey = this.getButtonHotkey(button);
+      if (hotkey) used.add(hotkey);
+    }
+
+    for (const button of buttons) {
+      if (!button || button.type === 'empty') continue;
+      if (this.getButtonHotkey(button)) continue;
+
+      const next = PANEL_HOTKEY_ORDER.find(key => !used.has(key));
+      if (!next) continue;
+
+      button.hotkey = next;
+      used.add(next);
+    }
+
+    return buttons;
   }
 
   filterPresetForCivilization(preset) {
@@ -676,7 +721,7 @@ class ActionPanel {
       console.warn(`[ActionPanel] triggerHotButton(${index}): 无按钮配置`);
       return false;
     }
-    if (buttonConfig.type === 'empty' || buttonConfig.type === 'nav') {
+    if (buttonConfig.type === 'empty') {
       console.warn(`[ActionPanel] triggerHotButton(${index}): 按钮类型为 ${buttonConfig.type}, 跳过`);
       return false;
     }
@@ -685,14 +730,48 @@ class ActionPanel {
   }
 
   triggerHotButtonByKey(key) {
-    const normalizedKey = key.toUpperCase();
+    const normalizedKey = this.normalizeHotkey(key);
     const buttonIndex = this.buildingPanelConfig.buttons.findIndex(button => {
       if (!button || !button.id || button.type === 'empty') return false;
-      return (button.icon || '').toUpperCase() === normalizedKey;
+      return this.getButtonHotkey(button) === normalizedKey;
     });
 
     if (buttonIndex === -1) return false;
     return this.triggerHotButton(buttonIndex);
+  }
+
+  getButtonHotkey(button) {
+    const configured = this.normalizeHotkey(button.hotkey || '');
+    if (configured) return configured;
+
+    const icon = this.normalizeHotkey(button.icon || '');
+    return /^[A-Z]$/.test(icon) ? icon : '';
+  }
+
+  normalizeHotkey(key) {
+    const normalized = String(key || '').trim();
+    if (!normalized) return '';
+    if (normalized.toLowerCase() === 'escape' || normalized.toLowerCase() === 'esc') return 'ESC';
+    return normalized.toUpperCase();
+  }
+
+  switchToPresetWithHistory(presetName) {
+    if (this.currentPreset && this.currentPreset !== presetName) {
+      this.presetHistory.push(this.currentPreset);
+    }
+    this.switchToPreset(presetName);
+  }
+
+  goBack() {
+    const previousPreset = this.presetHistory.pop();
+    if (!previousPreset) return false;
+    this.switchToPreset(previousPreset);
+    return true;
+  }
+
+  getButtonShortLabel(label) {
+    if (!label) return '';
+    return Array.from(String(label)).slice(0, 4).join('');
   }
   addPreset(name, buttons) {
     this.buildingPanelPresets[name] = buttons.map(button => ({ ...button }));
@@ -707,7 +786,7 @@ class ActionPanel {
     const buttons = [
       { id: TOWN_CENTER_ACTIONS.PRODUCE_VILLAGER, icon: 'A', name: '村民', type: 'production', cost: { food: 50 }, action: 'produce', target: 'villager' },
       ...this.getResearchButtonsForBuilding(BUILDING_TYPES.TOWN_CENTER),
-      { id: canUpgrade ? 'age-up' : '', icon: canUpgrade ? '^' : '', name: canUpgrade ? nextAgeName : '', type: canUpgrade ? 'age_upgrade' : 'empty', cost: upgradeCost, action: canUpgrade ? 'age_up' : '', target: canUpgrade ? 'next_age' : '' }
+      { id: canUpgrade ? 'age-up' : '', icon: canUpgrade ? '^' : '', hotkey: canUpgrade ? 'Z' : '', name: canUpgrade ? nextAgeName : '', type: canUpgrade ? 'age_upgrade' : 'empty', cost: upgradeCost, action: canUpgrade ? 'age_up' : '', target: canUpgrade ? 'next_age' : '' }
     ];
 
     if (this.hasGarrisonPanel(this.currentSelectedBuilding)) {
@@ -718,7 +797,7 @@ class ActionPanel {
       buttons.push(this.getSetRallyPointButton());
     }
 
-    buttons.push({ id: 'close-production', icon: 'X', name: '关闭', type: 'nav' });
+    buttons.push({ id: 'close-production', icon: 'X', hotkey: 'X', name: '关闭', type: 'nav' });
     return this.padButtons(buttons);
   }
 
@@ -741,6 +820,7 @@ class ActionPanel {
     const buttons = trainableUnits.map(unitType => ({
       id: `train-${unitType}`,
       icon: this.getUnitIcon(unitType),
+      hotkey: this.getUnitHotkey(unitType),
       name: this.getUnitName(unitType),
       type: 'production',
       cost: this.getUnitCost(unitType),
@@ -758,7 +838,7 @@ class ActionPanel {
       buttons.push(this.getUngarrisonButton());
     }
 
-    buttons.push({ id: 'close-production', icon: 'X', name: '关闭', type: 'nav' });
+    buttons.push({ id: 'close-production', icon: 'X', hotkey: 'X', name: '关闭', type: 'nav' });
     return this.padButtons(buttons);
   }
 
@@ -774,6 +854,7 @@ class ActionPanel {
     return {
       id: 'ungarrison',
       icon: 'U',
+      hotkey: 'U',
       name: '取消驻扎',
       type: 'production',
       action: 'ungarrison',
@@ -789,6 +870,7 @@ class ActionPanel {
     return {
       id: 'set-rally-point',
       icon: 'R',
+      hotkey: 'R',
       name: '设置集结点',
       type: 'rally',
       action: 'set_rally_point'
@@ -888,6 +970,18 @@ class ActionPanel {
       scout: 'Sc'
     };
     return icons[unitType] || 'U';
+  }
+
+  getUnitHotkey(unitType) {
+    const hotkeys = {
+      villager: 'A',
+      soldier: 'S',
+      knight: 'K',
+      archer: 'A',
+      scout: 'C',
+      elite: 'E'
+    };
+    return hotkeys[unitType] || this.getUnitIcon(unitType);
   }
 
   getUnitName(unitType) {

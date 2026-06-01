@@ -82,6 +82,11 @@ class EventManager {
                 }
                 return;
             }
+
+            if (this.game.hud?.actionPanel?.goBack()) {
+                event.preventDefault();
+                return;
+            }
         }
         
         if (event.key === 'F12' || event.keyCode === 123) {

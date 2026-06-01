@@ -41,6 +41,7 @@
 - `src/ui/ResourceDisplay.js` - top resource and population counters.
 - `src/ui/Minimap.js` - minimap rendering and click navigation.
 - `src/ui/MapSelectionPanel.js` - start screen map/player/civilization selection.
+- `COMMAND_PANELS.md` - complete command panel inventory, button routing, hotkeys, and dynamic panel generation rules.
 
 ## Styling
 
@@ -69,3 +70,4 @@
 ## Project Tracking
 
 - `AGENTS.md` - local project workflow, ZenTao status snapshots, current work, and pending verification items.
+- `COMMAND_PANELS.md` - command panel reference for implementation and QA.
