@@ -4,7 +4,7 @@ class SelectionManager {
     constructor(formationSystem = null) {
         this.selectedEntities = [];
         this.maxSelection = 24; // 最大选择数量
-        this.selectionType = 'unit'; // 'unit' 或 'building'
+        this.selectionType = 'unit'; // 'unit'、'building'、'resource' 或 'mixed'
         
         this.selectionBox = null;
         this.selectionRing = null;
@@ -32,8 +32,8 @@ class SelectionManager {
                 return;
             }
 
-            // 检查类型一致性
-            if (this.selectedEntities.length > 0) {
+            // 普通批量选择保持类型一致；Ctrl 追加选择允许混选
+            if (!addToSelection && this.selectedEntities.length > 0) {
                 const firstType = this.selectedEntities[0].type;
                 if (entity.type !== firstType) {
                     console.log('[selectEntity] type mismatch, firstType:', firstType, 'entity.type:', entity.type);
@@ -43,7 +43,7 @@ class SelectionManager {
 
             entity.select();
             this.selectedEntities.push(entity);
-            this.selectionType = entity.type;
+            this.updateSelectionType();
 
             console.log('[selectEntity] successfully selected, total:', this.selectedEntities.length);
             this.notifyListeners('select', entity);
@@ -69,7 +69,7 @@ class SelectionManager {
         }
         
         if (this.selectedEntities.length > 0) {
-            this.selectionType = this.selectedEntities[0].type;
+            this.updateSelectionType();
         }
         
         this.notifyListeners('selectMultiple', entities);
@@ -80,6 +80,7 @@ class SelectionManager {
         if (index > -1) {
             entity.deselect();
             this.selectedEntities.splice(index, 1);
+            this.updateSelectionType();
             this.notifyListeners('deselect', entity);
         }
     }
@@ -111,6 +112,18 @@ class SelectionManager {
 
     getSelectionType() {
         return this.selectionType;
+    }
+
+    updateSelectionType() {
+        if (this.selectedEntities.length === 0) {
+            this.selectionType = 'unit';
+            return;
+        }
+
+        const firstType = this.selectedEntities[0].type;
+        this.selectionType = this.selectedEntities.every(entity => entity.type === firstType)
+            ? firstType
+            : 'mixed';
     }
 
     setControlGroup(groupNumber) {
@@ -216,9 +229,10 @@ class SelectionManager {
     issueMoveCommand(targetPosition) {
         console.log('[issueMoveCommand] called, targetPosition:', targetPosition, 'selectedEntities:', this.selectedEntities.length, 'type:', this.selectionType, 'formationSystem:', !!this.formationSystem);
 
-        // 如果选择的是单位类型，尝试使用编队系统
-        if (this.selectionType === 'unit' && this.formationSystem) {
-            const units = this.selectedEntities.filter(entity => entity.type === 'unit');
+        const units = this.selectedEntities.filter(entity => entity.type === 'unit');
+
+        // 如果选择里包含多个单位，尝试使用编队系统移动这些单位
+        if (units.length > 0 && this.formationSystem) {
             console.log('[issueMoveCommand] units count:', units.length);
 
             if (units.length > 1) {
@@ -247,6 +261,8 @@ class SelectionManager {
             console.log('[issueMoveCommand] entity:', entity.name, 'has moveTo:', typeof entity.moveTo);
             if (entity.moveTo) {
                 entity.moveTo(targetPosition);
+            } else if (entity.type === 'resource' && entity.isSheep && entity.setSheepTarget) {
+                entity.setSheepTarget(targetPosition);
             }
         }
 

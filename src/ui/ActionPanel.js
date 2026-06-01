@@ -578,11 +578,11 @@ class ActionPanel {
       this.showEmptyPanel();
       return;
     }
-    const allVillagers = selectedEntities.every(
+    const hasVillager = selectedEntities.some(
       entity => entity.type === 'unit' && entity.unitType === 'villager' && entity.isPlayerOwned()
     );
 
-    if (allVillagers) {
+    if (hasVillager) {
       this.currentSelectedBuilding = null;
       this.cancelGarrisonCommand();
       this.cancelRallyPointMode();
@@ -893,19 +893,24 @@ class ActionPanel {
   }
 
   getResearchButtonsForBuilding(buildingType) {
-    return this.getNextResearchOptionsForBuilding(buildingType)
-      .map(([techType, tech]) => ({
-        id: `research-${techType}`,
-        icon: tech.icon,
-        name: tech.name,
-        type: 'research',
-        cost: tech.cost,
-        action: 'research',
-        target: techType
-      }));
+    return this.getNextResearchSlotsForBuilding(buildingType)
+      .map(slot => {
+        if (!slot.option) return { id: '', icon: '', name: '', type: 'empty' };
+
+        const [techType, tech] = slot.option;
+        return {
+          id: `research-${techType}`,
+          icon: tech.icon,
+          name: tech.name,
+          type: 'research',
+          cost: tech.cost,
+          action: 'research',
+          target: techType
+        };
+      });
   }
 
-  getNextResearchOptionsForBuilding(buildingType) {
+  getNextResearchSlotsForBuilding(buildingType) {
     if (!buildingType) return [];
 
     const byLine = new Map();
@@ -916,17 +921,21 @@ class ActionPanel {
       byLine.get(line).push([techType, tech]);
     }
 
-    const nextOptions = [];
+    const lines = [];
     for (const entries of byLine.values()) {
       entries.sort((a, b) => (a[1].tier || 1) - (b[1].tier || 1));
       const next = entries.find(([techType]) => !this.game.player?.hasResearched(techType));
-      if (next && this.isTechQueued(next[0])) continue;
-      if (next) nextOptions.push(next);
+      lines.push({
+        sortTech: entries[0],
+        option: next && !this.isTechQueued(next[0]) ? next : null
+      });
     }
 
-    return nextOptions.sort((a, b) => {
-      if (a[1].building !== b[1].building) return String(a[1].building).localeCompare(String(b[1].building));
-      return (a[1].line || a[0]).localeCompare(b[1].line || b[0]) || ((a[1].tier || 1) - (b[1].tier || 1));
+    return lines.sort((a, b) => {
+      const aTech = a.sortTech;
+      const bTech = b.sortTech;
+      if (aTech[1].building !== bTech[1].building) return String(aTech[1].building).localeCompare(String(bTech[1].building));
+      return (aTech[1].line || aTech[0]).localeCompare(bTech[1].line || bTech[0]) || ((aTech[1].tier || 1) - (bTech[1].tier || 1));
     });
   }
 

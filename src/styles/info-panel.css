@@ -1,19 +1,20 @@
 ﻿.unit-info {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 4px;
+    line-height: 1.15;
 }
 
 .info-production-panel {
-    margin-top: 10px;
-    padding-top: 8px;
+    margin-top: 6px;
+    padding-top: 5px;
     border-top: 1px solid rgba(139, 69, 19, 0.75);
 }
 
 .info-production-title {
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     color: #d8b56a;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: bold;
 }
 
@@ -24,17 +25,17 @@
 
 .info-production-layout {
     display: grid;
-    grid-template-columns: 48px 1fr;
-    gap: 8px;
+    grid-template-columns: 42px 1fr;
+    gap: 6px;
     align-items: start;
 }
 
 .info-production-queue {
     display: grid;
-    grid-template-columns: repeat(7, 24px);
-    grid-auto-rows: 24px;
-    gap: 4px;
-    min-height: 52px;
+    grid-template-columns: repeat(7, 21px);
+    grid-auto-rows: 21px;
+    gap: 3px;
+    min-height: 45px;
     align-content: start;
 }
 
@@ -59,9 +60,9 @@
 }
 
 .info-production-cell-main {
-    width: 48px;
-    height: 48px;
-    font-size: 22px;
+    width: 42px;
+    height: 42px;
+    font-size: 20px;
 }
 
 .info-production-cell-main.empty {
@@ -71,19 +72,26 @@
 }
 
 .info-production-cell-small {
-    width: 24px;
-    height: 24px;
-    font-size: 13px;
+    width: 21px;
+    height: 21px;
+    font-size: 12px;
 }
 
 .info-production-progress {
     position: absolute;
     left: 4px;
     right: 4px;
-    bottom: 4px;
-    height: 5px;
+    bottom: 3px;
+    height: 4px;
     background: rgba(0, 0, 0, 0.55);
     border: 1px solid rgba(0, 0, 0, 0.65);
+}
+
+.info-production-cell-small .info-production-progress {
+    left: 2px;
+    right: 2px;
+    bottom: 2px;
+    height: 3px;
 }
 
 .info-production-progress span {
@@ -96,8 +104,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
+    width: 21px;
+    height: 21px;
     color: #FFD700;
     font-size: 11px;
     background: rgba(0, 0, 0, 0.35);
@@ -107,7 +115,8 @@
 .info-row {
     display: flex;
     justify-content: space-between;
-    font-size: 13px;
+    font-size: 12px;
+    line-height: 1.15;
 }
 
 .health-bar {

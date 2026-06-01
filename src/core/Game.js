@@ -577,16 +577,15 @@ class Game {
                 this.lastClickedEntityId = null;
             }
 
+            const addToSelection = event.ctrlKey || event.metaKey;
+
             // 绵羊选择：己方绵羊可被选中（独立选择，不与普通单位/建筑混选）
             if (pickedEntity.type === 'resource' && pickedEntity.isSheep && pickedEntity.isPlayerOwned()) {
-                this.selectionManager.deselectAll();
-                this.selectionManager.selectEntity(pickedEntity, false);
+                this.selectionManager.selectEntity(pickedEntity, addToSelection);
                 return;
             }
 
-            // Ctrl+点击同类型建筑 → 追加选择；普通点击 → 替换选择
-            const addToSelection = event.ctrlKey && pickedEntity.type === 'building';
-
+            // Ctrl+点击同类型实体 → 追加选择；普通点击 → 替换选择
             this.handleEntitySelection(pickedEntity, addToSelection);
             return;
         }
@@ -771,7 +770,7 @@ class Game {
 
         for (const entity of nearbyEntities) {
             if (entity.type === 'building' && entity.isUnderConstruction && entity.isAlive) {
-                if (this.selectionManager.selectionType === 'unit') {
+                if (this.selectionManager.selectedEntities.some(selected => selected.type === 'unit')) {
                     this.selectionManager.issueCommand('build', entity);
                     return;
                 }

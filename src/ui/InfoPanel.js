@@ -182,13 +182,6 @@ class InfoPanel {
           `;
         }
       } else if (entity.type === 'building') {
-        html += `
-          <div class="info-row" style="margin-top: 8px;">
-            <span>建筑类型:</span>
-            <span>${entity.buildingType || '未知'}</span>
-          </div>
-        `;
-
         // 显示建造信息（如果正在建造中）
         if (entity.isUnderConstruction) {
           const info = entity.getConstructionInfo ? entity.getConstructionInfo() : {
@@ -316,7 +309,7 @@ class InfoPanel {
       .map((item, index) => this.renderProductionCell(building, item, {
         slot: 'queue',
         index,
-        progress: 0,
+        progress: index === 0 ? building.productionProgress || 0 : 0,
         large: false
       }))
       .join('');
@@ -346,7 +339,8 @@ class InfoPanel {
       'info-production-cell',
       options.large ? 'info-production-cell-main' : 'info-production-cell-small'
     ].join(' ');
-    const progressBar = options.large
+    const shouldShowProgress = options.large || progress > 0;
+    const progressBar = shouldShowProgress
       ? `<span class="info-production-progress"><span style="width:${progress}%"></span></span>`
       : '';
 
