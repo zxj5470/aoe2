@@ -3,7 +3,15 @@ import ResourceDisplay from './ResourceDisplay.js';
 import Minimap from './Minimap.js';
 import ActionPanel from './ActionPanel.js';
 import InfoPanel from './InfoPanel.js';
-import { TECH_CONFIG, getBuildingName } from '../config.js';
+import { BUILDING_TYPES, TECH_CONFIG, getBuildingName } from '../config.js';
+
+const TECH_GROUP_ORDER = [
+  BUILDING_TYPES.BLACKSMITH,
+  BUILDING_TYPES.BARRACKS,
+  BUILDING_TYPES.ARCHERY_RANGE,
+  BUILDING_TYPES.STABLE,
+  BUILDING_TYPES.TOWN_CENTER
+];
 
 class HUD {
   constructor(game) {
@@ -17,6 +25,8 @@ class HUD {
     this.civilizationTechWidget = document.getElementById('civilization-tech-widget');
     this.civilizationTechWidgetSignature = '';
     this.civilizationTechHideTimer = null;
+    this.productionQueueBar = document.getElementById('production-queue-bar');
+    this.productionQueueContainer = this.productionQueueBar?.querySelector('.production-items') || null;
     
     this.selectionListenerBound = false;
     this.ageDisplayCameraControl = null;
@@ -111,6 +121,7 @@ class HUD {
     this.minimap.render();
     this.infoPanel.updateDebugPanel(this.actionPanel.getBuildingPanelConfig());
     this.updateAgeDisplayCameraControl(deltaTime);
+    this.updateUnitInfoPanel();
     this.updateProductionProgressUI();
     this.updateCivilizationTechWidget();
   }
@@ -198,8 +209,8 @@ class HUD {
   }
 
   updateProductionProgressUI() {
-    const bar = document.getElementById('production-queue-bar');
-    const container = bar ? bar.querySelector('.production-items') : null;
+    const bar = this.productionQueueBar || document.getElementById('production-queue-bar');
+    const container = this.productionQueueContainer || bar?.querySelector('.production-items');
     if (!bar || !container) return;
 
     // 收集所有玩家建筑的生产信息
@@ -214,7 +225,7 @@ class HUD {
         building: entity,
         current: entity.currentProduction,
         progress: entity.productionProgress || 0,
-        queueCount: entity.productionQueue.length
+        queue: entity.productionQueue || []
       });
     }
 
@@ -233,6 +244,7 @@ class HUD {
     for (const prod of productions) {
       const item = prod.current;
       if (!item) continue;
+      const queueCount = prod.queue.filter(queueItem => this.isSameProductionItem(queueItem, item)).length;
 
       const icon = item.type === 'unit'
         ? (unitIcons[item.unitType] || '📦')
@@ -241,18 +253,24 @@ class HUD {
         ? (unitNames[item.unitType] || item.unitType)
         : (TECH_CONFIG[item.techType]?.name || item.techType || '');
       const progress = Math.min(prod.progress, 100);
-
       html += `<div class="production-item">`;
       html += `<span class="prod-icon">${icon}</span>`;
       html += `<span>${name}</span>`;
       html += `<div class="prod-progress-bar"><div class="prod-progress-fill" style="width:${progress}%"></div></div>`;
-      if (prod.queueCount > 0) {
-        html += `<span class="prod-queue-count">${prod.queueCount + 1}</span>`;
+      if (queueCount > 0) {
+        html += `<span class="prod-queue-count">${queueCount + 1}</span>`;
       }
       html += `</div>`;
     }
 
     container.innerHTML = html;
+  }
+
+  isSameProductionItem(a, b) {
+    if (!a || !b || a.type !== b.type) return false;
+    if (a.type === 'unit') return a.unitType === b.unitType;
+    if (a.type === 'research') return a.techType === b.techType;
+    return false;
   }
 
   updateCivilizationTechWidget() {
@@ -262,7 +280,7 @@ class HUD {
     const civName = this.getCivilizationName(civId);
     const civInitial = civName.slice(0, 2).toUpperCase();
     const researched = this.game.player.researchedTechs || new Set();
-    const techLines = this.getTechnologyLines(researched);
+    const techGroups = this.getTechnologyGroups(researched);
     const signature = `${civId}:${[...researched].sort().join(',')}`;
     if (signature === this.civilizationTechWidgetSignature) return;
 
@@ -270,7 +288,7 @@ class HUD {
       <div class="civilization-tech-icon">${civInitial}</div>
       <div class="civilization-tech-dropdown">
         <div class="civilization-tech-heading">${civName}</div>
-        ${this.renderTechLineSection('科技树', techLines)}
+        ${this.renderTechGroupSection(techGroups)}
       </div>
     `;
     this.civilizationTechWidgetSignature = signature;
@@ -308,7 +326,7 @@ class HUD {
     }, 2000);
   }
 
-  getTechnologyLines(researched) {
+  getTechnologyGroups(researched) {
     const lines = new Map();
 
     for (const [techType, tech] of Object.entries(TECH_CONFIG)) {
@@ -333,7 +351,8 @@ class HUD {
       }
     }
 
-    return [...lines.values()].map(line => {
+    const groups = new Map();
+    for (const line of [...lines.values()].map(line => {
       line.entries.sort((a, b) => (a[1].tier || 1) - (b[1].tier || 1));
       const next = line.entries.find(([techType]) => !researched.has(techType));
       const latest = line.entries
@@ -341,22 +360,46 @@ class HUD {
         .reverse()
         .find(([techType]) => researched.has(techType));
 
+      line.nextTechType = next?.[0] || null;
       line.nextTech = next?.[1] || null;
       line.currentTech = latest?.[1] || null;
       line.description = line.currentTech?.description || line.nextTech?.description || line.entries[0]?.[1]?.description || '';
       line.stateText = line.researchedTier >= line.maxTier ? '完成' : `${line.researchedTier}/${line.maxTier}`;
       return line;
+    })) {
+      const building = line.building || 'other';
+      if (!groups.has(building)) {
+        groups.set(building, {
+          building,
+          title: getBuildingName(building),
+          maxTier: 1,
+          lines: []
+        });
+      }
+
+      const group = groups.get(building);
+      group.lines.push(line);
+      group.maxTier = Math.max(group.maxTier, line.maxTier);
+    }
+
+    return [...groups.values()].map(group => {
+      group.lines.sort((a, b) => a.name.localeCompare(b.name));
+      return group;
     }).sort((a, b) => {
-      if (a.building !== b.building) return String(a.building).localeCompare(String(b.building));
-      return a.name.localeCompare(b.name);
+      const aIndex = TECH_GROUP_ORDER.indexOf(a.building);
+      const bIndex = TECH_GROUP_ORDER.indexOf(b.building);
+      const normalizedA = aIndex === -1 ? Number.MAX_SAFE_INTEGER : aIndex;
+      const normalizedB = bIndex === -1 ? Number.MAX_SAFE_INTEGER : bIndex;
+      if (normalizedA !== normalizedB) return normalizedA - normalizedB;
+      return a.title.localeCompare(b.title);
     });
   }
 
-  renderTechLineSection(title, rows) {
-    if (!rows.length) {
+  renderTechGroupSection(groups) {
+    if (!groups.length) {
       return `
         <div class="civilization-tech-section">
-          <div class="civilization-tech-section-title">${title}</div>
+          <div class="civilization-tech-section-title">科技树</div>
           <div class="civilization-tech-row locked">
             <span class="civilization-tech-row-icon">-</span>
             <span>无</span>
@@ -368,25 +411,56 @@ class HUD {
 
     return `
       <div class="civilization-tech-section">
-        <div class="civilization-tech-section-title">${title}</div>
-        <div class="civilization-tech-list">
-          ${rows.map(line => `
-            <div class="civilization-tech-row ${line.researchedTier > 0 ? 'researched' : 'locked'}">
-              <span class="civilization-tech-row-icon">${line.icon || ''}</span>
-              <span class="civilization-tech-row-body">
-                <span class="civilization-tech-row-name">${line.name}</span>
-                <span class="civilization-tech-row-desc">${getBuildingName(line.building)} · ${line.description}</span>
-                <span class="civilization-tech-progress">
-                  ${Array.from({ length: line.maxTier }, (_, index) =>
-                    `<span class="civilization-tech-progress-box ${index < line.researchedTier ? 'researched' : ''}"></span>`
-                  ).join('')}
-                </span>
-              </span>
-              <span class="civilization-tech-row-state">${line.stateText}</span>
-            </div>
-          `).join('')}
+        <div class="civilization-tech-section-title">科技树</div>
+        <div class="civilization-tech-groups">
+          ${groups.map(group => this.renderTechGroup(group)).join('')}
         </div>
       </div>
+    `;
+  }
+
+  renderTechGroup(group) {
+    return `
+      <div class="civilization-tech-group">
+        <div class="civilization-tech-group-title">
+          <span>${group.title}</span>
+          <span>${group.lines.length}类科技</span>
+        </div>
+        <div class="civilization-tech-matrix" style="--tech-columns:${group.maxTier}">
+          ${group.lines.map(line => this.renderTechMatrixLine(line, group.maxTier)).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  renderTechMatrixLine(line, groupMaxTier) {
+    return `
+      <div class="civilization-tech-line-label">
+        <span class="civilization-tech-row-icon">${line.icon || ''}</span>
+        <span class="civilization-tech-line-name">${line.name}</span>
+      </div>
+      <div class="civilization-tech-line-cells">
+        ${Array.from({ length: groupMaxTier }, (_, index) => this.renderTechCell(line, index + 1)).join('')}
+      </div>
+      <div class="civilization-tech-row-state">${line.stateText}</div>
+    `;
+  }
+
+  renderTechCell(line, tier) {
+    const entry = line.entries.find(([, tech]) => (tech.tier || 1) === tier);
+    if (!entry) {
+      return '<span class="civilization-tech-cell unavailable"></span>';
+    }
+
+    const [techType, tech] = entry;
+    const isResearched = line.researchedTier >= tier;
+    const isNext = line.nextTechType === techType;
+    const stateClass = isResearched ? 'researched' : (isNext ? 'available' : 'locked');
+
+    return `
+      <span class="civilization-tech-cell ${stateClass}" title="${tech.name} - ${tech.description}">
+        <span>${tech.icon || tech.name.slice(0, 1)}</span>
+      </span>
     `;
   }
 

@@ -153,7 +153,15 @@ class Building extends BuildingBase {
     }
 
     cancelProduction() {
-        this.production.cancelProduction();
+        return this.production.cancelProduction();
+    }
+
+    cancelQueuedProduction(match = null) {
+        return this.production.cancelQueuedProduction(match);
+    }
+
+    cancelProductionAt(slot, index = -1) {
+        return this.production.cancelProductionAt(slot, index);
     }
 
     getConstructionProgress() {

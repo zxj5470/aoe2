@@ -536,9 +536,11 @@ class ActionPanel {
   trainUnit(unitType) {
     if (!this.currentSelectedBuilding?.addToProductionQueue) return;
 
+    const cost = this.getUnitCost(unitType);
     this.currentSelectedBuilding.addToProductionQueue({
       type: 'unit',
       unitType,
+      cost: { ...cost },
       time: this.getUnitTrainingTime(unitType)
     });
   }
@@ -546,9 +548,11 @@ class ActionPanel {
   researchTechnology(techType) {
     if (!this.currentSelectedBuilding?.addToProductionQueue) return;
 
+    const cost = TECH_CONFIG[techType]?.cost || {};
     this.currentSelectedBuilding.addToProductionQueue({
       type: 'research',
       techType,
+      cost: { ...cost },
       time: this.getResearchTime(techType)
     });
   }

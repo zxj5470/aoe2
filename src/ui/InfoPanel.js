@@ -1,4 +1,4 @@
-import { CELL_SIZE, getPlayerColor, getPlayerName } from '../config.js';
+import { CELL_SIZE, TECH_CONFIG, getPlayerColor, getPlayerName } from '../config.js';
 
 // 村民工种名称映射（根据资源类型）
 const VILLAGER_JOB_NAMES = {
@@ -82,9 +82,27 @@ class InfoPanel {
       pickHealth: document.getElementById('debug-pick-health')
     };
     this.mouseWorldPosition = null;
+    this.boundProductionQueueClick = null;
   }
 
-  init() {}
+  init() {
+    this.setupProductionQueueClick();
+  }
+
+  setupProductionQueueClick() {
+    if (!this.unitInfoContent || this.boundProductionQueueClick) return;
+
+    this.boundProductionQueueClick = (event) => {
+      const item = event.target.closest('.info-production-cell');
+      if (!item) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      this.cancelProductionQueueItem(item.dataset);
+    };
+
+    this.unitInfoContent.addEventListener('pointerdown', this.boundProductionQueueClick);
+  }
 
   updateUnitInfo(selectedEntities) {
     if (!this.unitInfoContent) return;
@@ -199,6 +217,10 @@ class InfoPanel {
             </div>
           `;
         }
+
+        if (!entity.isUnderConstruction) {
+          html += this.renderBuildingProductionQueue(entity);
+        }
       }
     } else {
       // 多个单位选择
@@ -266,6 +288,153 @@ class InfoPanel {
     }
 
     this.unitInfoContent.innerHTML = html;
+  }
+
+  renderBuildingProductionQueue(building) {
+    const current = building.currentProduction;
+    const queue = building.productionQueue || [];
+
+    if (!current && queue.length === 0) {
+      return `
+        <div class="info-production-panel">
+          <div class="info-production-title">生产队列</div>
+          <div class="info-production-empty">空闲</div>
+        </div>
+      `;
+    }
+
+    const currentCell = current
+      ? this.renderProductionCell(building, current, {
+          slot: 'current',
+          index: -1,
+          progress: building.productionProgress || 0,
+          large: true
+        })
+      : '<div class="info-production-cell info-production-cell-main empty"></div>';
+    const queueCells = queue
+      .slice(0, 14)
+      .map((item, index) => this.renderProductionCell(building, item, {
+        slot: 'queue',
+        index,
+        progress: 0,
+        large: false
+      }))
+      .join('');
+    const overflow = queue.length > 14
+      ? `<span class="info-production-overflow">+${queue.length - 14}</span>`
+      : '';
+
+    return `
+      <div class="info-production-panel">
+        <div class="info-production-title">生产队列</div>
+        <div class="info-production-layout">
+          ${currentCell}
+          <div class="info-production-queue">
+            ${queueCells}
+            ${overflow}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  renderProductionCell(building, item, options) {
+    const icon = this.getProductionItemIcon(item);
+    const name = this.getProductionItemName(item);
+    const progress = Math.max(0, Math.min(options.progress || 0, 100));
+    const classes = [
+      'info-production-cell',
+      options.large ? 'info-production-cell-main' : 'info-production-cell-small'
+    ].join(' ');
+    const progressBar = options.large
+      ? `<span class="info-production-progress"><span style="width:${progress}%"></span></span>`
+      : '';
+
+    return `
+      <button class="${classes}" type="button"
+        data-building-id="${building.id}"
+        data-slot="${options.slot}"
+        data-index="${options.index}"
+        title="点击取消 ${name} 并返还资源">
+        <span class="info-production-icon">${icon}</span>
+        ${progressBar}
+      </button>
+    `;
+  }
+
+  cancelProductionQueueItem(dataset) {
+    const building = this.findEntityById(dataset.buildingId);
+    if (!building?.cancelProductionAt) return;
+
+    const slot = dataset.slot;
+    const index = Number(dataset.index);
+    const canceled = slot === 'current'
+      ? building.cancelProductionAt('current')
+      : building.cancelProductionAt('queue', index);
+    if (!canceled) return;
+
+    this.refundProductionCost(this.getProductionItemCost(canceled));
+    this.updateUnitInfo([building]);
+
+    if (this.game.hud) {
+      this.game.hud.updateResourceDisplay();
+      this.game.hud.updateProductionProgressUI();
+      this.game.hud.showNotification(`已取消 ${this.getProductionItemName(canceled)}，资源已返还`, 1200);
+    }
+  }
+
+  findEntityById(id) {
+    if (!id || !this.game.entityManager) return null;
+    return this.game.entityManager.getEntities().find(entity => entity.id === id) || null;
+  }
+
+  refundProductionCost(cost) {
+    if (!cost || !this.game.resourceManager) return;
+    this.game.resourceManager.addResources(cost);
+  }
+
+  getProductionItemCost(item) {
+    if (item.cost) return item.cost;
+    if (item.type === 'unit') return this.getUnitCost(item.unitType);
+    if (item.type === 'research') return TECH_CONFIG[item.techType]?.cost || {};
+    return {};
+  }
+
+  getUnitCost(unitType) {
+    const costs = {
+      villager: { food: 50 },
+      soldier: { food: 60, gold: 20 },
+      knight: { food: 60, gold: 75 },
+      archer: { wood: 25, gold: 45 },
+      scout: { food: 80 }
+    };
+    return costs[unitType] || {};
+  }
+
+  getProductionItemName(item) {
+    if (item.type === 'unit') {
+      const unitNames = { villager: '村民', soldier: '士兵', knight: '骑士', archer: '弓箭手', scout: '侦察兵' };
+      return unitNames[item.unitType] || item.unitType;
+    }
+
+    if (item.type === 'research') {
+      return TECH_CONFIG[item.techType]?.name || item.techType;
+    }
+
+    return '生产项';
+  }
+
+  getProductionItemIcon(item) {
+    if (item.type === 'unit') {
+      const unitIcons = { villager: '👤', soldier: '⚔️', knight: '🐴', archer: '🏹', scout: '🏇' };
+      return unitIcons[item.unitType] || '📦';
+    }
+
+    if (item.type === 'research') {
+      return TECH_CONFIG[item.techType]?.icon || '技';
+    }
+
+    return '?';
   }
 
   setMouseWorldPosition(pos) {
