@@ -1,0 +1,221 @@
+﻿.building-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 4px;
+    flex: 1;
+}
+
+.building-btn {
+    position: relative;
+    padding: 0;
+    background: #5a3d2b;
+    color: #FFD700;
+    border: 2px solid #8B4513;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s;
+    overflow: hidden;
+    aspect-ratio: 1;
+}
+
+.building-btn:hover {
+    background: #8B4513;
+    border-color: #FFD700;
+}
+
+.building-btn.active {
+    background: #8B4513;
+    border-color: #00FF00;
+}
+
+.building-btn-empty {
+    background: transparent !important;
+    border: 2px solid transparent !important;
+    cursor: default;
+    pointer-events: none;
+}
+
+.building-btn-empty .building-btn-icon,
+.building-btn-empty .building-btn-text {
+    display: none;
+}
+
+.building-btn-nav {
+    background: #4a2d1b !important;
+    border-color: #8B4513 !important;
+    font-size: 20px;
+}
+
+.building-btn-nav:hover {
+    background: #6a3d2b !important;
+    border-color: #FFD700 !important;
+}
+
+.building-btn-category,
+.building-btn-garrison {
+    background: #4f3f27;
+}
+
+.building-btn-category .building-btn-icon,
+.building-btn-garrison .building-btn-icon {
+    top: 38%;
+    font-size: 20px;
+}
+
+.building-btn-category .building-btn-text,
+.building-btn-garrison .building-btn-text {
+    left: 2px;
+    right: 2px;
+    bottom: 5px;
+    text-align: center;
+    font-size: 11px;
+}
+
+.building-btn-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    z-index: 1;
+}
+
+.building-btn-text {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    font-size: 10px;
+    z-index: 2;
+    opacity: 0.9;
+}
+
+.building-tooltip {
+    position: fixed;
+    z-index: 10000;
+    background: #3a2518;
+    border: 1px solid #8B6914;
+    border-radius: 4px;
+    padding: 8px 10px;
+    color: #D4A847;
+    font-size: 12px;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    min-width: 120px;
+    max-width: 200px;
+}
+
+.building-tooltip-name {
+    font-weight: bold;
+    font-size: 13px;
+    color: #FFD700;
+    margin-bottom: 3px;
+}
+
+.building-tooltip-desc {
+    font-style: italic;
+    font-size: 11px;
+    color: #B8956A;
+    margin-bottom: 5px;
+}
+
+.building-tooltip-divider {
+    border: none;
+    border-top: 1px solid #5a3d2b;
+    margin: 4px 0;
+}
+
+.building-tooltip-cost {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.building-tooltip-cost-item {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 12px;
+}
+
+/* 建筑指令面板样式 - 已合并到建筑面板 */
+.building-commands-panel {
+    display: none;
+}
+
+.building-commands-panel .panel-title {
+    font-size: 12px;
+    font-weight: bold;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #8B4513;
+    padding-bottom: 4px;
+    color: #FFD700;
+}
+
+.building-commands-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.command-btn {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px;
+    background: #5a3d2b;
+    color: #FFD700;
+    border: 1px solid #8B4513;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+    text-align: left;
+}
+
+.command-btn:hover {
+    background: #8B4513;
+    border-color: #FFD700;
+}
+
+.command-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.command-btn-icon {
+    margin-right: 8px;
+    font-size: 14px;
+}
+
+.command-btn-cost {
+    margin-left: auto;
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+.no-command {
+    color: #666;
+    font-size: 12px;
+    text-align: center;
+    padding: 10px 0;
+}
+
+.command-section {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #4a3d2b;
+}
+
+.command-section:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+}
+
+.command-section-title {
+    font-size: 11px;
+    color: #aaa;
+    margin-bottom: 4px;
+    font-style: italic;
+}
+

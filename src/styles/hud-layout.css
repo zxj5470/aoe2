@@ -1,0 +1,82 @@
+﻿#hud {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 180px;
+    pointer-events: auto;
+    border-top: 2px solid #8B4513;
+    z-index: 100;
+}
+
+.hud-panel {
+    padding: 10px;
+    color: #FFD700;
+}
+
+.hud-panel-left {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    min-width: 280px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: rgba(232, 240, 159, 0.178);
+    padding: 10px;
+}
+
+.hud-panel-center {
+    position: absolute;
+    left: 280px;
+    right: 220px;
+    bottom: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+    background: rgba(232, 240, 159, 0.178);
+}
+
+.hud-panel-center-left {
+    width: 280px;
+    min-width: 280px;
+    height: 100%;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #8B4513;
+}
+
+.hud-panel-center-right {
+    flex: 1;
+    height: 100%;
+}
+
+.hud-panel-right {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 220px;
+    min-width: 220px;
+    height: 100%;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(232, 240, 159, 0.178);
+}
+
+/* 标题栏相机控制区域 */
+.age-display {
+    cursor: ns-resize; /* 上下调整光标 */
+}
+
+.panel-title {
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #8B4513;
+    padding-bottom: 5px;
+}
+
