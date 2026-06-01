@@ -158,6 +158,13 @@ class Minimap {
     if (!this.canvas) return;
 
     this.canvas.addEventListener('mousedown', (e) => {
+      if (e.button === 2) {
+        this.handleRightClick(e);
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
       this.isDragging = true;
       this.hasMoved = false;
       this.startX = e.clientX;
@@ -220,6 +227,11 @@ class Minimap {
       }
     });
 
+    this.canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
     this.canvas.addEventListener('mouseleave', () => {
       if (this.isDragging) {
         this.isDragging = false;
@@ -234,6 +246,34 @@ class Minimap {
   handleClick(event) {
     if (!this.game.map || !this.game.camera) return;
 
+    const worldPos = this.getWorldPositionFromEvent(event);
+    if (!worldPos) return;
+
+    this.game.camera.target.x = worldPos.x;
+    this.game.camera.target.z = worldPos.z;
+    this.game.camera.target.y = 0;
+    this.game.camera.updateCameraPosition();
+  }
+
+  handleRightClick(event) {
+    if (!this.game.map || !this.game.selectionManager) return;
+    if (!this.game.selectionManager.hasSelection()) return;
+
+    const worldPos = this.getWorldPositionFromEvent(event);
+    if (!worldPos) return;
+
+    if (this.game.trySetSelectedBuildingRallyPoint?.(worldPos)) {
+      return;
+    }
+
+    this.game.selectionManager.issueMoveCommand(
+      new THREE.Vector3(worldPos.x, 0, worldPos.z)
+    );
+  }
+
+  getWorldPositionFromEvent(event) {
+    if (!this.canvas || !this.game.map) return null;
+
     const mapSize = this.game.map.getSize();
     const minX = -mapSize.width / 2;
     const maxX = mapSize.width / 2;
@@ -245,13 +285,12 @@ class Minimap {
     const scaleY = this.canvas.height / rect.height;
     const clickX = (event.clientX - rect.left) * scaleX;
     const clickY = (event.clientY - rect.top) * scaleY;
+    const { x, z } = this.canvasToWorld(clickX, clickY);
 
-    const { x: worldX, z: worldZ } = this.canvasToWorld(clickX, clickY);
-    
-    this.game.camera.target.x = Math.max(minX, Math.min(maxX, worldX));
-    this.game.camera.target.z = Math.max(minZ, Math.min(maxZ, worldZ));
-    this.game.camera.target.y = 0;
-    this.game.camera.updateCameraPosition();
+    return {
+      x: Math.max(minX, Math.min(maxX, x)),
+      z: Math.max(minZ, Math.min(maxZ, z))
+    };
   }
 
   canvasToWorld(canvasX, canvasY) {
