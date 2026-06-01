@@ -131,6 +131,9 @@
 
                 <div class="hud-panel hud-panel-center">
                     <div class="hud-panel-center-left">
+                        <button id="center-info-collapse" class="center-info-collapse" type="button" title="折叮信息面板" aria-label="折叮信息面板">
+                            ◀
+                        </button>
                         <div id="unit-info-content" class="unit-info">
                             <div style="color: #888; text-align: center; padding: 40px 0;">
                                 未选择任何单位
@@ -138,7 +141,18 @@
                         </div>
                     </div>
                     <div class="hud-panel-center-right">
-                        <!-- 空白区域 -->
+                        <div class="hud-panel-center-right-main" aria-hidden="true"></div>
+                        <div id="control-group-bar" class="control-group-bar" aria-label="编队">
+                            <button class="control-group-button empty" type="button" data-group="1" hidden><span>1</span></button>
+                            <button class="control-group-button empty" type="button" data-group="2" hidden><span>2</span></button>
+                            <button class="control-group-button empty" type="button" data-group="3" hidden><span>3</span></button>
+                            <button class="control-group-button empty" type="button" data-group="4" hidden><span>4</span></button>
+                            <button class="control-group-button empty" type="button" data-group="5" hidden><span>5</span></button>
+                            <button class="control-group-button empty" type="button" data-group="6" hidden><span>6</span></button>
+                            <button class="control-group-button empty" type="button" data-group="7" hidden><span>7</span></button>
+                            <button class="control-group-button empty" type="button" data-group="8" hidden><span>8</span></button>
+                            <button class="control-group-button empty" type="button" data-group="9" hidden><span>9</span></button>
+                        </div>
                     </div>
                 </div>
 

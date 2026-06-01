@@ -100,23 +100,14 @@ class EventManager {
             }
         }
         
-        if (event.key === '1') {
-            if (this.game.hud) {
-                this.game.hud.updateBuildingPanelConfig({ rows: 3, cols: 5, totalButtons: 15 });
-                console.log('建筑面板布局：3行5列（默认）');
+        if (/^[1-9]$/.test(event.key)) {
+            if (event.ctrlKey || event.metaKey) {
+                this.game.hud?.setControlGroup(event.key);
+            } else {
+                this.game.hud?.selectControlGroup(event.key);
             }
-        }
-        if (event.key === '2') {
-            if (this.game.hud) {
-                this.game.hud.updateBuildingPanelConfig({ rows: 4, cols: 3, totalButtons: 12 });
-                console.log('建筑面板布局：4行3列');
-            }
-        }
-        if (event.key === '3') {
-            if (this.game.hud) {
-                this.game.hud.updateBuildingPanelConfig({ rows: 4, cols: 4, totalButtons: 16 });
-                console.log('建筑面板布局：4行4列');
-            }
+            event.preventDefault();
+            return;
         }
         
         if (event.key === 'q' || event.key === 'Q') {
@@ -152,22 +143,6 @@ class EventManager {
             }
         }
         
-        if (event.ctrlKey || event.metaKey) {
-            if (this.game.selectionManager) {
-                const formationTypes = ['line', 'column', 'square', 'wedge', 'circle'];
-                const formationNames = ['线形编队', '列形编队', '方形编队', '楔形编队', '圆形编队'];
-
-                for (let i = 1; i <= 5; i++) {
-                    if (event.key === i.toString()) {
-                        this.game.selectionManager.setFormationType(formationTypes[i - 1]);
-                        console.log(`编队类型已切换为：${formationNames[i - 1]}`);
-                        event.preventDefault();
-                        break;
-                    }
-                }
-            }
-        }
-
         if (event.key === 'c' || event.key === 'C') {
             this.game.entityManager.toggleCollisionVisuals();
         }

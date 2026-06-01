@@ -5,8 +5,22 @@
     right: 0;
     height: 180px;
     pointer-events: auto;
-    border-top: 2px solid #8B4513;
     z-index: 100;
+}
+
+#hud::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 700px;
+    height: 2px;
+    background: #8B4513;
+    pointer-events: none;
+}
+
+#hud:has(.hud-panel-center.info-collapsed)::before {
+    width: 322px;
 }
 
 .hud-panel {
@@ -30,27 +44,136 @@
 .hud-panel-center {
     position: absolute;
     left: 280px;
-    right: 220px;
     bottom: 0;
+    width: 420px;
     height: 100%;
-    display: flex;
-    flex-direction: row;
-    background: rgba(232, 240, 159, 0.178);
+    background: transparent;
+    pointer-events: none;
+    transition: width 0.18s ease;
+}
+
+.hud-panel-center.info-collapsed {
+    width: 42px;
 }
 
 .hud-panel-center-left {
-    width: 280px;
-    min-width: 280px;
+    position: relative;
+    width: 420px;
+    min-width: 420px;
     height: 100%;
-    padding: 10px;
+    padding: 10px 34px 10px 10px;
     display: flex;
     flex-direction: column;
     border-right: 1px solid #8B4513;
+    background: linear-gradient(
+        90deg,
+        rgba(32, 22, 16, 0.58) 0%,
+        rgba(96, 67, 36, 0.36) 62%,
+        rgba(232, 240, 159, 0.16) 100%
+    );
+    pointer-events: auto;
+    transition: width 0.18s ease, min-width 0.18s ease, padding 0.18s ease;
+}
+
+.hud-panel-center.info-collapsed .hud-panel-center-left {
+    width: 42px;
+    min-width: 42px;
+    padding: 10px;
+}
+
+.hud-panel-center.info-collapsed .unit-info {
+    display: none;
+}
+
+.center-info-collapse {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid rgba(139, 69, 19, 0.85);
+    background: rgba(52, 34, 22, 0.92);
+    color: #FFD700;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.center-info-collapse:hover {
+    border-color: #FFD700;
+    background: rgba(90, 61, 43, 0.95);
+}
+
+.hud-panel-center.info-collapsed .center-info-collapse {
+    right: 10px;
 }
 
 .hud-panel-center-right {
-    flex: 1;
-    height: 100%;
+    position: fixed;
+    left: 280px;
+    right: 220px;
+    bottom: 0;
+    height: 180px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow: hidden;
+    background: transparent;
+    pointer-events: none;
+}
+
+.hud-panel-center-right-main {
+    display: none;
+}
+
+.control-group-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 12px 10px;
+    pointer-events: none;
+}
+
+.control-group-button {
+    width: 32px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid rgba(139, 69, 19, 0.85);
+    background: rgba(32, 22, 16, 0.72);
+    color: rgba(255, 215, 0, 0.72);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.control-group-button.empty {
+    display: none;
+}
+
+.control-group-button.has-group {
+    background: rgba(90, 61, 43, 0.92);
+    color: #FFD700;
+}
+
+.control-group-button.active {
+    border-color: #FFD700;
+    box-shadow: 0 0 0 1px rgba(255, 215, 0, 0.35) inset;
+}
+
+.control-group-button:hover {
+    border-color: #FFD700;
+    background: rgba(139, 69, 19, 0.86);
+    color: #FFD700;
 }
 
 .hud-panel-right {

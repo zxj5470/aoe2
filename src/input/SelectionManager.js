@@ -11,6 +11,8 @@ class SelectionManager {
         
         this.formationSystem = formationSystem;
         this.formationType = 'line'; // 默认编队类型
+        this.controlGroups = new Map();
+        this.activeControlGroup = null;
         
         this.listeners = [];
     }
@@ -90,6 +92,7 @@ class SelectionManager {
         const deselectedEntities = [...this.selectedEntities];
         this.selectedEntities = [];
         this.selectionType = 'unit';
+        this.activeControlGroup = null;
         
         this.notifyListeners('deselectAll', deselectedEntities);
     }
@@ -108,6 +111,51 @@ class SelectionManager {
 
     getSelectionType() {
         return this.selectionType;
+    }
+
+    setControlGroup(groupNumber) {
+        const group = Number(groupNumber);
+        if (!Number.isInteger(group) || group < 1 || group > 9) return false;
+
+        const entities = this.selectedEntities.filter(entity =>
+            entity && entity.isAlive && entity.type === 'unit'
+        );
+        if (entities.length === 0) return false;
+
+        this.controlGroups.set(group, entities);
+        this.activeControlGroup = group;
+        this.notifyListeners('controlGroupSet', { group, entities });
+        return true;
+    }
+
+    selectControlGroup(groupNumber) {
+        const group = Number(groupNumber);
+        if (!Number.isInteger(group) || group < 1 || group > 9) return false;
+
+        const entities = (this.controlGroups.get(group) || []).filter(entity =>
+            entity && entity.isAlive && entity.type === 'unit'
+        );
+        if (entities.length === 0) {
+            this.controlGroups.delete(group);
+            this.activeControlGroup = null;
+            this.notifyListeners('controlGroupEmpty', { group });
+            return false;
+        }
+
+        this.selectEntities(entities, false);
+        this.controlGroups.set(group, entities);
+        this.activeControlGroup = group;
+        this.notifyListeners('controlGroupSelect', { group, entities });
+        return true;
+    }
+
+    hasControlGroup(groupNumber) {
+        const group = Number(groupNumber);
+        return (this.controlGroups.get(group) || []).some(entity => entity && entity.isAlive);
+    }
+
+    getActiveControlGroup() {
+        return this.activeControlGroup;
     }
 
     getSelectionCenter() {
@@ -279,12 +327,29 @@ class SelectionManager {
         for (const entity of deadEntities) {
             this.deselectEntity(entity);
         }
+
+        for (const [group, entities] of this.controlGroups.entries()) {
+            const aliveEntities = entities.filter(entity =>
+                entity && entity.isAlive && entity.type === 'unit'
+            );
+            if (aliveEntities.length === 0) {
+                this.controlGroups.delete(group);
+                if (this.activeControlGroup === group) {
+                    this.activeControlGroup = null;
+                }
+            } else if (aliveEntities.length !== entities.length) {
+                this.controlGroups.set(group, aliveEntities);
+            }
+        }
     }
 
     reset() {
         this.deselectAll();
         this.selectedEntities = [];
         this.selectionType = 'unit';
+        this.controlGroups.clear();
+        this.activeControlGroup = null;
+        this.notifyListeners('controlGroupsReset', null);
     }
 }
 

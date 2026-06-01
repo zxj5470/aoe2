@@ -27,9 +27,13 @@ class HUD {
     this.civilizationTechHideTimer = null;
     this.productionQueueBar = document.getElementById('production-queue-bar');
     this.productionQueueContainer = this.productionQueueBar?.querySelector('.production-items') || null;
+    this.centerPanel = document.querySelector('.hud-panel-center');
+    this.centerInfoCollapseButton = document.getElementById('center-info-collapse');
+    this.controlGroupBar = document.getElementById('control-group-bar');
     
     this.selectionListenerBound = false;
     this.ageDisplayCameraControl = null;
+    this.centerInfoCollapsed = false;
     
     this.init();
   }
@@ -43,7 +47,9 @@ class HUD {
     this.setupEventListeners();
     this.setupMouseTracking();
     this.setupAgeDisplayCameraControl();
+    this.setupCenterPanelControls();
     this.updateCivilizationTechWidget();
+    this.updateControlGroupBar();
   }
 
   setupEventListeners() {
@@ -66,8 +72,75 @@ class HUD {
         this.infoPanel.updateUnitInfo(selectedEntities);
         this.actionPanel.updateForSelection(selectedEntities);
       }
+
+      if (event.startsWith('controlGroup') || event === 'deselectAll') {
+        this.updateControlGroupBar();
+      }
     });
     this.selectionListenerBound = true;
+  }
+
+  setupCenterPanelControls() {
+    if (this.centerInfoCollapseButton && this.centerPanel) {
+      this.centerInfoCollapseButton.addEventListener('click', () => {
+        this.toggleCenterInfoPanel();
+      });
+    }
+
+    if (this.controlGroupBar) {
+      this.controlGroupBar.addEventListener('click', (event) => {
+        const button = event.target.closest('.control-group-button');
+        if (!button) return;
+        this.selectControlGroup(button.dataset.group);
+      });
+    }
+  }
+
+  toggleCenterInfoPanel() {
+    if (!this.centerPanel || !this.centerInfoCollapseButton) return;
+
+    this.centerInfoCollapsed = !this.centerInfoCollapsed;
+    this.centerPanel.classList.toggle('info-collapsed', this.centerInfoCollapsed);
+    this.centerInfoCollapseButton.textContent = this.centerInfoCollapsed ? '▶' : '◀';
+    this.centerInfoCollapseButton.title = this.centerInfoCollapsed ? '展开信息面板' : '折叮信息面板';
+    this.centerInfoCollapseButton.setAttribute('aria-label', this.centerInfoCollapseButton.title);
+  }
+
+  setControlGroup(groupNumber) {
+    if (!this.game.selectionManager?.setControlGroup(groupNumber)) {
+      this.showNotification('先选择单位再设置控制组', 1200);
+      return false;
+    }
+
+    this.updateControlGroupBar();
+    return true;
+  }
+
+  selectControlGroup(groupNumber) {
+    if (!this.game.selectionManager?.selectControlGroup(groupNumber)) {
+      this.showNotification(`编队 ${groupNumber} 为空`, 1000);
+      this.updateControlGroupBar();
+      return false;
+    }
+
+    this.updateControlGroupBar();
+    return true;
+  }
+
+  updateControlGroupBar() {
+    if (!this.controlGroupBar || !this.game.selectionManager) return;
+
+    const activeGroup = this.game.selectionManager.getActiveControlGroup();
+    const buttons = this.controlGroupBar.querySelectorAll('.control-group-button');
+    buttons.forEach(button => {
+      const group = Number(button.dataset.group);
+      const hasGroup = this.game.selectionManager.hasControlGroup(group);
+      button.classList.toggle('empty', !hasGroup);
+      button.classList.toggle('has-group', hasGroup);
+      button.classList.toggle('active', activeGroup === group);
+      button.hidden = !hasGroup;
+      button.title = hasGroup ? `选择编队 ${group}` : `Ctrl+${group} 设置编队`;
+    });
   }
 
   setupMouseTracking() {
@@ -124,6 +197,7 @@ class HUD {
     this.updateUnitInfoPanel();
     this.updateProductionProgressUI();
     this.updateCivilizationTechWidget();
+    this.updateControlGroupBar();
   }
 
   updateUnitInfoPanel() {
