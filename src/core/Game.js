@@ -561,12 +561,11 @@ class Game {
                 }
             }
 
-            // 双击同类型村民 → 选择视角内所有村民
-            if (pickedEntity.type === 'unit' && pickedEntity.unitType === 'villager' && pickedEntity.isPlayerOwned()) {
+            // 双击同类可选实体 → 选择视角内所有同类实体
+            if (this.canDoubleClickSelectSameType(pickedEntity)) {
                 if (pickedEntity.id === this.lastClickedEntityId &&
                     now - this.lastClickTime < this.doubleClickThreshold) {
-                    console.log('[双击] 选择视角内所有村民');
-                    this.selectAllVillagersInView();
+                    this.selectAllSameTypeInView(pickedEntity);
                     this.lastClickTime = 0;
                     this.lastClickedEntityId = null;
                     return;
@@ -671,12 +670,20 @@ class Game {
             .queryPoint(worldPos.x, worldPos.z, 1.5)
             .filter(entity => !this.fogOfWarSystem || this.fogOfWarSystem.isEntitySelectable(entity));
 
-        // 如果选中的是已方绵羊，右键移动它
-        if (this.selectionManager.selectionType === 'resource' &&
-            this.selectionManager.selectedEntities.length === 1) {
-            const selEntity = this.selectionManager.selectedEntities[0];
-            if (selEntity.isSheep && selEntity.sheepState === 'owned') {
-                selEntity.setSheepTarget(worldPos);
+        // 如果选中的是己方绵羊，右键移动所有被选中的己方绵羊
+        if (this.selectionManager.selectionType === 'resource') {
+            const selectedSheep = this.selectionManager.selectedEntities.filter(entity =>
+                entity.isAlive &&
+                entity.type === 'resource' &&
+                entity.isSheep &&
+                entity.sheepState === 'owned' &&
+                entity.isPlayerOwned()
+            );
+
+            if (selectedSheep.length > 0) {
+                for (const sheep of selectedSheep) {
+                    sheep.setSheepTarget(worldPos);
+                }
                 return;
             }
         }
@@ -906,13 +913,18 @@ class Game {
         }
     }
 
+    canDoubleClickSelectSameType(entity) {
+        if (!entity || !entity.isAlive || !entity.isPlayerOwned()) return false;
+        if (entity.type === 'unit') return Boolean(entity.unitType);
+        return entity.type === 'resource' && entity.isSheep;
+    }
+
     /**
-     * 双击村民时选择当前视角范围内的所有己方村民
+     * 双击单位/绵羊时选择当前视角范围内的所有己方同类实体
      */
-    selectAllVillagersInView() {
+    selectAllSameTypeInView(sourceEntity) {
         if (!this.camera || !this.entityManager || !this.selectionManager) return;
 
-        const cam = this.camera.getCamera();
         const target = this.camera.target;
         const zoom = this.camera.zoomLevel;
         const aspect = this.canvas.clientWidth / this.canvas.clientHeight;
@@ -926,22 +938,38 @@ class Game {
         const minZ = target.z - halfDepth;
         const maxZ = target.z + halfDepth;
 
-        const villagers = this.entityManager.entities.filter(e =>
+        const sameTypeEntities = this.entityManager.entities.filter(e =>
             e.isAlive &&
-            e.type === 'unit' &&
-            e.unitType === 'villager' &&
+            this.isSameDoubleClickSelectionType(e, sourceEntity) &&
             e.isPlayerOwned() &&
+            (!this.fogOfWarSystem || this.fogOfWarSystem.isEntitySelectable(e)) &&
             e.position.x >= minX && e.position.x <= maxX &&
             e.position.z >= minZ && e.position.z <= maxZ
         );
 
-        if (villagers.length === 0) return;
+        if (sameTypeEntities.length === 0) return;
 
         this.selectionManager.deselectAll();
-        for (const v of villagers) {
-            this.selectionManager.selectEntity(v, true);
+        this.selectionManager.selectEntities(sameTypeEntities, false);
+        console.log(`[双击] 选择了视角内 ${sameTypeEntities.length} 个${this.getDoubleClickSelectionLabel(sourceEntity)}`);
+    }
+
+    isSameDoubleClickSelectionType(entity, sourceEntity) {
+        if (!entity || !sourceEntity) return false;
+        if (sourceEntity.type === 'unit') {
+            return entity.type === 'unit' && entity.unitType === sourceEntity.unitType;
         }
-        console.log(`[双击] 选择了视角内 ${villagers.length} 个村民`);
+
+        if (sourceEntity.type === 'resource' && sourceEntity.isSheep) {
+            return entity.type === 'resource' && entity.isSheep;
+        }
+
+        return false;
+    }
+
+    getDoubleClickSelectionLabel(entity) {
+        if (entity?.type === 'resource' && entity.isSheep) return '绵羊';
+        return entity?.unitType || '单位';
     }
 
     /**
