@@ -341,6 +341,19 @@ class FogOfWarSystem {
         return this.isPositionVisible(entity.position);
     }
 
+    isEntityHoverable(entity) {
+        if (!entity || !entity.isAlive) return false;
+        if (this.isEntitySelectable(entity)) return true;
+
+        if (entity.type === 'resource' && !entity.isSheep) {
+            return this.isPositionExplored(entity.position) &&
+                entity.fogKnownResourceState &&
+                !entity.fogKnownResourceState.isDepleted;
+        }
+
+        return false;
+    }
+
     isPositionVisible(position) {
         if (this.cheatVisible) return true;
         const cell = this.worldToCell(position);

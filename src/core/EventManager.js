@@ -4,6 +4,9 @@ class EventManager {
     constructor(game) {
         this.game = game;
         this.listeners = new Map();
+        this.hoveredEntity = null;
+        this.lastHoverPickTime = 0;
+        this.hoverPickInterval = 33;
     }
 
     setupEventListeners() {
@@ -224,20 +227,42 @@ class EventManager {
 
     updateEntityHoverState(event) {
         if (!this.game.entityManager) return;
-        const entities = this.game.entityManager.getEntities();
-        const hoveredEntity = this.game.pickAtMouse(event);
-        // 重置所有实体（单位或建筑）的悬停状态
-        for (const entity of entities) {
-            if ((entity.type === 'building' || entity.type === 'unit' || entity.type === 'resource') && entity.onHoverOut) {
-                if (entity === hoveredEntity) {
-                    entity.onHover();
-                } else {
-                    entity.onHoverOut();
-                }
+        const now = performance.now();
+        if (now - this.lastHoverPickTime < this.hoverPickInterval) return;
+        this.lastHoverPickTime = now;
+
+        const hoveredEntity = this.pickHoverEntity(event);
+
+        if (hoveredEntity !== this.hoveredEntity) {
+            if (this.hoveredEntity?.onHoverOut) {
+                this.hoveredEntity.onHoverOut();
             }
+
+            if (hoveredEntity?.onHover) {
+                hoveredEntity.onHover();
+            }
+
+            this.hoveredEntity = hoveredEntity;
         }
+
         // 鼠标样式变化：选中村民时，hover到可采集资源显示手型
         this.updateCursorStyle(hoveredEntity);
+    }
+
+    pickHoverEntity(event) {
+        if (!this.game.inputHandler || !this.game.spatialIndex) {
+            return this.game.pickAtMouse(event, null, { hover: true });
+        }
+
+        this.game.inputHandler.updateWorldPosition(event.clientX, event.clientY);
+        const worldPos = this.game.inputHandler.getWorldPosition();
+        const candidates = this.game.spatialIndex
+            .queryPoint(worldPos.x, worldPos.z, 2.5)
+            .filter(entity => entity?.mesh && entity.isAlive);
+
+        if (candidates.length === 0) return null;
+
+        return this.game.pickAtMouse(event, candidates.map(entity => entity.mesh), { hover: true });
     }
     /**
      * 更新鼠标样式

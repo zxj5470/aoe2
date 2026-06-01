@@ -596,7 +596,7 @@ class Game {
         this.lastClickedEntityId = null;
     }
 
-    pickAtMouse(event = null) {
+    pickAtMouse(event = null, objects = null, options = {}) {
         if (!this.inputHandler || !this.scene) return null;
         
         const raycaster = this.inputHandler.getRaycaster();
@@ -613,9 +613,14 @@ class Game {
         const ndcX = ((mousePos.x - rect.left) / rect.width) * 2 - 1;
         const ndcY = -((mousePos.y - rect.top) / rect.height) * 2 + 1;
         
-        raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera.getCamera());
+        if (!this.pickMouseVector) {
+            this.pickMouseVector = new THREE.Vector2();
+        }
+        this.pickMouseVector.set(ndcX, ndcY);
+        raycaster.setFromCamera(this.pickMouseVector, this.camera.getCamera());
         
-        const intersects = raycaster.intersectObjects(this.scene.getScene().children, true);
+        const pickObjects = objects || this.scene.getScene().children;
+        const intersects = raycaster.intersectObjects(pickObjects, true);
         
         for (const intersect of intersects) {
             let currentObj = intersect.object;
@@ -623,7 +628,8 @@ class Game {
             while (currentObj) {
                 if (currentObj.userData && currentObj.userData.entity) {
                     const entity = currentObj.userData.entity;
-                    if (!this.fogOfWarSystem || this.fogOfWarSystem.isEntitySelectable(entity)) {
+                    if (this.isMouseWithinPickBounds(entity, mousePos, rect) &&
+                        this.isEntityPickableByFog(entity, options)) {
                         return entity;
                     }
                     break;
@@ -633,6 +639,50 @@ class Game {
         }
         
         return null;
+    }
+
+    isEntityPickableByFog(entity, options = {}) {
+        if (!this.fogOfWarSystem) return true;
+        if (options.hover && this.fogOfWarSystem.isEntityHoverable) {
+            return this.fogOfWarSystem.isEntityHoverable(entity);
+        }
+        return this.fogOfWarSystem.isEntitySelectable(entity);
+    }
+
+    isMouseWithinPickBounds(entity, mousePos, canvasRect) {
+        if (!entity?.getCollisionBox) return true;
+
+        const box = entity.getCollisionBox();
+        if (!box) return true;
+
+        const worldPos = this.getMouseGroundPosition(mousePos, canvasRect);
+        if (!worldPos) return true;
+
+        const tolerance = entity.type === 'unit' ? 0.35 : 0.08;
+        return worldPos.x >= box.minX - tolerance &&
+            worldPos.x <= box.maxX + tolerance &&
+            worldPos.z >= box.minZ - tolerance &&
+            worldPos.z <= box.maxZ + tolerance;
+    }
+
+    getMouseGroundPosition(mousePos, canvasRect) {
+        if (!this.inputHandler || !this.camera) return null;
+
+        if (!this.pickGroundVector) {
+            this.pickGroundVector = new THREE.Vector2();
+            this.pickGroundIntersection = new THREE.Vector3();
+            this.pickGroundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        }
+
+        this.pickGroundVector.set(
+            ((mousePos.x - canvasRect.left) / canvasRect.width) * 2 - 1,
+            -((mousePos.y - canvasRect.top) / canvasRect.height) * 2 + 1
+        );
+
+        const raycaster = this.inputHandler.getRaycaster();
+        raycaster.setFromCamera(this.pickGroundVector, this.camera.getCamera());
+        const hit = raycaster.ray.intersectPlane(this.pickGroundPlane, this.pickGroundIntersection);
+        return hit ? this.pickGroundIntersection : null;
     }
     
     handleRightClick(event) {
