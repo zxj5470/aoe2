@@ -83,6 +83,8 @@ class InfoPanel {
     };
     this.mouseWorldPosition = null;
     this.boundProductionQueueClick = null;
+    this.lastUnitInfoSignature = '';
+    this.lastUnitInfoHtml = '';
   }
 
   init() {
@@ -108,11 +110,11 @@ class InfoPanel {
     if (!this.unitInfoContent) return;
 
     if (!selectedEntities || selectedEntities.length === 0) {
-      this.unitInfoContent.innerHTML = `
+      this.setUnitInfoHtml('empty', `
         <div style="color: #888; text-align: center; padding: 40px 0;">
           未选择任何单位
         </div>
-      `;
+      `);
       return;
     }
 
@@ -280,7 +282,69 @@ class InfoPanel {
       html += '</div>';
     }
 
+    this.setUnitInfoHtml(this.getUnitInfoSignature(selectedEntities), html);
+  }
+
+  setUnitInfoHtml(signature, html) {
+    if (signature === this.lastUnitInfoSignature && html === this.lastUnitInfoHtml) {
+      return;
+    }
+
     this.unitInfoContent.innerHTML = html;
+    this.lastUnitInfoSignature = signature;
+    this.lastUnitInfoHtml = html;
+  }
+
+  getUnitInfoSignature(selectedEntities) {
+    return selectedEntities.map(entity => {
+      const parts = [
+        entity.id,
+        entity.type,
+        entity.unitType || '',
+        entity.buildingType || '',
+        entity.owner || '',
+        entity.health ?? '',
+        entity.maxHealth ?? '',
+        entity.amount !== undefined ? Math.ceil(entity.amount) : '',
+        entity.attackDamage ?? '',
+        entity.armor ?? '',
+        entity.speed ?? '',
+        entity.carryType || '',
+        entity.carryAmount !== undefined ? Math.floor(entity.carryAmount) : '',
+        entity.isMoving ? 1 : 0,
+        entity.currentResource?.id || '',
+        entity.isUnderConstruction ? 1 : 0,
+        Math.round(entity.constructionProgress || 0),
+        entity.builderVillagers?.length || 0,
+        entity.requiredBuilders || '',
+        Math.round(entity.productionProgress || 0),
+        this.getProductionSignature(entity.currentProduction),
+        (entity.productionQueue || []).map(item => this.getProductionSignature(item)).join(',')
+      ];
+
+      if (entity.isUnderConstruction && entity.getConstructionInfo) {
+        const info = entity.getConstructionInfo();
+        parts.push(
+          Math.round(info.progress || 0),
+          info.remainingTimeSec || 0,
+          info.builderCount || 0,
+          info.requiredBuilders || 0
+        );
+      }
+
+      return parts.join(':');
+    }).join('|');
+  }
+
+  getProductionSignature(item) {
+    if (!item) return '';
+    return [
+      item.type || '',
+      item.unitType || '',
+      item.techType || '',
+      item.time || '',
+      JSON.stringify(item.cost || {})
+    ].join('/');
   }
 
   renderBuildingProductionQueue(building) {
@@ -309,7 +373,7 @@ class InfoPanel {
       .map((item, index) => this.renderProductionCell(building, item, {
         slot: 'queue',
         index,
-        progress: index === 0 ? building.productionProgress || 0 : 0,
+        progress: 0,
         large: false
       }))
       .join('');

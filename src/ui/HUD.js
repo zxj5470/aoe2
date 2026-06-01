@@ -30,10 +30,15 @@ class HUD {
     this.centerPanel = document.querySelector('.hud-panel-center');
     this.centerInfoCollapseButton = document.getElementById('center-info-collapse');
     this.controlGroupBar = document.getElementById('control-group-bar');
+    this.chatPanel = document.getElementById('chat-panel');
+    this.chatMessages = document.getElementById('chat-messages');
+    this.chatInputRow = document.getElementById('chat-input-row');
+    this.chatInput = document.getElementById('chat-input');
     
     this.selectionListenerBound = false;
     this.ageDisplayCameraControl = null;
     this.centerInfoCollapsed = false;
+    this.chatActive = false;
     
     this.init();
   }
@@ -48,6 +53,7 @@ class HUD {
     this.setupMouseTracking();
     this.setupAgeDisplayCameraControl();
     this.setupCenterPanelControls();
+    this.setupChatInput();
     this.updateCivilizationTechWidget();
     this.updateControlGroupBar();
   }
@@ -93,6 +99,95 @@ class HUD {
         if (!button) return;
         this.selectControlGroup(button.dataset.group);
       });
+    }
+  }
+
+  setupChatInput() {
+    if (!this.chatInput) return;
+
+    this.chatPanel?.addEventListener('pointerdown', (event) => {
+      event.stopPropagation();
+    });
+
+    this.chatInput.addEventListener('keydown', (event) => {
+      event.stopPropagation();
+
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        this.submitChatMessage();
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        this.closeChatInput();
+      }
+    });
+  }
+
+  handleChatHotkey(event) {
+    if (this.isChatActive()) {
+      event.preventDefault();
+      event.stopPropagation();
+      return true;
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      event.stopPropagation();
+      this.openChatInput();
+      return true;
+    }
+
+    return false;
+  }
+
+  isChatActive() {
+    return this.chatActive || document.activeElement === this.chatInput;
+  }
+
+  openChatInput() {
+    if (!this.chatInput || !this.chatInputRow) return;
+
+    this.chatActive = true;
+    if (this.game.camera?.keys) {
+      this.game.camera.keys = {};
+    }
+    this.chatInputRow.hidden = false;
+    this.chatInput.value = '';
+    this.chatInput.focus();
+  }
+
+  closeChatInput() {
+    if (!this.chatInput || !this.chatInputRow) return;
+
+    this.chatActive = false;
+    this.chatInput.value = '';
+    this.chatInputRow.hidden = true;
+    this.chatInput.blur();
+  }
+
+  submitChatMessage() {
+    if (!this.chatInput) return;
+
+    const message = this.chatInput.value.trim();
+    if (message) {
+      this.addChatMessage(message);
+    }
+
+    this.closeChatInput();
+  }
+
+  addChatMessage(message) {
+    if (!this.chatMessages) return;
+
+    const item = document.createElement('div');
+    item.className = 'chat-message';
+    item.textContent = message;
+    this.chatMessages.appendChild(item);
+
+    while (this.chatMessages.children.length > 6) {
+      this.chatMessages.removeChild(this.chatMessages.firstElementChild);
     }
   }
 

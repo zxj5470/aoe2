@@ -10,6 +10,7 @@ class EventManager {
         window.addEventListener('resize', () => this.onWindowResize());
         window.addEventListener('keydown', (e) => this.onKeyDown(e));
         window.addEventListener('keyup', (e) => this.onKeyUp(e));
+        window.addEventListener('mousemove', (e) => this.onWindowMouseMove(e));
         
         this.game.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
         this.game.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
@@ -53,6 +54,10 @@ class EventManager {
     }
 
     onKeyDown(event) {
+        if (this.game.hud?.handleChatHotkey(event)) {
+            return;
+        }
+
         this.game.camera.handleKeyDown(event);
 
         // Tab 键旋转建筑（放置模式下）
@@ -166,7 +171,17 @@ class EventManager {
     }
 
     onKeyUp(event) {
+        if (this.game.hud?.isChatActive()) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+        }
+
         this.game.camera.handleKeyUp(event);
+    }
+
+    onWindowMouseMove(event) {
+        this.game.camera.handleMouseMove(event);
     }
 
     onMouseDown(event) {
