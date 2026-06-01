@@ -200,14 +200,50 @@ class FogOfWarSystem {
                 const index = this.getIndex(x, y);
                 if (this.visible[index]) continue;
 
-                this.ctx.fillStyle = this.explored[index]
-                    ? 'rgba(0, 0, 0, 0.45)'
-                    : 'rgba(0, 0, 0, 0.95)';
+                const alpha = this.getFogCellAlpha(x, y, index);
+                this.ctx.fillStyle = `rgba(0, 0, 0, ${alpha.toFixed(3)})`;
                 this.ctx.fillRect(x * scale, y * scale, scale, scale);
             }
         }
 
         this.texture.needsUpdate = true;
+    }
+
+    getFogCellAlpha(x, y, index) {
+        const baseAlpha = this.explored[index] ? 0.45 : 0.95;
+        const visibleNeighborCount = this.countVisibleNeighbors(x, y);
+        if (visibleNeighborCount === 0) return baseAlpha;
+
+        const edgeStrength = Math.min(1, visibleNeighborCount / 4);
+        const noise = this.getCellNoise(x, y);
+        const irregularity = 0.76 + noise * 0.34;
+        const fade = (this.explored[index] ? 0.28 : 0.42) * edgeStrength * irregularity;
+
+        return Math.max(this.explored[index] ? 0.18 : 0.48, baseAlpha - fade);
+    }
+
+    countVisibleNeighbors(x, y) {
+        let count = 0;
+
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                if (dx === 0 && dy === 0) continue;
+
+                const nx = x + dx;
+                const ny = y + dy;
+                if (!this.isInBounds(nx, ny)) continue;
+                if (this.visible[this.getIndex(nx, ny)]) count++;
+            }
+        }
+
+        return count;
+    }
+
+    getCellNoise(x, y) {
+        let value = x * 374761393 + y * 668265263;
+        value = (value ^ (value >> 13)) * 1274126177;
+        value = value ^ (value >> 16);
+        return ((value >>> 0) % 1000) / 1000;
     }
 
     updateEntityVisibility() {
