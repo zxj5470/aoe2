@@ -4,6 +4,7 @@ class SpatialIndex {
     constructor() {
         this.rtree = new RBush(9); // 9叉树
         this.entityMap = new Map(); // 实体ID到实体的映射
+        this.itemByEntity = new Map(); // 实体到R-tree条目的映射，移动单位更新时避免全量扫描
         this.nextId = 0;
     }
 
@@ -27,6 +28,7 @@ class SpatialIndex {
 
         this.rtree.insert(item);
         this.entityMap.set(id, entity);
+        this.itemByEntity.set(entity, item);
 
         return id;
     }
@@ -35,18 +37,21 @@ class SpatialIndex {
      * 从空间索引移除实体
      */
     remove(entity) {
-        const itemsToRemove = [];
-        
-        this.rtree.all().forEach(item => {
-            if (item.entity === entity) {
-                itemsToRemove.push(item);
-            }
-        });
+        const indexedItem = this.itemByEntity.get(entity);
+        if (indexedItem) {
+            this.rtree.remove(indexedItem);
+            this.entityMap.delete(indexedItem.id);
+            this.itemByEntity.delete(entity);
+            return;
+        }
 
-        itemsToRemove.forEach(item => {
+        // 兼容旧状态：如果实体没有映射记录，再做一次兜底扫描。
+        const itemsToRemove = this.rtree.all().filter(item => item.entity === entity);
+        for (const item of itemsToRemove) {
             this.rtree.remove(item);
             this.entityMap.delete(item.id);
-        });
+            this.itemByEntity.delete(entity);
+        }
     }
 
     /**
@@ -91,6 +96,7 @@ class SpatialIndex {
     clear() {
         this.rtree.clear();
         this.entityMap.clear();
+        this.itemByEntity.clear();
         this.nextId = 0;
     }
 

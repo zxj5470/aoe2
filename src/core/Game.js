@@ -598,9 +598,7 @@ class Game {
 
     pickAtMouse(event = null, objects = null, options = {}) {
         if (!this.inputHandler || !this.scene) return null;
-        
-        const raycaster = this.inputHandler.getRaycaster();
-        
+
         let mousePos;
         if (event && event.clientX !== undefined) {
             mousePos = { x: event.clientX, y: event.clientY };
@@ -610,6 +608,27 @@ class Game {
         
         const canvas = this.canvas;
         const rect = canvas.getBoundingClientRect();
+
+        let pickObjects = objects;
+        if (!pickObjects && this.spatialIndex) {
+            const worldPos = this.getMouseGroundPosition(mousePos, rect);
+            if (worldPos) {
+                const candidates = this.spatialIndex
+                    .queryPoint(worldPos.x, worldPos.z, options.hover ? 2.5 : 2.0)
+                    .filter(entity => entity?.mesh && entity.isAlive);
+                if (candidates.length > 0) {
+                    pickObjects = candidates.map(entity => entity.mesh);
+                } else {
+                    return null;
+                }
+            }
+        }
+
+        if (!pickObjects) {
+            pickObjects = this.scene.getScene().children;
+        }
+
+        const raycaster = this.inputHandler.getRaycaster();
         const ndcX = ((mousePos.x - rect.left) / rect.width) * 2 - 1;
         const ndcY = -((mousePos.y - rect.top) / rect.height) * 2 + 1;
         
@@ -618,8 +637,7 @@ class Game {
         }
         this.pickMouseVector.set(ndcX, ndcY);
         raycaster.setFromCamera(this.pickMouseVector, this.camera.getCamera());
-        
-        const pickObjects = objects || this.scene.getScene().children;
+
         const intersects = raycaster.intersectObjects(pickObjects, true);
         
         for (const intersect of intersects) {

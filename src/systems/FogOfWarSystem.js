@@ -66,11 +66,12 @@ class FogOfWarSystem {
         this.canvas.width = this.textureWidth;
         this.canvas.height = this.textureHeight;
         this.ctx = this.canvas.getContext('2d', { alpha: true });
+        this.ctx.imageSmoothingEnabled = false;
 
         this.texture = new THREE.CanvasTexture(this.canvas);
         this.texture.generateMipmaps = false;
-        this.texture.minFilter = THREE.LinearFilter;
-        this.texture.magFilter = THREE.LinearFilter;
+        this.texture.minFilter = THREE.NearestFilter;
+        this.texture.magFilter = THREE.NearestFilter;
         this.texture.wrapS = THREE.ClampToEdgeWrapping;
         this.texture.wrapT = THREE.ClampToEdgeWrapping;
 

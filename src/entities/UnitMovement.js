@@ -9,7 +9,6 @@ class UnitMovement {
     }
 
     moveTo(targetPosition, options = {}) {
-        console.log(`[Unit.moveTo] 被调用! targetPosition: (${targetPosition.x}, ${targetPosition.y}, ${targetPosition.z})`);
         const clampedTarget = targetPosition.clone
             ? targetPosition.clone()
             : new THREE.Vector3(targetPosition.x, targetPosition.y || 0, targetPosition.z);
@@ -44,7 +43,6 @@ class UnitMovement {
         }
         
         if (this.unit.pathfindingSystem) {
-            console.log(`[Unit] 开始寻路: 起点 (${this.unit.position.x.toFixed(1)}, ${this.unit.position.z.toFixed(1)}) → 终点 (${clampedTarget.x.toFixed(1)}, ${clampedTarget.z.toFixed(1)})`);
             const result = this.unit.pathfindingSystem.findPath(
                 this.unit.position.x,
                 this.unit.position.z,
@@ -53,19 +51,14 @@ class UnitMovement {
             );
             
             if (result.success) {
-                console.log(`[Unit] 找到路径! 原始路径长度: ${result.path.length} 个点`);
-                result.path.forEach((cell, i) => console.log(`[Unit] 原始点 ${i}: (${cell.x}, ${cell.y})`));
-                
                 this.unit.path = this.unit.pathfindingSystem.smoothPath(result.path);
                 this.unit.currentPathIndex = 0;
-                console.log(`[Unit] 平滑后路径长度: ${this.unit.path.length} 个点`);
                 
                 if (this.unit.game && this.unit.game.scene && this.unit.pathfindingSystem && this.unit.pathfindingSystem.grid) {
                     this.unit.game.scene.visualizePath(this.unit.id, this.unit.path, this.unit.pathfindingSystem.grid);
                 }
             } else {
                 this.unit.path = [];
-                console.log('[Unit] 未找到路径，将直线移动');
                 
                 if (this.unit.game && this.unit.game.scene) {
                     this.unit.game.scene.clearPathVisualizer(this.unit.id);
@@ -96,7 +89,6 @@ class UnitMovement {
                 const now = Date.now() / 1000;
                 if (now - this._lastRepathTime >= this._repathCooldown) {
                     this._lastRepathTime = now;
-                    console.log(`[Unit] 下一个格子被阻塞，重新寻路`);
 
                     const repathResult = this.unit.pathfindingSystem.findPath(
                         this.unit.position.x,
@@ -114,7 +106,6 @@ class UnitMovement {
                             this.unit.game.scene.visualizePath(this.unit.id, this.unit.path, this.unit.pathfindingSystem.grid);
                         }
                     } else {
-                        console.log('[Unit] 重新寻路失败，停止移动');
                         this.unit.isMoving = false;
                         this.unit.path = [];
                         this.unit.currentAction = 'idle';
@@ -138,7 +129,6 @@ class UnitMovement {
                 0,
                 currentCell.y * cellSize + cellSize / 2 - halfH
             );
-            console.log(`[Unit] 正在跟随路径: 点 ${this.unit.currentPathIndex}/${this.unit.path.length} → (${targetPos.x.toFixed(1)}, ${targetPos.z.toFixed(1)})`);
             
             const dx = this.unit.position.x - targetPos.x;
             const dz = this.unit.position.z - targetPos.z;
@@ -146,10 +136,7 @@ class UnitMovement {
             
             if (distance < 0.5) {
                 this.unit.currentPathIndex++;
-                console.log(`[Unit] 到达路径点 ${this.unit.currentPathIndex - 1}，下一个是 ${this.unit.currentPathIndex}`);
                 if (this.unit.currentPathIndex >= this.unit.path.length) {
-                    console.log(`[村民移动] 到达目标位置 - isReturning: ${this.unit.isReturning}, carryAmount: ${this.unit.carryAmount}`);
-
                     // 到达路径终点，停止移动；资源交付由 ResourceGatheringSystem 在下一帧处理
                     this.unit.isMoving = false;
                     this.unit.path = [];
@@ -174,10 +161,7 @@ class UnitMovement {
                     0,
                     nextCell.y * cellSize + cellSize / 2 - halfH
                 );
-                console.log(`[Unit] 更新目标位置到路径点 ${this.unit.currentPathIndex}: (${targetPos.x.toFixed(1)}, ${targetPos.z.toFixed(1)})`);
             }
-        } else {
-            console.log(`[Unit] 没有可用路径，直接走直线到 (${targetPos.x.toFixed(1)}, ${targetPos.z.toFixed(1)})`);
         }
         
         if (targetPos) {

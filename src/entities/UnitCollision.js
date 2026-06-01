@@ -7,8 +7,9 @@ class UnitCollision {
     }
 
     createCollisionBox() {
-        const width = 0.5;
-        const depth = 0.5;
+        const isCavalry = this.unit.unitType === 'scout' || this.unit.unitType === 'knight';
+        const width = isCavalry ? 0.9 : 0.5;
+        const depth = isCavalry ? 1.4 : 0.5;
         const height = 2;
 
         this.unit.collisionBox = {
