@@ -127,15 +127,14 @@ class ResourceGatheringSystem {
             position: resourceNode.position.clone()
         };
 
-        // 移动到资源旁离村民最近的可行走格子
-        if (this.isGathererInGatherRange(gatherer, resourceNode)) {
+        const target = this.getGatherTarget(resourceNode.position, gatherer.position);
+        if (this.canStartGatheringImmediately(gatherer, resourceNode, target)) {
             gatherer.isMoving = false;
             gatherer.path = [];
             gatherer.targetPosition = null;
             gatherer.currentAction = 'gathering';
             gatherer.setAnimationState?.('gathering');
         } else {
-            const target = this.getGatherTarget(resourceNode.position, gatherer.position);
             gatherer.moveTo(target, { preserveGathering: true });
         }
 
@@ -188,6 +187,21 @@ class ResourceGatheringSystem {
         return gatherer.position.distanceTo(resourceNode.position) <= this.gatherRange;
     }
 
+    canStartGatheringImmediately(gatherer, resourceNode, target) {
+        if (resourceNode?.userData?.resourceType === 'wood') {
+            return this.isGathererAtGatherTarget(gatherer, target);
+        }
+
+        return this.isGathererInGatherRange(gatherer, resourceNode);
+    }
+
+    isGathererAtGatherTarget(gatherer, target) {
+        if (!gatherer?.position || !target) return false;
+        const dx = gatherer.position.x - target.x;
+        const dz = gatherer.position.z - target.z;
+        return Math.sqrt(dx * dx + dz * dz) <= 0.5;
+    }
+
     continueGathering(gatherer, deltaTime) {
         const resourceNode = gatherer.currentResource;
 
@@ -208,6 +222,14 @@ class ResourceGatheringSystem {
 
         // 到达目标格子后开始采集
         let gatherRate = resourceNode.gatherSpeed || this.gatherRates[resourceNode.userData.resourceType] || 0.5;
+        if (resourceNode.userData.resourceType === 'wood') {
+            const target = this.getGatherTarget(resourceNode.position, gatherer.position);
+            if (!this.isGathererAtGatherTarget(gatherer, target)) {
+                gatherer.moveTo(target, { preserveGathering: true });
+                return;
+            }
+        }
+
         if (resourceNode.userData.resourceType === 'food' && resourceNode.resourceType === 'food' &&
             !resourceNode.isSheep && !resourceNode.isBoar && gatherer.game?.player) {
             gatherRate *= gatherer.game.player.getBonus('berryGatherRate', 1.0);
