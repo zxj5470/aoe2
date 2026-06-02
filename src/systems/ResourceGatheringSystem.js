@@ -83,7 +83,7 @@ class ResourceGatheringSystem {
         for (const gatherer of this.gatherers) {
             if (!gatherer.isAlive) continue;
 
-            if (gatherer.carryAmount >= this.carryCapacity) {
+            if (gatherer.carryAmount >= this.getCarryCapacity(gatherer)) {
                 // 满载：保存资源点引用后返回投放
                 if (!gatherer.lastResourcePosition && gatherer.currentResource) {
                     gatherer.lastResourcePosition = {
@@ -108,6 +108,7 @@ class ResourceGatheringSystem {
 
     startGathering(gatherer, resourceNode) {
         if (!resourceNode || !resourceNode.userData) return;
+        if (resourceNode.isHuntableBoar?.()) return false;
 
         const resourceType = resourceNode.userData.resourceType;
 
@@ -173,21 +174,30 @@ class ResourceGatheringSystem {
             return;
         }
 
+        if (resourceNode.isHuntableBoar?.()) {
+            gatherer.currentResource = null;
+            gatherer.carryType = null;
+            return;
+        }
+
         // 未到达目标格子时继续移动（不重复调用 moveTo）
         if (gatherer.isMoving) return;
 
         // 到达目标格子后开始采集
         let gatherRate = resourceNode.gatherSpeed || this.gatherRates[resourceNode.userData.resourceType] || 0.5;
         if (resourceNode.userData.resourceType === 'food' && resourceNode.resourceType === 'food' &&
-            !resourceNode.isSheep && gatherer.game?.player) {
+            !resourceNode.isSheep && !resourceNode.isBoar && gatherer.game?.player) {
             gatherRate *= gatherer.game.player.getBonus('berryGatherRate', 1.0);
+        }
+        if (resourceNode.userData.resourceType === 'food' && resourceNode.isBoar && gatherer.game?.player) {
+            gatherRate *= gatherer.game.player.getBonus('huntGatherRate', 1.0);
         }
         const gatherAmount = gatherRate * deltaTime;
 
         const availableAmount = Math.min(
             gatherAmount,
             resourceNode.amount,
-            this.carryCapacity - gatherer.carryAmount
+            this.getCarryCapacity(gatherer, resourceNode) - gatherer.carryAmount
         );
 
         if (availableAmount > 0) {
@@ -396,6 +406,14 @@ class ResourceGatheringSystem {
 
     setCarryCapacity(capacity) {
         this.carryCapacity = capacity;
+    }
+
+    getCarryCapacity(gatherer, resourceNode = gatherer?.currentResource) {
+        if (resourceNode?.isBoar && resourceNode.boarState === 'deadResource') {
+            return 35;
+        }
+
+        return this.carryCapacity;
     }
 
     setGatherRange(range) {

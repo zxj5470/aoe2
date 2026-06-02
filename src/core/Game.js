@@ -820,6 +820,20 @@ class Game {
                 }
             }
 
+            // 野猪狩猎：村民右键活野猪 → 使用远程狩猎攻击；死亡后作为食物采集
+            if (entity.type === 'resource' && entity.isBoar && selectedVillagers.length > 0) {
+                if (entity.isHuntableBoar?.()) {
+                    this.selectionManager.issueAttackCommand(entity);
+                    return;
+                }
+
+                if (entity.boarState === 'deadResource' && entity.userData?.resourceAmount > 0) {
+                    if (entity.showGatherIndicator) entity.showGatherIndicator();
+                    this.selectionManager.issueCommand('gather', entity);
+                    return;
+                }
+            }
+
             // 村民右键可驻扎建筑 → 驻扎
             if (entity.type === 'building' && selectedVillagers.some(v => entity.canGarrisonUnit?.(v))) {
                 for (const v of selectedVillagers) {
@@ -828,8 +842,8 @@ class Game {
                 return;
             }
 
-            // 资源采集（排除已捕获的绵羊 - 它们不是普通资源）
-            if (entity.type === 'resource' && !entity.isSheep) {
+            // 资源采集（排除已捕获的绵羊和活野猪）
+            if (entity.type === 'resource' && !entity.isSheep && !entity.isHuntableBoar?.()) {
                 if (entity.showGatherIndicator) entity.showGatherIndicator();
                 this.selectionManager.issueCommand('gather', entity);
                 return;

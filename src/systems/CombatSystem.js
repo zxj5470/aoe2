@@ -120,7 +120,7 @@ class CombatSystem {
         damage = Math.max(1, damage - target.armor);
         
         // 造成伤害
-        target.takeDamage(damage);
+        target.takeDamage(damage, attacker);
         
         // 创建攻击效果
         this.createAttackEffect(attacker, target);

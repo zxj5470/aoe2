@@ -41,9 +41,10 @@ class ResourceNode extends Entity {
         this.gatherParticles = [];
         this.particleInterval = 0;
 
-        // 绵羊检测（必须在 getAppearanceConfig 之前）
+        // 动物检测（必须在 getAppearanceConfig 之前）
         this.isSheep = config.name && config.name.startsWith('sheep_');
-        this.visionRange = this.isSheep ? 2 : 0;
+        this.isBoar = config.name && config.name.startsWith('boar_');
+        this.visionRange = this.isSheep ? 2 : this.isBoar ? 4 : 0;
 
         // 根据资源类型设置外观配置
         this.appearanceConfig = this.getAppearanceConfig();
@@ -56,6 +57,20 @@ class ResourceNode extends Entity {
         this.slaughterFoodAmount = 0;
         this.sheepCaptureCheckTimer = 0;
         this.sheepCaptureCheckInterval = 0.5; // 每0.5秒检测一次
+
+        // 野猪特有状态初始化
+        this.boarState = this.isBoar ? 'idle' : null;
+        this.boarHomePosition = this.isBoar ? this.position.clone() : null;
+        this.boarTarget = null;
+        this.boarSpeed = config.boarSpeed || 4;
+        this.boarAggroRange = config.boarAggroRange || 8;
+        this.boarLeashRange = config.boarLeashRange || 18;
+        this.boarReturnRange = 0.25;
+        this.attackDamage = this.isBoar ? (config.attackDamage || 7) : 0;
+        this.attackRange = this.isBoar ? (config.attackRange || 1.1) : 0;
+        this.attackCooldown = this.isBoar ? (config.attackCooldown || 1.5) : 0;
+        this.lastAttackTime = 0;
+        this.armor = config.armor || 0;
 
         // 更新userData以包含资源数量（供ResourceGatheringSystem使用）
         this.userData = {
@@ -362,6 +377,16 @@ class ResourceNode extends Entity {
             };
         }
 
+        if (this.isBoar) {
+            return {
+                type: 'boar',
+                bodyColor: 0x5A3324,
+                headColor: 0x3B241A,
+                tuskColor: 0xF3E7C5,
+                size: 0.65
+            };
+        }
+
         return configs[this.resourceType] || configs.wood;
     }
 
@@ -384,6 +409,9 @@ class ResourceNode extends Entity {
                 break;
             case 'sheep':
                 this.createSheep(group, config);
+                break;
+            case 'boar':
+                this.createBoar(group, config);
                 break;
         }
         
@@ -736,6 +764,96 @@ class ResourceNode extends Entity {
         group.add(tail);
     }
 
+    /**
+     * 创建野猪模型（棕色身体 + 短腿 + 獠牙）
+     */
+    createBoar(group, config) {
+        const bodyGeometry = new THREE.SphereGeometry(config.size, 12, 8);
+        bodyGeometry.scale(1.35, 0.75, 1.8);
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+            color: config.bodyColor,
+            roughness: 0.9
+        });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.position.y = config.size * 0.75;
+        body.castShadow = true;
+        body.receiveShadow = true;
+        body.name = 'boarBody';
+        group.add(body);
+
+        const headGeometry = new THREE.SphereGeometry(config.size * 0.55, 10, 8);
+        headGeometry.scale(1.05, 0.85, 0.9);
+        const headMaterial = new THREE.MeshStandardMaterial({
+            color: config.headColor,
+            roughness: 0.85
+        });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        head.position.set(0, config.size * 0.82, config.size * 1.25);
+        head.name = 'boarHead';
+        group.add(head);
+
+        const snoutGeometry = new THREE.CylinderGeometry(config.size * 0.18, config.size * 0.24, config.size * 0.35, 8);
+        const snoutMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2B1812,
+            roughness: 0.8
+        });
+        const snout = new THREE.Mesh(snoutGeometry, snoutMaterial);
+        snout.rotation.x = Math.PI / 2;
+        snout.position.set(0, config.size * 0.75, config.size * 1.72);
+        snout.name = 'boarSnout';
+        group.add(snout);
+
+        for (let side = -1; side <= 1; side += 2) {
+            const tuskGeometry = new THREE.ConeGeometry(config.size * 0.055, config.size * 0.35, 8);
+            const tuskMaterial = new THREE.MeshStandardMaterial({
+                color: config.tuskColor,
+                roughness: 0.5
+            });
+            const tusk = new THREE.Mesh(tuskGeometry, tuskMaterial);
+            tusk.rotation.x = -Math.PI / 2;
+            tusk.rotation.z = side * 0.45;
+            tusk.position.set(side * config.size * 0.22, config.size * 0.62, config.size * 1.88);
+            tusk.name = `boarTusk_${side}`;
+            group.add(tusk);
+
+            const earGeometry = new THREE.ConeGeometry(config.size * 0.13, config.size * 0.28, 6);
+            const earMaterial = new THREE.MeshStandardMaterial({
+                color: 0x2F1B14,
+                roughness: 0.85
+            });
+            const ear = new THREE.Mesh(earGeometry, earMaterial);
+            ear.rotation.z = side * 0.6;
+            ear.position.set(side * config.size * 0.34, config.size * 1.2, config.size * 1.05);
+            ear.name = `boarEar_${side}`;
+            group.add(ear);
+        }
+
+        for (let i = 0; i < 4; i++) {
+            const legX = (i % 2 === 0 ? -1 : 1) * config.size * 0.42;
+            const legZ = (i < 2 ? 1 : -1) * config.size * 0.62;
+            const legGeometry = new THREE.CylinderGeometry(config.size * 0.09, config.size * 0.11, config.size * 0.55, 6);
+            const legMaterial = new THREE.MeshStandardMaterial({
+                color: 0x2A1710,
+                roughness: 0.9
+            });
+            const leg = new THREE.Mesh(legGeometry, legMaterial);
+            leg.position.set(legX, config.size * 0.28, legZ);
+            leg.name = `boarLeg_${i}`;
+            group.add(leg);
+        }
+
+        const tailGeometry = new THREE.CylinderGeometry(config.size * 0.035, config.size * 0.035, config.size * 0.45, 6);
+        const tailMaterial = new THREE.MeshStandardMaterial({
+            color: config.headColor,
+            roughness: 0.9
+        });
+        const tail = new THREE.Mesh(tailGeometry, tailMaterial);
+        tail.rotation.x = Math.PI / 3;
+        tail.position.set(0, config.size * 0.85, -config.size * 1.25);
+        tail.name = 'boarTail';
+        group.add(tail);
+    }
+
     update(deltaTime) {
         if (!this.isAlive) {
             // 如果资源已耗尽，处理重生逻辑
@@ -773,6 +891,10 @@ class ResourceNode extends Entity {
                 }
             }
             this.updateSheepMovement(deltaTime);
+        }
+
+        if (this.isBoar) {
+            this.updateBoarBehavior(deltaTime);
         }
     }
 
@@ -865,6 +987,150 @@ class ResourceNode extends Entity {
         if (this._game && this._game.spatialIndex) {
             this._game.spatialIndex.update(this);
         }
+    }
+
+    // ========== 野猪系统 ==========
+
+    startBoarAggro(target) {
+        if (!this.isBoar || !this.isAlive || this.isDepleted || !target || !target.isAlive) return;
+        this.boarTarget = target;
+        this.boarState = 'aggro';
+    }
+
+    takeDamage(amount, attacker = null) {
+        if (!this.isBoar) {
+            super.takeDamage(amount);
+            return;
+        }
+
+        if (!this.isAlive || this.isDepleted) return;
+
+        this.health -= Math.max(1, amount - this.armor);
+        if (attacker) {
+            this.startBoarAggro(attacker);
+        }
+
+        if (this.health <= 0) {
+            this.health = 0;
+            this.convertBoarToFood();
+        }
+    }
+
+    convertBoarToFood() {
+        if (!this.isBoar) return;
+
+        this.isAlive = true;
+        this.boarState = 'deadResource';
+        this.boarTarget = null;
+        this.resourceType = 'food';
+        this.amount = Math.max(this.amount, 340);
+        this.maxAmount = Math.max(this.maxAmount, this.amount);
+        this.gatherSpeed = 3;
+        this.isDepleted = false;
+
+        if (this.userData) {
+            this.userData.resourceType = 'food';
+            this.userData.resourceAmount = this.amount;
+        }
+        if (this.mesh?.userData) {
+            this.mesh.userData.resourceType = 'food';
+            this.mesh.userData.resourceAmount = this.amount;
+            this.mesh.userData.deadBoar = true;
+        }
+
+        if (this.mesh) {
+            this.mesh.userData.dead = false;
+            this.mesh.rotation.z = -Math.PI / 2;
+            this.mesh.position.y = 0.15;
+            this.mesh.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    child.material.opacity = 0.85;
+                    child.material.transparent = true;
+                }
+            });
+        }
+
+        if (this._game?.combatSystem) {
+            this._game.combatSystem.unregisterCombatant(this);
+        }
+    }
+
+    updateBoarBehavior(deltaTime) {
+        if (this.boarState === 'aggro') {
+            if (!this.boarTarget || !this.boarTarget.isAlive) {
+                this.startBoarReturn();
+                return;
+            }
+
+            const homeDistance = this.position.distanceTo(this.boarHomePosition);
+            if (homeDistance > this.boarLeashRange) {
+                this.startBoarReturn();
+                return;
+            }
+
+            const targetDistance = this.position.distanceTo(this.boarTarget.position);
+            if (targetDistance > this.attackRange) {
+                this.moveBoarToward(this.boarTarget.position, deltaTime);
+                return;
+            }
+
+            this.faceBoarTarget(this.boarTarget.position);
+            const currentTime = Date.now() / 1000;
+            if (currentTime - this.lastAttackTime >= this.attackCooldown) {
+                this.boarTarget.takeDamage(this.attackDamage);
+                this.lastAttackTime = currentTime;
+            }
+            return;
+        }
+
+        if (this.boarState === 'returning') {
+            const distance = this.position.distanceTo(this.boarHomePosition);
+            if (distance <= this.boarReturnRange) {
+                this.boarState = 'idle';
+                this.boarTarget = null;
+                return;
+            }
+            this.moveBoarToward(this.boarHomePosition, deltaTime);
+        }
+    }
+
+    startBoarReturn() {
+        this.boarTarget = null;
+        this.boarState = 'returning';
+    }
+
+    moveBoarToward(targetPos, deltaTime) {
+        const dx = targetPos.x - this.position.x;
+        const dz = targetPos.z - this.position.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist <= 0.001) return;
+
+        const step = Math.min(this.boarSpeed * deltaTime, dist);
+        this.position.x += (dx / dist) * step;
+        this.position.z += (dz / dist) * step;
+        this.faceBoarTarget(targetPos);
+
+        if (this.mesh) {
+            this.mesh.position.x = this.position.x;
+            this.mesh.position.z = this.position.z;
+        }
+
+        this.collisionBox = null;
+        if (this._game?.spatialIndex) {
+            this._game.spatialIndex.update(this);
+        }
+    }
+
+    faceBoarTarget(targetPos) {
+        if (!this.mesh) return;
+        const dx = targetPos.x - this.position.x;
+        const dz = targetPos.z - this.position.z;
+        if (Math.abs(dx) + Math.abs(dz) <= 0.001) return;
+        this.mesh.rotation.y = Math.atan2(dx, dz);
+    }
+
+    isHuntableBoar() {
+        return this.isBoar && this.isAlive && this.boarState !== 'deadResource' && !this.isDepleted;
     }
 
     /**

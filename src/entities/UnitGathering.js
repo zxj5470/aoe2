@@ -106,6 +106,7 @@ class UnitGathering {
 
     gatherResource(resourceEntity, dropOffPoint = null) {
         if (!resourceEntity || !resourceEntity.userData) return;
+        if (resourceEntity.isHuntableBoar?.()) return;
 
         if (resourceEntity.userData.resourceAmount <= 0) {
             return;

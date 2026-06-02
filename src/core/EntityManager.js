@@ -339,8 +339,9 @@ class EntityManager {
         }
 
         this.spawnSheepAroundTownCenters(townCenters, alignToGrid);
+        this.spawnBoarsAroundTownCenters(townCenters, alignToGrid);
 
-        console.log(`阿拉伯地图初始化：${townCenters.length} 个城镇中心，${totalVillagers} 个村民，8 只羊`);
+        console.log(`阿拉伯地图初始化：${townCenters.length} 个城镇中心，${totalVillagers} 个村民，8 只羊，野猪已生成`);
     }
 
     spawnScoutNearTownCenter(tc, alignToGrid) {
@@ -430,6 +431,46 @@ class EntityManager {
                 const sheepMesh = sheep.createMesh();
                 if (sheepMesh) {
                     this.addEntity(sheep);
+                }
+            }
+        }
+    }
+
+    spawnBoarsAroundTownCenters(townCenters, alignToGrid) {
+        let boarIndex = 0;
+
+        for (const tc of townCenters) {
+            const tcX = tc.position.x;
+            const tcZ = tc.position.z;
+
+            for (let i = 0; i < 2; i++) {
+                const angle = (i / 2) * Math.PI * 2 + Math.random() * 0.8;
+                const distance = 14 + Math.random() * 8;
+                const x = alignToGrid(tcX + Math.cos(angle) * distance, 1);
+                const z = alignToGrid(tcZ + Math.sin(angle) * distance, 1);
+
+                const boar = new ResourceNode({
+                    resourceType: 'food',
+                    name: `boar_${boarIndex++}`,
+                    x,
+                    z,
+                    amount: 340,
+                    health: 75,
+                    maxHealth: 75,
+                    gatherSpeed: 0.75,
+                    canRespawn: false,
+                    respawnTime: 0,
+                    boarSpeed: 4,
+                    boarAggroRange: 8,
+                    boarLeashRange: 18,
+                    attackDamage: 7,
+                    attackRange: 1.1,
+                    attackCooldown: 1.5
+                });
+
+                const boarMesh = boar.createMesh();
+                if (boarMesh) {
+                    this.addEntity(boar);
                 }
             }
         }
