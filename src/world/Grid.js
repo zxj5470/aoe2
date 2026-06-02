@@ -40,9 +40,24 @@ class Grid {
     }
 
     getCellAtPosition(worldX, worldZ) {
-        // 世界坐标 (-100~100) 转换到网格索引 (0~199)
-        const x = Math.floor(worldX / this.cellSize + this.width / 2);
-        const y = Math.floor(worldZ / this.cellSize + this.height / 2);
+        // 世界坐标 (-100~100) 转换到网格索引 (0~199)，正好落在最大边界时归入最后一格。
+        const halfWidth = this.width * this.cellSize / 2;
+        const halfHeight = this.height * this.cellSize / 2;
+        const epsilon = 1e-6;
+
+        if (worldX < -halfWidth - epsilon || worldX > halfWidth + epsilon ||
+            worldZ < -halfHeight - epsilon || worldZ > halfHeight + epsilon) {
+            return null;
+        }
+
+        const x = Math.max(0, Math.min(
+            this.width - 1,
+            Math.floor(worldX / this.cellSize + this.width / 2)
+        ));
+        const y = Math.max(0, Math.min(
+            this.height - 1,
+            Math.floor(worldZ / this.cellSize + this.height / 2)
+        ));
         const cell = this.getCell(x, y);
         return cell;
     }

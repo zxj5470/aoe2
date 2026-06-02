@@ -765,92 +765,200 @@ class ResourceNode extends Entity {
     }
 
     /**
-     * 创建野猪模型（棕色身体 + 短腿 + 獠牙）
+     * 创建野猪模型（方块拼接：长身体 + 方头 + 短腿 + 獠牙）
      */
     createBoar(group, config) {
-        const bodyGeometry = new THREE.SphereGeometry(config.size, 12, 8);
-        bodyGeometry.scale(1.35, 0.75, 1.8);
+        this.createCrocodile(group, config);
+    }
+
+    /**
+     * 当前低矮长身模型更接近鳄鱼，保留为鳄鱼生成函数。
+     */
+    createCrocodile(group, config) {
         const bodyMaterial = new THREE.MeshStandardMaterial({
             color: config.bodyColor,
             roughness: 0.9
         });
+        const headMaterial = new THREE.MeshStandardMaterial({
+            color: config.headColor,
+            roughness: 0.85
+        });
+        const darkMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2B1812,
+            roughness: 0.85
+        });
+        const legMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2A1710,
+            roughness: 0.9
+        });
+
+        const bodyGeometry = new THREE.BoxGeometry(config.size * 1.05, config.size * 0.58, config.size * 2.45);
         const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        body.position.y = config.size * 0.75;
+        body.position.y = config.size * 0.62;
         body.castShadow = true;
         body.receiveShadow = true;
         body.name = 'boarBody';
         group.add(body);
 
-        const headGeometry = new THREE.SphereGeometry(config.size * 0.55, 10, 8);
-        headGeometry.scale(1.05, 0.85, 0.9);
-        const headMaterial = new THREE.MeshStandardMaterial({
-            color: config.headColor,
-            roughness: 0.85
-        });
+        const backGeometry = new THREE.BoxGeometry(config.size * 0.52, config.size * 0.24, config.size * 1.95);
+        const back = new THREE.Mesh(backGeometry, headMaterial);
+        back.position.set(0, config.size * 0.98, -config.size * 0.08);
+        back.castShadow = true;
+        back.name = 'boarBristleBlock';
+        group.add(back);
+
+        const shoulderGeometry = new THREE.BoxGeometry(config.size * 1.0, config.size * 0.72, config.size * 0.78);
+        const shoulder = new THREE.Mesh(shoulderGeometry, headMaterial);
+        shoulder.position.set(0, config.size * 0.66, config.size * 0.72);
+        shoulder.castShadow = true;
+        shoulder.name = 'boarShoulderBlock';
+        group.add(shoulder);
+
+        const headGeometry = new THREE.BoxGeometry(config.size * 0.66, config.size * 0.44, config.size * 0.58);
         const head = new THREE.Mesh(headGeometry, headMaterial);
-        head.position.set(0, config.size * 0.82, config.size * 1.25);
+        head.position.set(0, config.size * 0.58, config.size * 1.45);
+        head.castShadow = true;
         head.name = 'boarHead';
         group.add(head);
 
-        const snoutGeometry = new THREE.CylinderGeometry(config.size * 0.18, config.size * 0.24, config.size * 0.35, 8);
-        const snoutMaterial = new THREE.MeshStandardMaterial({
-            color: 0x2B1812,
-            roughness: 0.8
-        });
-        const snout = new THREE.Mesh(snoutGeometry, snoutMaterial);
-        snout.rotation.x = Math.PI / 2;
-        snout.position.set(0, config.size * 0.75, config.size * 1.72);
+        const snoutGeometry = new THREE.BoxGeometry(config.size * 0.42, config.size * 0.24, config.size * 0.64);
+        const snout = new THREE.Mesh(snoutGeometry, darkMaterial);
+        snout.castShadow = true;
+        snout.position.set(0, config.size * 0.48, config.size * 1.92);
         snout.name = 'boarSnout';
         group.add(snout);
 
+        const noseGeometry = new THREE.BoxGeometry(config.size * 0.5, config.size * 0.16, config.size * 0.16);
+        const nose = new THREE.Mesh(noseGeometry, darkMaterial);
+        nose.position.set(0, config.size * 0.48, config.size * 2.28);
+        nose.name = 'boarNose';
+        group.add(nose);
+
         for (let side = -1; side <= 1; side += 2) {
-            const tuskGeometry = new THREE.ConeGeometry(config.size * 0.055, config.size * 0.35, 8);
+            const tuskGeometry = new THREE.ConeGeometry(config.size * 0.055, config.size * 0.42, 8);
             const tuskMaterial = new THREE.MeshStandardMaterial({
                 color: config.tuskColor,
                 roughness: 0.5
             });
             const tusk = new THREE.Mesh(tuskGeometry, tuskMaterial);
             tusk.rotation.x = -Math.PI / 2;
-            tusk.rotation.z = side * 0.45;
-            tusk.position.set(side * config.size * 0.22, config.size * 0.62, config.size * 1.88);
+            tusk.rotation.z = side * 0.7;
+            tusk.position.set(side * config.size * 0.24, config.size * 0.42, config.size * 2.05);
             tusk.name = `boarTusk_${side}`;
             group.add(tusk);
 
-            const earGeometry = new THREE.ConeGeometry(config.size * 0.13, config.size * 0.28, 6);
-            const earMaterial = new THREE.MeshStandardMaterial({
-                color: 0x2F1B14,
-                roughness: 0.85
-            });
-            const ear = new THREE.Mesh(earGeometry, earMaterial);
-            ear.rotation.z = side * 0.6;
-            ear.position.set(side * config.size * 0.34, config.size * 1.2, config.size * 1.05);
+            const earGeometry = new THREE.BoxGeometry(config.size * 0.15, config.size * 0.22, config.size * 0.12);
+            const ear = new THREE.Mesh(earGeometry, darkMaterial);
+            ear.rotation.z = side * 0.75;
+            ear.position.set(side * config.size * 0.32, config.size * 0.9, config.size * 1.28);
             ear.name = `boarEar_${side}`;
+            group.add(ear);
+        }
+
+        for (let i = 0; i < 4; i++) {
+            const legX = (i % 2 === 0 ? -1 : 1) * config.size * 0.34;
+            const legZ = (i < 2 ? 1 : -1) * config.size * 0.7;
+            const legGeometry = new THREE.BoxGeometry(config.size * 0.16, config.size * 0.38, config.size * 0.16);
+            const leg = new THREE.Mesh(legGeometry, legMaterial);
+            leg.position.set(legX, config.size * 0.2, legZ);
+            leg.name = `boarLeg_${i}`;
+            group.add(leg);
+        }
+
+        const tailGeometry = new THREE.BoxGeometry(config.size * 0.1, config.size * 0.1, config.size * 0.28);
+        const tail = new THREE.Mesh(tailGeometry, darkMaterial);
+        tail.rotation.x = -Math.PI / 6;
+        tail.position.set(0, config.size * 0.72, -config.size * 1.38);
+        tail.name = 'boarTail';
+        group.add(tail);
+    }
+
+    /**
+     * 上一版方块模型比例偏黄牛，保留为黄牛生成函数。
+     */
+    createOx(group, config) {
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+            color: config.bodyColor,
+            roughness: 0.9
+        });
+        const headMaterial = new THREE.MeshStandardMaterial({
+            color: config.headColor,
+            roughness: 0.85
+        });
+        const darkMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2B1812,
+            roughness: 0.85
+        });
+        const legMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2A1710,
+            roughness: 0.9
+        });
+
+        const bodyGeometry = new THREE.BoxGeometry(config.size * 1.35, config.size * 0.7, config.size * 2.15);
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.position.y = config.size * 0.75;
+        body.castShadow = true;
+        body.receiveShadow = true;
+        body.name = 'oxBody';
+        group.add(body);
+
+        const backGeometry = new THREE.BoxGeometry(config.size * 1.15, config.size * 0.22, config.size * 1.55);
+        const back = new THREE.Mesh(backGeometry, headMaterial);
+        back.position.set(0, config.size * 1.18, -config.size * 0.1);
+        back.castShadow = true;
+        back.name = 'oxBackBlock';
+        group.add(back);
+
+        const headGeometry = new THREE.BoxGeometry(config.size * 0.85, config.size * 0.55, config.size * 0.75);
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        head.position.set(0, config.size * 0.88, config.size * 1.28);
+        head.castShadow = true;
+        head.name = 'oxHead';
+        group.add(head);
+
+        const snoutGeometry = new THREE.BoxGeometry(config.size * 0.46, config.size * 0.26, config.size * 0.42);
+        const snout = new THREE.Mesh(snoutGeometry, darkMaterial);
+        snout.castShadow = true;
+        snout.position.set(0, config.size * 0.72, config.size * 1.78);
+        snout.name = 'oxSnout';
+        group.add(snout);
+
+        for (let side = -1; side <= 1; side += 2) {
+            const hornGeometry = new THREE.ConeGeometry(config.size * 0.055, config.size * 0.35, 8);
+            const hornMaterial = new THREE.MeshStandardMaterial({
+                color: config.tuskColor,
+                roughness: 0.5
+            });
+            const horn = new THREE.Mesh(hornGeometry, hornMaterial);
+            horn.rotation.x = -Math.PI / 2;
+            horn.rotation.z = side * 0.45;
+            horn.position.set(side * config.size * 0.22, config.size * 0.62, config.size * 1.88);
+            horn.name = `oxHorn_${side}`;
+            group.add(horn);
+
+            const earGeometry = new THREE.BoxGeometry(config.size * 0.18, config.size * 0.32, config.size * 0.16);
+            const ear = new THREE.Mesh(earGeometry, darkMaterial);
+            ear.rotation.z = side * 0.5;
+            ear.position.set(side * config.size * 0.38, config.size * 1.2, config.size * 1.08);
+            ear.name = `oxEar_${side}`;
             group.add(ear);
         }
 
         for (let i = 0; i < 4; i++) {
             const legX = (i % 2 === 0 ? -1 : 1) * config.size * 0.42;
             const legZ = (i < 2 ? 1 : -1) * config.size * 0.62;
-            const legGeometry = new THREE.CylinderGeometry(config.size * 0.09, config.size * 0.11, config.size * 0.55, 6);
-            const legMaterial = new THREE.MeshStandardMaterial({
-                color: 0x2A1710,
-                roughness: 0.9
-            });
+            const legGeometry = new THREE.BoxGeometry(config.size * 0.18, config.size * 0.55, config.size * 0.18);
             const leg = new THREE.Mesh(legGeometry, legMaterial);
             leg.position.set(legX, config.size * 0.28, legZ);
-            leg.name = `boarLeg_${i}`;
+            leg.name = `oxLeg_${i}`;
             group.add(leg);
         }
 
-        const tailGeometry = new THREE.CylinderGeometry(config.size * 0.035, config.size * 0.035, config.size * 0.45, 6);
-        const tailMaterial = new THREE.MeshStandardMaterial({
-            color: config.headColor,
-            roughness: 0.9
-        });
-        const tail = new THREE.Mesh(tailGeometry, tailMaterial);
-        tail.rotation.x = Math.PI / 3;
+        const tailGeometry = new THREE.BoxGeometry(config.size * 0.12, config.size * 0.12, config.size * 0.46);
+        const tail = new THREE.Mesh(tailGeometry, headMaterial);
+        tail.rotation.x = Math.PI / 5;
         tail.position.set(0, config.size * 0.85, -config.size * 1.25);
-        tail.name = 'boarTail';
+        tail.name = 'oxTail';
         group.add(tail);
     }
 

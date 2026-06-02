@@ -193,11 +193,12 @@ class Pathfinding {
 
             for (const cell of cells) {
                 if (cell.walkable && !cell.occupied) {
+                    const worldPos = this.cellToWorld(cell);
                     const result = this.findPath(
                         startX,
                         startZ,
-                        cell.x * this.grid.cellSize + this.grid.cellSize / 2,
-                        cell.y * this.grid.cellSize + this.grid.cellSize / 2
+                        worldPos.x,
+                        worldPos.z
                     );
 
                     if (result.success) {
@@ -214,13 +215,13 @@ class Pathfinding {
         const cells = [];
 
         // 世界坐标转换到网格索引，需要考虑地图偏移（地图中心在原点）
-        const cellX = Math.floor(x / this.grid.cellSize + this.grid.width / 2);
-        const cellY = Math.floor(z / this.grid.cellSize + this.grid.height / 2);
+        const originCell = this.grid.getCellAtPosition(x, z);
+        if (!originCell) return cells;
 
         for (let dx = -distance; dx <= distance; dx++) {
             for (let dy = -distance; dy <= distance; dy++) {
                 if (Math.abs(dx) + Math.abs(dy) === distance) {
-                    const cell = this.grid.getCell(cellX + dx, cellY + dy);
+                    const cell = this.grid.getCell(originCell.x + dx, originCell.y + dy);
                     if (cell) {
                         cells.push(cell);
                     }
@@ -229,6 +230,13 @@ class Pathfinding {
         }
 
         return cells;
+    }
+
+    cellToWorld(cell) {
+        return {
+            x: cell.x * this.grid.cellSize + this.grid.cellSize / 2 - this.grid.width * this.grid.cellSize / 2,
+            z: cell.y * this.grid.cellSize + this.grid.cellSize / 2 - this.grid.height * this.grid.cellSize / 2
+        };
     }
 
     reset() {

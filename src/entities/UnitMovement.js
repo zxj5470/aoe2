@@ -26,10 +26,10 @@ class UnitMovement {
         const mapHeight = this.unit.pathfindingSystem ? this.unit.pathfindingSystem.grid.height * this.unit.pathfindingSystem.grid.cellSize : MAP_CONFIG.height * MAP_CONFIG.cellSize;
         const cellSize = this.unit.pathfindingSystem ? this.unit.pathfindingSystem.grid.cellSize : CELL_SIZE;
 
-        const minX = -mapWidth / 2 + cellSize;
-        const maxX = mapWidth / 2 - cellSize;
-        const minZ = -mapHeight / 2 + cellSize;
-        const maxZ = mapHeight / 2 - cellSize;
+        const minX = -mapWidth / 2 + cellSize / 2;
+        const maxX = mapWidth / 2 - cellSize / 2;
+        const minZ = -mapHeight / 2 + cellSize / 2;
+        const maxZ = mapHeight / 2 - cellSize / 2;
         
         clampedTarget.x = Math.max(minX, Math.min(maxX, clampedTarget.x));
         clampedTarget.z = Math.max(minZ, Math.min(maxZ, clampedTarget.z));
@@ -194,10 +194,10 @@ class UnitMovement {
                 const mapWidth = this.unit.pathfindingSystem ? this.unit.pathfindingSystem.grid.width * this.unit.pathfindingSystem.grid.cellSize : MAP_CONFIG.width * MAP_CONFIG.cellSize;
                 const mapHeight = this.unit.pathfindingSystem ? this.unit.pathfindingSystem.grid.height * this.unit.pathfindingSystem.grid.cellSize : MAP_CONFIG.height * MAP_CONFIG.cellSize;
                 const cellSize = this.unit.pathfindingSystem ? this.unit.pathfindingSystem.grid.cellSize : CELL_SIZE;
-                const minX = -mapWidth / 2 + cellSize;
-                const maxX = mapWidth / 2 - cellSize;
-                const minZ = -mapHeight / 2 + cellSize;
-                const maxZ = mapHeight / 2 - cellSize;
+                const minX = -mapWidth / 2 + cellSize / 2;
+                const maxX = mapWidth / 2 - cellSize / 2;
+                const minZ = -mapHeight / 2 + cellSize / 2;
+                const maxZ = mapHeight / 2 - cellSize / 2;
                 
                 newPosition.x = Math.max(minX, Math.min(maxX, newPosition.x));
                 newPosition.z = Math.max(minZ, Math.min(maxZ, newPosition.z));
