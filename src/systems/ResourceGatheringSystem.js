@@ -118,6 +118,8 @@ class ResourceGatheringSystem {
 
         gatherer.currentResource = resourceNode;
         gatherer.carryType = resourceType;
+        gatherer.isReturning = false;
+        gatherer.shouldAutoDrop = false;
 
         // 记录资源点位置（用于返回城镇中心后再回来）
         gatherer.lastResourcePosition = {
@@ -126,8 +128,16 @@ class ResourceGatheringSystem {
         };
 
         // 移动到资源旁离村民最近的可行走格子
-        const target = this.getGatherTarget(resourceNode.position, gatherer.position);
-        gatherer.moveTo(target, { preserveGathering: true });
+        if (this.isGathererInGatherRange(gatherer, resourceNode)) {
+            gatherer.isMoving = false;
+            gatherer.path = [];
+            gatherer.targetPosition = null;
+            gatherer.currentAction = 'gathering';
+            gatherer.setAnimationState?.('gathering');
+        } else {
+            const target = this.getGatherTarget(resourceNode.position, gatherer.position);
+            gatherer.moveTo(target, { preserveGathering: true });
+        }
 
         return true;
     }
@@ -163,6 +173,19 @@ class ResourceGatheringSystem {
             }
         }
         return bestCell ? new THREE.Vector3(bestCell.x, 0, bestCell.z) : resourcePosition;
+    }
+
+    isGathererInGatherRange(gatherer, resourceNode) {
+        if (!gatherer?.position || !resourceNode?.position) return false;
+
+        const box = resourceNode.getCollisionBox?.();
+        if (box) {
+            const dx = Math.max(0, Math.max(box.minX - gatherer.position.x, gatherer.position.x - box.maxX));
+            const dz = Math.max(0, Math.max(box.minZ - gatherer.position.z, gatherer.position.z - box.maxZ));
+            return Math.sqrt(dx * dx + dz * dz) <= this.gatherRange;
+        }
+
+        return gatherer.position.distanceTo(resourceNode.position) <= this.gatherRange;
     }
 
     continueGathering(gatherer, deltaTime) {

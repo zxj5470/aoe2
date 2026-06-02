@@ -132,10 +132,8 @@ class UnitGathering {
         
         console.log(`[村民采集] 开始采集 ${this.unit.carryType}，投放点: ${this.unit.dropOffPoint ? '已设置' : '未设置'}`);
 
-        // 移动到资源旁离村民最近的可行走格子（与普通移动相同的寻路逻辑）
         if (this.unit.game && this.unit.game.resourceGatheringSystem) {
-            const target = this.unit.game.resourceGatheringSystem.getGatherTarget(resourceEntity.position, this.unit.position);
-            this.unit.moveTo(target, { preserveGathering: true });
+            this.unit.game.resourceGatheringSystem.startGathering(this.unit, resourceEntity);
         } else {
             this.unit.moveTo(resourceEntity.position, { preserveGathering: true });
         }

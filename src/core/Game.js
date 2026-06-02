@@ -646,8 +646,7 @@ class Game {
             while (currentObj) {
                 if (currentObj.userData && currentObj.userData.entity) {
                     const entity = currentObj.userData.entity;
-                    if (this.isMouseWithinPickBounds(entity, mousePos, rect) &&
-                        this.isEntityPickableByFog(entity, options)) {
+                    if (this.isEntityPickableByFog(entity, options)) {
                         return entity;
                     }
                     break;
